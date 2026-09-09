@@ -46,8 +46,13 @@
 
       <div class="top-actions">
         <button id="files-chip" type="button" class="files-chip" hidden></button>
+        <!-- "Nothing uploaded" read as a file count showing zero: in a
+             document tool, "upload" means "add a file". This says where the
+             work happens instead, which cannot be misread that way. -->
         <button id="secure-chip" type="button" class="secure-chip" title="How this works">
-          <span aria-hidden="true">●</span> Nothing uploaded
+          <span aria-hidden="true">●</span>
+          <span class="chip-full">Stays on your device</span>
+          <span class="chip-short">On device</span>
         </button>
         <p id="status">No PDFs loaded yet.</p>
         <label class="file-button">

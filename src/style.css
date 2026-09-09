@@ -907,6 +907,14 @@ input[type="range"] { width: 100%; }
 
 .topbar .secure-chip:hover { border-color: var(--secure); }
 
+/* The short form on narrow screens, where the top bar has no room. */
+.chip-short { display: none; }
+
+@media (max-width: 760px) {
+  .chip-full { display: none; }
+  .chip-short { display: inline; }
+}
+
 
 /* --- landing hero -------------------------------------------------------- */
 
