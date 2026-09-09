@@ -195,14 +195,28 @@ export const TOOLS = {
     primaryLabel: 'Save redacted PDF',
     hint: 'Click one page, press Redact, then drag boxes over what must go.',
   },
+
+  ocr: {
+    name: 'PDF scan and OCR',
+    blurb: 'Turn a scanned or photographed document into searchable text — on your device, like everything else here.',
+    icon: 'Aa',
+    colour: '#9333ea',
+    // Listed so people know it is coming; nothing behind it yet.
+    comingSoon: true,
+    panels: [],
+    pageActions: ['view'],
+    primary: 'save',
+    primaryLabel: 'Save searchable PDF',
+    hint: 'Coming soon.',
+  },
 }
 
 // The order they appear on the landing page. Pro sits apart from the rest.
 export const SIMPLE_TOOL_IDS = [
   'merge', 'photo-watermark', 'photos', 'bookmarks', 'organise', 'rotate', 'extract', 'split',
   'numbering', 'label', 'redact', 'password',
-  // Not ready yet, so it goes last.
-  'sign',
+  // Not ready yet, so they go last.
+  'sign', 'ocr',
 ]
 
 export const getTool = (id) => TOOLS[id] ?? null

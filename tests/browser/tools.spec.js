@@ -539,6 +539,10 @@ test.describe('the landing page', () => {
   test('a tool marked coming soon is not clickable', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('.tool-card.soon').first()).toBeDisabled()
+    // Scan and OCR is listed as coming soon, and last.
+    const ocr = page.locator('.tool-card', { hasText: 'PDF scan and OCR' })
+    await expect(ocr).toBeDisabled()
+    await expect(page.locator('.tool-card').last()).toHaveText(/PDF scan and OCR/)
   })
 
   test('explains the privacy claim', async ({ page }) => {
