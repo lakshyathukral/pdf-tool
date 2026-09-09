@@ -1,4 +1,4 @@
-# PDF Tool
+# TukTuk Pro
 
 A browser-based PDF editor. Everything runs locally in the browser — no server,
 no uploads. PDFs are read from disk by JavaScript in the page, edited in memory,
