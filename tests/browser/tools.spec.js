@@ -455,6 +455,10 @@ test.describe('redaction', () => {
 
     const stage = await page.locator('#redact-stage').boundingBox()
     expect(stage.width).toBeLessThanOrEqual(page.viewportSize().width)
+    // The whole page must be on screen at once: a dialog that has to be
+    // scrolled cannot be boxed in a single drag.
+    expect(stage.y).toBeGreaterThanOrEqual(0)
+    expect(stage.y + stage.height).toBeLessThanOrEqual(page.viewportSize().height)
 
     // Drag a box across the middle of the page.
     await page.mouse.move(stage.x + stage.width * 0.2, stage.y + stage.height * 0.4)
