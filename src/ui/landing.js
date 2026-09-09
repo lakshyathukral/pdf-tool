@@ -11,7 +11,13 @@ function makeCard(id, tool, big = false) {
   const card = document.createElement('button')
   card.type = 'button'
   card.className = big ? 'tool-card pro' : 'tool-card'
-  card.addEventListener('click', () => goToTool(id))
+
+  if (tool.comingSoon) {
+    card.classList.add('soon')
+    card.disabled = true
+  } else {
+    card.addEventListener('click', () => goToTool(id))
+  }
 
   const icon = document.createElement('span')
   icon.className = 'tool-icon'
@@ -21,6 +27,13 @@ function makeCard(id, tool, big = false) {
   const name = document.createElement('span')
   name.className = 'tool-name'
   name.textContent = tool.name
+
+  if (tool.comingSoon) {
+    const tag = document.createElement('span')
+    tag.className = 'soon-tag'
+    tag.textContent = 'Coming soon'
+    name.append(' ', tag)
+  }
 
   const blurb = document.createElement('span')
   blurb.className = 'tool-blurb'

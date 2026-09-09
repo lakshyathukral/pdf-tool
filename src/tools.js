@@ -68,6 +68,9 @@ export const TOOLS = {
     name: 'Sign a document',
     blurb: 'Drop a picture of your signature onto a page — or onto every page.',
     icon: '✍',
+    // Disabled for now: the placement and background removal are not good
+    // enough to put in front of anyone. The code is all still here.
+    comingSoon: true,
     panels: ['panel-signatures'],
     pageActions: ['select-all', 'select-none', 'view'],
     primary: 'save',
@@ -149,6 +152,10 @@ export const SIMPLE_TOOL_IDS = [
 ]
 
 export const getTool = (id) => TOOLS[id] ?? null
+
+// A tool that is listed but not ready. Its card shows, greyed, so people can
+// see it is on the way rather than wondering whether it exists.
+export const isComingSoon = (id) => Boolean(TOOLS[id]?.comingSoon)
 
 // The tool named in the address bar, e.g. .../#watermark. Empty means the
 // landing page. Using the hash means every tool has its own bookmarkable link

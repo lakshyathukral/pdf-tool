@@ -25,7 +25,7 @@ import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
 import { openSigner, setupSigner } from './ui/sign.js'
 import * as presets from './presets.js'
 import * as signatures from './signatures.js'
-import { TOOLS, ALWAYS_PANELS, getTool, currentToolId, goToTool, goToLanding } from './tools.js'
+import { TOOLS, ALWAYS_PANELS, getTool, isComingSoon, currentToolId, goToTool, goToLanding } from './tools.js'
 import { drawLanding } from './ui/landing.js'
 
 const el = (id) => document.querySelector(`#${id}`)
@@ -55,7 +55,10 @@ const clearError = () => { el('error-banner').hidden = true }
 // No tool in the address bar means the landing page. An unknown one falls back
 // to the full editor rather than showing nothing.
 const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
-const onLanding = () => getTool(currentToolId()) === null
+
+// An unfinished tool behaves like no tool at all, so its address shows the
+// landing page rather than a half-working screen.
+const onLanding = () => getTool(currentToolId()) === null || isComingSoon(currentToolId())
 
 const PANEL_IDS = ['panel-files', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
@@ -73,6 +76,9 @@ function applyTool() {
   for (const id of PAGE_ACTION_IDS) {
     el(id).hidden = !(tool.pageActions === 'all' || tool.pageActions.includes(id))
   }
+
+  // Signatures are not ready; keep the panel out of the full editor too.
+  el('panel-signatures').hidden = true
 
   // The split controls only make sense in the full editor or the split tool.
   el('split-block').hidden = !(isPro || tool.primary === 'split')
