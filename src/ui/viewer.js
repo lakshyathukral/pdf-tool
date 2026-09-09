@@ -8,6 +8,7 @@
 import * as model from '../model.js'
 import { renderLarge } from '../render.js'
 import { addOverlays } from './overlays.js'
+import { fitStage } from './stage.js'
 
 const VIEW_WIDTH = 620
 
@@ -58,8 +59,7 @@ async function show() {
   img.draggable = false
 
   frame.classList.remove('loading')
-  frame.style.width = `${big.width}px`
-  frame.style.height = `${big.height}px`
+  fitStage(frame, big.width, big.height)
   frame.replaceChildren(img)
 
   // Overlays are sized relative to the thumbnail, so scale them up to match.

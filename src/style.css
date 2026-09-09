@@ -492,9 +492,6 @@ input[type="range"] { width: 100%; }
 #viewer-frame img { display: block; width: 100%; height: 100%; }
 
 #viewer-frame.loading {
-  width: 620px;
-  max-width: 100%;
-  height: 400px;
   background: repeating-linear-gradient(45deg, #f4f4f5, #f4f4f5 8px, #e9e9ec 8px, #e9e9ec 16px);
 }
 
@@ -1013,4 +1010,60 @@ input[type="range"] { width: 100%; }
 
 @media (prefers-reduced-motion: reduce) {
   .tool-card, .tool-card:hover:not(.soon) { transition: none; transform: none; }
+}
+
+
+/* --- dialogs on a phone -------------------------------------------------- */
+
+/* The page view inside a dialog is sized with a max-width and an aspect ratio
+   (see ui/stage.js), so it shrinks to fit rather than running off the side. */
+#redact-stage img:not(.redact-box),
+#sign-stage > img:not(.sign-mark),
+#viewer-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  #redact-dialog,
+  #sign-dialog,
+  #viewer-dialog,
+  #security-dialog {
+    /* Nearly full screen: a phone has no room for polite margins. */
+    max-width: 100vw;
+    width: 100vw;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    border: 0;
+    padding: 1rem 0.9rem 1.2rem;
+  }
+
+  /* Actions stack and stretch, so they are reachable with a thumb. */
+  #redact-dialog .row.actions,
+  #sign-dialog .row.actions,
+  #viewer-dialog .row.actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  #redact-dialog .row.actions button,
+  #sign-dialog .row.actions button,
+  #viewer-dialog .row.actions button {
+    width: 100%;
+    padding: 0.6rem 0.5rem;
+  }
+
+  /* The primary action gets the full width, at the top of the grid. */
+  #redact-apply, #sign-apply, #viewer-close { grid-column: 1 / -1; }
+
+  #redact-dialog .hint, #sign-dialog .hint { font-size: 0.72rem; }
+
+  .dialog-head { flex-wrap: wrap; gap: 0.4rem; }
+
+  /* The selection bar wraps a lot on a narrow screen; keep it compact. */
+  .selection-bar { padding: 0.5rem 0.6rem; gap: 0.3rem; }
+  #range-input { width: 100%; order: 99; }
 }

@@ -8,6 +8,7 @@
 import * as model from '../model.js'
 import * as signatures from '../signatures.js'
 import { renderLarge } from '../render.js'
+import { fitStage, placeholderStage } from './stage.js'
 
 const STAGE_WIDTH = 720
 
@@ -125,8 +126,7 @@ export async function openSigner(id) {
 
   stage.replaceChildren()
   stage.classList.add('loading')
-  stage.style.width = `${STAGE_WIDTH}px`
-  stage.style.height = '400px'
+  placeholderStage(stage, STAGE_WIDTH)
   dialog.showModal()
   paint()
 
@@ -140,8 +140,7 @@ export async function openSigner(id) {
   img.draggable = false
 
   stage.classList.remove('loading')
-  stage.style.width = `${big.width}px`
-  stage.style.height = `${big.height}px`
+  fitStage(stage, big.width, big.height)
   stage.replaceChildren(img)
   paint()
 }
