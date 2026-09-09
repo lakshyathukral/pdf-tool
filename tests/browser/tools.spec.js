@@ -156,7 +156,8 @@ test.describe('password-protected files', () => {
     await page.locator('#file-input').setInputFiles([LOCKED])
     await expect(page.locator('#password-dialog')).toBeVisible({ timeout: 30_000 })
     await page.locator('#password-cancel').click()
-    await expect(page.locator('#status')).toContainText('no password given')
+    await expect(page.locator('#error-text')).toContainText('no password given')
+    await expect(page.locator('#dropzone')).toBeVisible()
   })
 
   test('the password tool explains what saving will do', async ({ page }) => {
@@ -177,6 +178,7 @@ test.describe('password-protected files', () => {
   })
 
   test('protects AND flattens without tripping over itself', async ({ page }) => {
+    test.slow()   // renders every page to an image; CI runners are not quick
     // Encrypt-then-flatten failed: flattening re-opens the built file, which
     // it cannot do once locked. The order has to be flatten, then encrypt.
     await load(page)
@@ -232,6 +234,35 @@ test.describe('the file strip', () => {
     await expect(page.locator('#dropzone-hint')).toContainText('Redo')
     await expect(page.locator('#redo')).toBeEnabled()
     await expect(page.locator('.file-chip')).toHaveCount(0)
+  })
+})
+
+test.describe('settings do not leak between tools', () => {
+  test('a watermark switched on in one tool is not applied in another', async ({ page }) => {
+    // The report: open a PDF in the Label tool and find DRAFT already on it.
+    await page.goto('/#photo-watermark')
+    await expect(page.locator('#watermark-enabled')).toBeChecked()
+
+    // Change tool WITHOUT reloading, as clicking through the app does.
+    await page.evaluate(() => { location.hash = '#label' })
+    await expect(page.locator('#tool-name')).toHaveText('Label pages')
+
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.watermark-preview')).toHaveCount(0)
+  })
+
+  test('a setting switched on does not come back on after a reload', async ({ page }) => {
+    await load(page)
+    await page.locator('#panel-watermark > summary').click()
+    await page.locator('#watermark-enabled').check()
+    await expect(page.locator('.watermark-preview').first()).toBeVisible()
+
+    await page.reload()
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#watermark-enabled')).not.toBeChecked()
+    await expect(page.locator('.watermark-preview')).toHaveCount(0)
   })
 })
 

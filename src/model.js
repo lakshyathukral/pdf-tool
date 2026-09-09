@@ -142,11 +142,28 @@ export const canRedo = () => future.length > 0
 export const getPages = () => pages
 export const getSources = () => sources
 export const getSource = (id) => sources.get(id)
-export const getNumbering = () => numbering
-export const getWatermark = () => watermark
+// Which document-level settings the current tool exposes. null means all —
+// the full editor. A setting whose controls are hidden is NOT in effect: a
+// watermark switched on in one tool was being stamped onto documents in
+// another, where nothing on screen showed it was on. Gating the getters means
+// the exporter and the thumbnail previews cannot disagree about it.
+let exposed = null
+
+export function setExposedSettings(names) {
+  exposed = names
+  notify()
+}
+
+const isExposed = (name) => exposed === null || exposed.has(name)
+
+export const getNumbering = () =>
+  isExposed('numbering') ? numbering : { ...numbering, enabled: false }
+export const getWatermark = () =>
+  isExposed('watermark') ? watermark : { ...watermark, enabled: false }
 export const getOutputName = () => outputName
 export const getMetadata = () => metadata
-export const getProtection = () => protection
+export const getProtection = () =>
+  isExposed('password') ? protection : { ...protection, enabled: false }
 
 // Whether any loaded file needed a password to open — the panel says so, since
 // "save it unticked and the password is gone" is not obvious otherwise.

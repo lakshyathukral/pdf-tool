@@ -108,6 +108,18 @@ function applyTool() {
   // Signatures are not ready; keep the panel out of the full editor too.
   el('panel-signatures').hidden = true
 
+  // Settings whose panels this tool does not show are not in effect. The
+  // model gates its own getters on this, so the exporter and the previews
+  // follow it automatically.
+  const SETTING_PANELS = {
+    'panel-watermark': 'watermark',
+    'panel-numbering': 'numbering',
+    'panel-password': 'password',
+  }
+  model.setExposedSettings(
+    isPro ? null : new Set(tool.panels.map((id) => SETTING_PANELS[id]).filter(Boolean)),
+  )
+
   // The split controls only make sense in the full editor or the split tool.
   el('split-block').hidden = !(isPro || tool.primary === 'split')
   el('extract').hidden = !(isPro || tool.primary === 'extract')
@@ -149,13 +161,19 @@ function applyToolDefaults(tool) {
 
   const { watermark, photoPageSize } = tool.defaults
 
-  if (watermark && !model.getWatermark().enabled) {
+  if (watermark) {
+    // Switching it on is this tool's whole point, and the panel is open so it
+    // is visible. The wording is only filled in if the user has not chosen
+    // their own — "DRAFT" is the untouched default.
+    const current = el('watermark-text').value.trim()
+    if (!current || current === 'DRAFT') {
+      el('watermark-text').value = watermark.text
+      el('watermark-size').value = watermark.size
+      el('watermark-angle').value = watermark.angle
+      el('watermark-opacity').value = Math.round(watermark.opacity * 100)
+      el('watermark-tiled').checked = watermark.tiled
+    }
     el('watermark-enabled').checked = true
-    el('watermark-text').value = watermark.text
-    el('watermark-size').value = watermark.size
-    el('watermark-angle').value = watermark.angle
-    el('watermark-opacity').value = Math.round(watermark.opacity * 100)
-    el('watermark-tiled').checked = watermark.tiled
     el('panel-watermark').open = true
     readWatermark()
   }
@@ -411,7 +429,10 @@ async function loadFiles(files) {
       const id = model.reserveSourceId()
       const opened = await openWithPassword(id, bytes, file.name)
       if (!opened) {
-        setStatus(`Skipped "${file.name}" — no password given.`)
+        // In the banner, not the status line: the empty-state message rewrites
+        // the status line straight away, so someone who cancelled was left
+        // looking at "No PDFs loaded yet" with no idea why.
+        showError(`Skipped "${file.name}" — no password given. Add it again to try a password.`)
         continue
       }
 
@@ -629,13 +650,18 @@ function readSettings() {
   }
 }
 
-function applySettings(settings) {
+// restoreEnabled: a named preset the user applies on purpose restores its
+// switches. The settings remembered from last time do NOT — text, size and
+// style come back, but nothing is silently switched on. A watermark enabled
+// once was being restored days later, in another tool, with nothing on screen
+// to say so.
+function applySettings(settings, { restoreEnabled = true } = {}) {
   if (!settings) return
 
   const { numbering, watermark, label, metadata, flatten } = settings
 
   if (numbering) {
-    el('numbering-enabled').checked = numbering.enabled
+    el('numbering-enabled').checked = restoreEnabled && Boolean(numbering.enabled)
     el('numbering-style').value = numbering.style
     el('numbering-prefix').value = numbering.prefix
     el('numbering-start').value = numbering.start
@@ -646,7 +672,7 @@ function applySettings(settings) {
   }
 
   if (watermark) {
-    el('watermark-enabled').checked = watermark.enabled
+    el('watermark-enabled').checked = restoreEnabled && Boolean(watermark.enabled)
     el('watermark-text').value = watermark.text
     el('watermark-size').value = watermark.size
     el('watermark-angle').value = watermark.angle
@@ -655,7 +681,8 @@ function applySettings(settings) {
   }
 
   if (flatten) {
-    el('flatten-enabled').checked = flatten.enabled
+    // Flattening destroys the text layer; it must never come back on by itself.
+    el('flatten-enabled').checked = restoreEnabled && Boolean(flatten.enabled)
     el('flatten-dpi').value = flatten.dpi
     el('flatten-format').value = flatten.format ?? 'png'
   }
@@ -1104,7 +1131,7 @@ drawBookmarks()
 // Restore whatever settings were in use last time, then fall back to reading
 // the untouched defaults out of the page.
 drawLanding()
-applySettings(presets.recallLastUsed())
+applySettings(presets.recallLastUsed(), { restoreEnabled: false })
 readNumbering()
 readWatermark()
 readMetadata()

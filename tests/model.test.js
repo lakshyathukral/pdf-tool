@@ -158,6 +158,27 @@ describe('bookmarks', () => {
   })
 })
 
+describe('settings apply only where their controls are shown', () => {
+  it('hides a watermark that was switched on in another tool', async () => {
+    const model = await freshModel()
+    model.setWatermark({ enabled: true, text: 'DRAFT' })
+    model.setExposedSettings(new Set(['numbering']))
+    expect(model.getWatermark().enabled).toBe(false)
+    expect(model.getWatermark().text).toBe('DRAFT')   // configuration is kept
+    model.setExposedSettings(null)                    // the full editor
+    expect(model.getWatermark().enabled).toBe(true)
+  })
+
+  it('does the same for numbering and passwords', async () => {
+    const model = await freshModel()
+    model.setNumbering({ enabled: true })
+    model.setProtection({ enabled: true, password: 'x' })
+    model.setExposedSettings(new Set(['watermark']))
+    expect(model.getNumbering().enabled).toBe(false)
+    expect(model.getProtection().enabled).toBe(false)
+  })
+})
+
 describe('splitStarts', () => {
   const pages = Array.from({ length: 8 }, (_, i) => ({ id: `p${i}` }))
 
