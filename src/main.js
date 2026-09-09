@@ -912,7 +912,11 @@ function exportOptions(pages, firstNumber, totalPages) {
     rasterize: rasterizeRedacted,
     signatures: new Map(signatures.listSignatures().map((sig) => [sig.id, sig])),
     metadata: model.getMetadata(),
-    protection: model.getProtection(),
+    // Encryption must be the LAST thing done to the file. Flattening re-opens
+    // the built file to render its pages, which is impossible once it is
+    // locked — so when a flatten is coming, the password is applied by that
+    // step instead (see finish()), not here.
+    protection: model.getFlatten().enabled ? null : model.getProtection(),
     firstNumber,
     totalPages,
   }

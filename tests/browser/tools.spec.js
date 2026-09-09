@@ -176,6 +176,22 @@ test.describe('password-protected files', () => {
     await expect(page.locator('#password-state')).toContainText('replace it')
   })
 
+  test('protects AND flattens without tripping over itself', async ({ page }) => {
+    // Encrypt-then-flatten failed: flattening re-opens the built file, which
+    // it cannot do once locked. The order has to be flatten, then encrypt.
+    await load(page)
+    await page.locator('#panel-password > summary').click()
+    await page.locator('#protect-enabled').check()
+    await page.locator('#protect-password').fill('hunter2')
+    await page.locator('#panel-saving .sub > summary').click()
+    await page.locator('#flatten-enabled').check()
+
+    const download = page.waitForEvent('download', { timeout: 90_000 })
+    await page.locator('#primary-action').click()
+    expect((await download).suggestedFilename()).toMatch(/\.pdf$/)
+    await expect(page.locator('#error-banner')).toBeHidden()
+  })
+
   test('saves a protected file when asked', async ({ page }) => {
     await load(page)
     await page.locator('#panel-password > summary').click()
