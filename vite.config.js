@@ -1,25 +1,16 @@
-import { existsSync } from 'node:fs'
 import { defineConfig } from 'vite'
 
-// GitHub Pages serves a project site from a subfolder:
-//   https://<username>.github.io/<repo-name>/
-// but this app assumes it lives at the root, so every asset path would 404.
+// Relative asset paths, so one build works wherever it is served from: at the
+// root of a custom domain, or in a subfolder like /pdf-tool/ on github.io.
 //
-// GitHub Actions sets GITHUB_REPOSITORY to "username/repo-name" during a build,
-// so the correct prefix can be worked out automatically. That means the repo
-// can be renamed without touching this file, and local builds — where the
-// variable does not exist — still use the plain root.
-const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1]
-
-// A custom domain serves the site from the ROOT, not from /<repo-name>/, so
-// the prefix has to go — otherwise every asset 404s and the page comes up
-// blank while the DNS looks perfectly fine. public/CNAME is the signal:
-// GitHub Pages reads that file for the domain, and Vite copies it into the
-// build, so its presence is exactly the condition we want to key off.
-const hasCustomDomain = existsSync('public/CNAME')
-
+// Pinning it to one or the other means the other silently breaks — the page
+// loads, the stylesheet 404s, and you get raw unstyled HTML that looks like a
+// corrupt deployment rather than a path problem.
+//
+// Safe here because navigation uses the URL hash (#watermark) rather than
+// paths, so nothing depends on the site knowing its own depth.
 export default defineConfig({
-  base: hasCustomDomain || !repoName ? '/' : `/${repoName}/`,
+  base: './',
 
   // pdf.js starts its worker as a module, so ours has to be one too.
   worker: { format: 'es' },
