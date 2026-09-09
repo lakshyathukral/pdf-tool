@@ -85,9 +85,7 @@ function applyTool() {
   el('split-block').hidden = !(isPro || tool.primary === 'split')
   el('extract').hidden = !(isPro || tool.primary === 'extract')
 
-  el('tool-name').textContent = onLanding()
-    ? 'Runs entirely in your browser — nothing is uploaded.'
-    : tool.name
+  el('tool-name').textContent = onLanding() ? '' : tool.name
 
   el('primary-action').textContent = tool.primaryLabel
   el('open-pro').hidden = onLanding() || isPro
@@ -768,6 +766,13 @@ el('primary-action').addEventListener('click', () => RUN[activeTool().primary]()
 // from the toolbar.
 el('error-dismiss').addEventListener('click', clearError)
 el('home-link').addEventListener('click', goToLanding)
+
+// The security explainer, reachable from the landing page and from the chip
+// in the top bar while you are working.
+const securityDialog = document.querySelector('#security-dialog')
+el('security-open').addEventListener('click', () => securityDialog.showModal())
+el('secure-chip').addEventListener('click', () => securityDialog.showModal())
+el('security-close').addEventListener('click', () => securityDialog.close())
 el('open-pro').addEventListener('click', () => goToTool('pro'))
 
 // The address bar is the single source of truth for which tool is open, so

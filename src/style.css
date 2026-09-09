@@ -1,8 +1,37 @@
 :root {
-  --border: #d4d4d8;
-  --muted: #71717a;
-  --accent: #0a66c2;
-  --bg-soft: #fafafa;
+  /* Fonts already on the machine. Loading a font from a CDN would mean a
+     network request on every visit, which would contradict the promise this
+     page makes — so the type comes from what is installed. A serif for
+     headings and a sans for the interface is the long-standing legal pairing. */
+  --font-serif: ui-serif, Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Ink and paper: warm neutrals rather than cold greys, so a page thumbnail
+     sitting on the background reads as paper rather than as a hole. */
+  --ink: #1a1613;
+  --muted: #7a716a;
+  --border: #e2ddd6;
+  --bg-soft: #f7f5f1;
+  --paper: #ffffff;
+
+  /* Deep ink-navy: serious without being corporate blue. */
+  --accent: #16233a;
+  --accent-hover: #0f1a2c;
+  --accent-wash: #eef1f6;
+
+  /* Brass, for fine detail and authority. Used sparingly — rules, the mark,
+     small emphases — never for large areas. */
+  --brass: #b8894a;
+  --brass-soft: #e8d9c2;
+
+  /* Green is reserved for the privacy message, so it means something rather
+     than being decoration. */
+  --secure: #15654a;
+  --secure-wash: #eaf5f0;
+  --secure-border: #b8ddcc;
+
+  --danger: #9f1239;
+
   --topbar-height: 56px;
   --sidebar-width: 300px;
 }
@@ -10,11 +39,11 @@
 * { box-sizing: border-box; }
 
 body {
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-sans);
   margin: 0;
   line-height: 1.5;
-  color: #18181b;
-  background: #fff;
+  color: var(--ink);
+  background: var(--paper);
 }
 
 /* --- top bar ------------------------------------------------------------- */
@@ -32,9 +61,39 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.brand { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; }
-.brand strong { font-size: 1rem; }
-.brand span { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+.brand { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+
+.brand span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.mark { width: 21px; height: 21px; flex: 0 0 auto; color: var(--accent); }
+
+/* One sans across the whole name, tracked tight so it reads as a single word.
+   The serif belonged to a formal name; this one is not that. */
+.wordmark {
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.028em;
+  color: var(--ink);
+}
+
+/* Colour alone separates PDFs — no size or weight change, so the name stays
+   one continuous word rather than two stuck together. */
+.wordmark-accent {
+  font-weight: 650;
+  color: var(--brass);
+}
+
+/* The third word carries the personality, so it gets the brass rather than
+   the ink — it reads as part of the mark instead of a trailing label. */
+.wordmark-tail { color: var(--brass); }
+
+#home-link { display: flex; align-items: center; gap: 0.55rem; }
 
 .top-actions {
   display: flex;
@@ -85,7 +144,7 @@ button:disabled {
   font-weight: 600;
 }
 
-.file-button:hover { background: #0958a8; }
+.file-button:hover { background: var(--accent-hover); }
 
 input[type="text"], input[type="number"], select {
   font: inherit;
@@ -148,7 +207,7 @@ input[type="range"] { width: 100%; }
   transition: border-color 0.15s, background 0.15s;
 }
 
-.dropzone.over { border-color: var(--accent); background: #eef4fb; }
+.dropzone.over { border-color: var(--secure); background: var(--secure-wash); }
 .dropzone h2 { margin: 0 0 0.25rem; font-size: 1.35rem; }
 .dropzone p { margin: 0.4rem 0; color: var(--muted); font-size: 0.85rem; }
 .dropzone .file-button { display: inline-block; margin-top: 0.25rem; padding: 0.5rem 1.1rem; font-size: 0.9rem; }
@@ -280,7 +339,7 @@ input[type="range"] { width: 100%; }
 }
 
 .tile:hover { background: #f4f4f5; }
-.tile.selected { border-color: var(--accent); background: #eef4fb; }
+.tile.selected { border-color: var(--accent); background: var(--accent-wash); }
 .tile.dragging { opacity: 0.35; }
 .tile.drop-target { border-color: #b54708; background: #fdf3e7; }
 
@@ -509,7 +568,7 @@ input[type="range"] { width: 100%; }
   white-space: normal;
 }
 
-.tool-card:hover { border-color: var(--accent); background: #f7fbff; }
+.tool-card:hover { border-color: var(--accent); background: var(--accent-wash); }
 
 .tool-card .tool-icon {
   grid-area: icon;
@@ -525,14 +584,14 @@ input[type="range"] { width: 100%; }
 .tool-card.pro {
   width: 100%;
   padding: 1.25rem 1.4rem;
-  background: #0a66c2;
-  border-color: #0a66c2;
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
-.tool-card.pro:hover { background: #0958a8; }
-.tool-card.pro .tool-icon { font-size: 1.5rem; color: #cfe4f8; }
+.tool-card.pro:hover { background: var(--accent-hover); }
+.tool-card.pro .tool-icon { font-size: 1.5rem; color: #a8bdd6; }
 .tool-card.pro .tool-name { font-size: 1.1rem; color: #fff; }
-.tool-card.pro .tool-blurb { color: #cfe4f8; font-size: 0.85rem; }
+.tool-card.pro .tool-blurb { color: #c3d2e3; font-size: 0.85rem; }
 
 .eyebrow {
   margin: 0 0 0.35rem !important;
@@ -737,3 +796,221 @@ input[type="range"] { width: 100%; }
 }
 
 #flatten-options { margin-top: 0.55rem; }
+
+
+/* --- the privacy assurance, top of the landing page ---------------------- */
+
+.assurance {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 2.25rem;
+  background: var(--secure-wash);
+  border: 1px solid var(--secure-border);
+  border-radius: 10px;
+}
+
+.assurance-mark {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  color: var(--secure);
+  /* A quiet pulse: present, not clamouring. */
+  animation: assurance-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes assurance-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assurance-mark { animation: none; }
+}
+
+.assurance-line {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--secure);
+}
+
+.assurance-detail {
+  margin: 0;
+  font-size: 0.87rem;
+  color: #3f3a35;
+  max-width: 68ch;
+}
+
+.linky {
+  margin-top: 0.6rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--secure);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.linky:hover { text-decoration: underline; }
+
+/* --- the security explainer ---------------------------------------------- */
+
+#security-dialog {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem 1.75rem;
+  max-width: min(760px, 94vw);
+  max-height: 92vh;
+  overflow: auto;
+  color: var(--ink);
+}
+
+#security-dialog::backdrop { background: rgb(28 25 23 / 0.55); }
+
+.prose { max-width: 68ch; font-size: 0.9rem; }
+.prose p { margin: 0 0 0.9rem; }
+.prose h3 {
+  margin: 1.6rem 0 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--secure);
+}
+.prose ol, .prose ul { margin: 0 0 0.9rem; padding-left: 1.2rem; }
+.prose li { margin-bottom: 0.5rem; }
+.prose code {
+  padding: 1px 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+.prose a { color: var(--secure); }
+
+/* A quiet reminder in the top bar once you are working. */
+.topbar .secure-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--secure-border);
+  border-radius: 999px;
+  background: var(--secure-wash);
+  color: var(--secure);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.topbar .secure-chip:hover { border-color: var(--secure); }
+
+
+/* --- landing hero -------------------------------------------------------- */
+
+#app-landing {
+  /* A soft wash behind the top of the page, so the hero sits on something
+     rather than floating on flat white. */
+  background:
+    radial-gradient(1100px 380px at 50% -140px, rgb(22 35 58 / 0.055), transparent 70%),
+    linear-gradient(var(--bg-soft), var(--paper) 340px);
+}
+
+.hero { margin-bottom: 1.75rem; }
+.hero-mark { width: 42px; height: 42px; display: block; margin-bottom: 1.1rem; }
+
+.eyebrow-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0 0 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+/* A hairline running off to the right of the label. */
+.eyebrow-rule::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(to right, var(--brass-soft), transparent);
+}
+
+.hero-title {
+  font-family: var(--font-serif);
+  margin: 0 0 0.7rem;
+  font-size: clamp(1.9rem, 4.2vw, 2.7rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+  max-width: 18ch;
+}
+
+.hero-sub {
+  margin: 0;
+  font-size: 1rem;
+  color: #514840;
+  max-width: 56ch;
+}
+
+/* --- serif where it carries weight --------------------------------------- */
+
+.landing-inner h1,
+.assurance-line,
+#security-dialog .caption,
+.tool-card.pro .tool-name {
+  font-family: var(--font-serif);
+}
+
+.assurance-line { font-size: 1.12rem; letter-spacing: -0.01em; }
+.tool-card.pro .tool-name { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.01em; }
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--muted);
+}
+
+.section-title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(to right, var(--border), transparent);
+}
+
+/* --- cards, a little more considered ------------------------------------- */
+
+.tool-card {
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease;
+}
+
+.tool-card:hover:not(.soon) { transform: translateY(-1px); }
+
+.tool-card.pro {
+  background:
+    radial-gradient(700px 200px at 12% -60px, rgb(184 137 74 / 0.22), transparent 70%),
+    var(--accent);
+  border-color: var(--accent);
+}
+
+.tool-card.pro:hover {
+  background:
+    radial-gradient(700px 200px at 12% -60px, rgb(184 137 74 / 0.3), transparent 70%),
+    var(--accent-hover);
+}
+
+.tool-card.pro .tool-icon { color: var(--brass); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-card, .tool-card:hover:not(.soon) { transition: none; transform: none; }
+}

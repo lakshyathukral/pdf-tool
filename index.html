@@ -4,18 +4,29 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TukTuk Pro — PDF tools that run in your browser</title>
+    <title>FresherPDFs — document tools that never upload your files</title>
   </head>
   <body>
     <!-- Always visible: identity on the left, the things you always need on
          the right. Stays put while the pages scroll underneath. -->
     <header class="topbar">
       <div class="brand">
-        <button id="home-link" type="button" class="linkish">TukTuk Pro</button>
-        <span id="tool-name">Runs entirely in your browser — nothing is uploaded.</span>
+        <button id="home-link" type="button" class="linkish" title="All tools">
+          <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M16 2 4 6.4v9.7C4 23.4 8.9 28.2 16 30c7.1-1.8 12-6.6 12-13.9V6.4L16 2Z" fill="currentColor"/>
+            <rect x="10" y="10.6" width="12" height="1.9" rx=".95" fill="#faf8f5"/>
+            <rect x="10" y="14.8" width="12" height="1.9" rx=".95" fill="#faf8f5"/>
+            <rect x="10" y="19" width="7.2" height="1.9" rx=".95" fill="#b8894a"/>
+          </svg>
+          <span class="wordmark">Fresher<span class="wordmark-accent">PDFs</span></span>
+        </button>
+        <span id="tool-name"></span>
       </div>
 
       <div class="top-actions">
+        <button id="secure-chip" type="button" class="secure-chip" title="How this works">
+          <span aria-hidden="true">●</span> Nothing uploaded
+        </button>
         <p id="status">No PDFs loaded yet.</p>
         <label class="file-button">
           Add PDFs
@@ -38,12 +49,37 @@
          parts you do not need hidden. -->
     <div id="app-landing">
       <div class="landing-inner">
-        <h1>Welcome to TukTuk Pro</h1>
-        <p class="tagline-big">This TukTuk is not AVG</p>
-        <p class="lede">
-          Every tool below runs entirely inside this browser tab. Your files are
-          never uploaded, and nothing is stored anywhere but your own computer.
-        </p>
+        <div class="hero">
+          <svg class="hero-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M16 2 4 6.4v9.7C4 23.4 8.9 28.2 16 30c7.1-1.8 12-6.6 12-13.9V6.4L16 2Z" fill="#16233a"/>
+            <rect x="10" y="10.6" width="12" height="1.9" rx=".95" fill="#faf8f5"/>
+            <rect x="10" y="14.8" width="12" height="1.9" rx=".95" fill="#faf8f5"/>
+            <rect x="10" y="19" width="7.2" height="1.9" rx=".95" fill="#b8894a"/>
+          </svg>
+          <p class="eyebrow-rule">Document tools for legal work</p>
+          <h1 class="hero-title">Everything happens on your device.</h1>
+          <p class="hero-sub">
+            Merge, reorder, redact, number, bookmark and split — without a single
+            page of a client document ever crossing the network.
+          </p>
+        </div>
+
+        <div class="assurance">
+          <span class="assurance-mark" aria-hidden="true">●</span>
+          <div>
+            <p class="assurance-line">Your files never leave this device.</p>
+            <p class="assurance-detail">
+              There is no server to upload to. Every document is opened, edited
+              and saved by code running inside this browser tab, on your own
+              computer. Nothing is transmitted, stored or logged anywhere —
+              not by us, not by anyone.
+            </p>
+            <button id="security-open" type="button" class="linky">
+              How this works, in technical terms →
+            </button>
+          </div>
+        </div>
+
         <div id="pro-card"></div>
         <h2 class="section-title">One job at a time</h2>
         <div id="tool-grid"></div>
@@ -367,6 +403,110 @@
         <div id="thumbnails" class="empty"></div>
       </section>
     </main>
+
+    <dialog id="security-dialog">
+      <div class="dialog-head">
+        <p class="caption">How this tool handles your documents</p>
+        <button id="security-close" type="button">Close</button>
+      </div>
+
+      <div class="prose">
+        <p>
+          Web tools that edit PDFs almost always work by uploading your file to
+          a server, processing it there and sending it back. That means your
+          document sits on someone else's computer, at least briefly, and you
+          are trusting their retention policy, their staff and their security.
+        </p>
+        <p><strong>This tool has no server component at all.</strong></p>
+
+        <h3>What actually happens when you open a file</h3>
+        <ol>
+          <li>
+            Your browser downloads the application once — some HTML, JavaScript
+            and CSS. That is the only network request involved in the whole
+            process.
+          </li>
+          <li>
+            Choosing a file hands the page a reference to it through the
+            browser's own file-picker. The bytes are read into memory with the
+            standard <code>File.arrayBuffer()</code> call — the same mechanism
+            an image viewer uses.
+          </li>
+          <li>
+            <strong>pdf.js</strong> parses the document. It runs on a Web
+            Worker, a second thread inside your browser, so a large file does
+            not freeze the interface. Pages are drawn onto a
+            <code>&lt;canvas&gt;</code> element to produce what you see.
+          </li>
+          <li>
+            Edits change a plain data structure in memory — which page goes
+            where, what is written on it. Your original file is never modified.
+          </li>
+          <li>
+            <strong>pdf-lib</strong> assembles a new PDF as raw bytes, still in
+            memory.
+          </li>
+          <li>
+            Saving wraps those bytes in a <code>Blob</code> and hands them to
+            the browser's download mechanism via an
+            <code>object URL</code> — an address that exists only inside this
+            tab and is meaningless anywhere else. No request is made.
+          </li>
+        </ol>
+
+        <h3>How you can check this yourself</h3>
+        <ul>
+          <li>
+            <strong>Turn off your internet after the page loads.</strong> Every
+            feature keeps working. Nothing that talks to a server could.
+          </li>
+          <li>
+            <strong>Open your browser's developer tools and watch the Network
+            tab.</strong> Load a PDF, edit it, save it. You will see no requests
+            beyond the initial page load.
+          </li>
+          <li>
+            <strong>Read the source.</strong> The whole thing is public at
+            <a href="https://github.com/lakshyathukral/pdf-tool" target="_blank" rel="noopener">github.com/lakshyathukral/pdf-tool</a>.
+          </li>
+        </ul>
+
+        <h3>What is stored</h3>
+        <p>
+          Only your settings — watermark text, numbering format, saved presets —
+          kept in this browser's local storage on this device. No document, no
+          page, no filename. Clearing your browser data removes it. There are no
+          analytics, no tracking, no cookies and no error reporting.
+        </p>
+
+        <h3>What this does not protect against</h3>
+        <p>
+          Being honest about the limits, because a security claim that overstates
+          itself is worse than none:
+        </p>
+        <ul>
+          <li>
+            It does not protect against a compromised computer, a malicious
+            browser extension, or someone with access to your screen. Anything
+            running on your device can see what your browser is doing.
+          </li>
+          <li>
+            Once you save a file, ordinary care applies — this tool has no say
+            in where it goes next.
+          </li>
+          <li>
+            Redaction removes text by rendering the page to an image, which is
+            genuinely irreversible, but it does not remove attachments or every
+            trace of document structure. Check important redactions before
+            sending.
+          </li>
+          <li>
+            A signature image or a watermark is a picture. Neither is a
+            cryptographic signature, and neither makes a document tamper-proof.
+          </li>
+        </ul>
+      </div>
+    </dialog>
 
     <dialog id="sign-dialog">
       <h2>Place signature</h2>
