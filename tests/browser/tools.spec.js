@@ -99,13 +99,13 @@ test.describe('marking up', () => {
   test.beforeEach(async ({ page }) => load(page))
 
   test('previews page numbers on the thumbnails', async ({ page }) => {
-    await page.locator('#panel-numbering summary').click()
+    await page.locator('#panel-numbering > summary').click()
     await page.locator('#numbering-enabled').check()
     await expect(page.locator('.badge.numbering').first()).toBeVisible()
   })
 
   test('previews a watermark', async ({ page }) => {
-    await page.locator('#panel-watermark summary').click()
+    await page.locator('#panel-watermark > summary').click()
     await page.locator('#watermark-enabled').check()
     await expect(page.locator('.watermark-preview').first()).toBeVisible()
   })
@@ -120,6 +120,54 @@ test.describe('marking up', () => {
     const rows = page.locator('.bookmark-row')
     await expect(rows).toHaveCount(3)   // the automatic one, plus these two
     await expect(rows.filter({ hasText: 'A1. Particulars' })).toHaveClass(/level-2/)
+  })
+})
+
+test.describe('positioning a label by dragging', () => {
+  test('drags the label and keeps where it was put', async ({ page }) => {
+    await load(page)
+    await tiles(page).first().click()
+
+    await page.locator('#panel-label > summary').click()
+    await page.locator('#label-text').fill('EXHIBIT A')
+    await page.locator('#panel-label .sub > summary').click()
+    await page.locator('#label-exact').check()
+    await page.locator('#label-place').click()
+
+    await expect(page.locator('#place-stage img')).toBeVisible({ timeout: 30_000 })
+    const stage = await page.locator('#place-stage').boundingBox()
+
+    // Click a quarter across and three quarters down.
+    await page.mouse.click(stage.x + stage.width * 0.25, stage.y + stage.height * 0.75)
+    await expect(page.locator('#place-readout')).toContainText('%')
+
+    await page.locator('#place-apply').click()
+    await expect(page.locator('#place-dialog')).toBeHidden()
+
+    // The dragged position comes back into the number fields.
+    const across = Number(await page.locator('#label-x').inputValue())
+    const down = Number(await page.locator('#label-y').inputValue())
+    expect(across).toBeGreaterThan(10)
+    expect(across).toBeLessThan(40)
+    expect(down).toBeGreaterThan(60)
+    expect(down).toBeLessThan(90)
+
+    // And the label previews on the thumbnail.
+    await expect(page.locator('.badge.label').first()).toBeVisible()
+  })
+
+  test('the placement view fits the screen', async ({ page }) => {
+    await load(page)
+    await tiles(page).first().click()
+    await page.locator('#panel-label > summary').click()
+    await page.locator('#label-text').fill('TEST')
+    await page.locator('#panel-label .sub > summary').click()
+    await page.locator('#label-exact').check()
+    await page.locator('#label-place').click()
+
+    await expect(page.locator('#place-stage img')).toBeVisible({ timeout: 30_000 })
+    const stage = await page.locator('#place-stage').boundingBox()
+    expect(stage.width).toBeLessThanOrEqual(page.viewportSize().width)
   })
 })
 

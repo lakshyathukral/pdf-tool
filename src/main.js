@@ -24,6 +24,7 @@ import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
 import { parsePageRanges, formatPageRanges } from './ranges.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
 import { openSigner, setupSigner } from './ui/sign.js'
+import { openPlacer, setupPlacer } from './ui/place.js'
 import * as presets from './presets.js'
 import * as signatures from './signatures.js'
 import { TOOLS, ALWAYS_PANELS, getTool, isComingSoon, currentToolId, goToTool, goToLanding } from './tools.js'
@@ -136,6 +137,9 @@ function refreshControls() {
     : ''
 
   drawSignatureList()
+
+  // Positioning by hand needs one page to show, and text to show on it.
+  el('label-place').disabled = selected !== 1
 
   el('bookmark-add').disabled = !hasSelection
   el('bookmark-add-sub').disabled = !hasSelection
@@ -373,11 +377,32 @@ for (const name of ['label-exact', 'label-x', 'label-y', 'label-margin']) {
   el(name).addEventListener('input', () => {
     const exact = el('label-exact').checked
     el('label-exact-fields').hidden = !exact
+    el('label-place-row').hidden = !exact
     el('label-position').disabled = exact
     el('label-margin').disabled = exact
     remember()
   })
 }
+
+el('label-place').addEventListener('click', () => {
+  const text = el('label-text').value.trim() || 'Label'
+  openPlacer(
+    {
+      pageId: model.getSelectedIds()[0],
+      text,
+      size: Number(el('label-size').value),
+      start: { x: Number(el('label-x').value) / 100, y: Number(el('label-y').value) / 100 },
+    },
+    ({ x, y }) => {
+      // Feed the dragged position back into the number fields, so it can be
+      // nudged afterwards and saved into a preset like anything else.
+      el('label-x').value = Math.round(x * 1000) / 10
+      el('label-y').value = Math.round(y * 1000) / 10
+      remember()
+      model.setLabelOnSelected(el('label-text').value.trim(), labelPlacement())
+    },
+  )
+})
 
 // ---------------------------------------------------------------------------
 // Document settings
@@ -444,6 +469,7 @@ function applySettings(settings) {
     el('label-x').value = label.x ?? 50
     el('label-y').value = label.y ?? 50
     el('label-exact-fields').hidden = !label.exact
+    el('label-place-row').hidden = !label.exact
     el('label-position').disabled = Boolean(label.exact)
     el('label-margin').disabled = Boolean(label.exact)
   }
@@ -828,6 +854,7 @@ setupDragDrop(openViewer)
 setupRedactor()
 setupViewer(openRedactor)
 setupSigner()
+setupPlacer()
 setupFileList()
 setupBookmarks(openViewer)
 drawFileList()

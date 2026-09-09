@@ -218,6 +218,9 @@
               <input type="checkbox" id="label-exact" />
               <span>Place at an exact point instead</span>
             </label>
+            <div class="row actions" id="label-place-row" hidden>
+              <button id="label-place" type="button" disabled>Drag it into position&hellip;</button>
+            </div>
             <div class="row" id="label-exact-fields" hidden>
               <label class="field grow">
                 <span>Across (% from left)</span>
@@ -577,6 +580,22 @@
             cryptographic signature, and neither makes a document tamper-proof.
           </li>
         </ul>
+      </div>
+    </dialog>
+
+    <dialog id="place-dialog">
+      <h2>Position the label</h2>
+      <p class="hint">
+        Drag the label, or click anywhere on the page to move it there. It is
+        shown at the size it will print.
+      </p>
+      <p class="caption" id="place-caption"></p>
+      <div id="place-stage"></div>
+      <p class="inline-hint" id="place-readout"></p>
+      <div class="row actions">
+        <button id="place-apply" type="button" class="primary">Use this position</button>
+        <button id="place-centre" type="button">Centre it</button>
+        <button id="place-cancel" type="button">Cancel</button>
       </div>
     </dialog>
 

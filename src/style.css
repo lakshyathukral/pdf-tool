@@ -1103,3 +1103,55 @@ input[type="range"] { width: 100%; }
 }
 
 .files-chip:hover { border-color: var(--accent); background: var(--accent-wash); }
+
+/* --- dragging a label into position -------------------------------------- */
+
+#place-dialog {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  max-width: min(860px, 94vw);
+  max-height: 94vh;
+  overflow: auto;
+}
+
+#place-dialog::backdrop { background: rgb(28 25 23 / 0.5); }
+#place-dialog h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+#place-dialog .caption { margin: 0.75rem 0 0.5rem; font-size: 0.82rem; font-weight: 600; }
+
+#place-stage {
+  position: relative;
+  margin: 0.6rem auto;
+  background: #f4f4f5;
+  border: 1px solid var(--border);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+#place-stage > img { display: block; width: 100%; height: 100%; }
+
+#place-stage.loading::after {
+  content: 'Rendering page...';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* The label itself, at the size it will print. */
+.place-chip {
+  position: absolute;
+  white-space: nowrap;
+  font-family: Helvetica, Arial, sans-serif;
+  line-height: 1;
+  color: #000;
+  cursor: grab;
+  outline: 1px dashed var(--accent);
+  outline-offset: 2px;
+  background: rgb(255 255 255 / 0.55);
+}
+
+.place-chip:active { cursor: grabbing; }

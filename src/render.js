@@ -85,7 +85,19 @@ export async function renderThumbnail(sourceId, pageIndex) {
 export async function renderLarge(sourceId, pageIndex, rotation, width) {
   const canvas = await drawPage(sourceId, pageIndex, { rotation, width })
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
-  return { url: URL.createObjectURL(blob), width: canvas.width, height: canvas.height }
+
+  // The page's own size in PDF points, so a caller can show something at its
+  // true size — a 12pt label needs to look like 12pt on the rendered page.
+  const page = await documents.get(sourceId).getPage(pageIndex + 1)
+  const atFullSize = page.getViewport({ scale: 1, rotation: page.rotate + rotation })
+
+  return {
+    url: URL.createObjectURL(blob),
+    width: canvas.width,
+    height: canvas.height,
+    pointsWide: atFullSize.width,
+    pointsHigh: atFullSize.height,
+  }
 }
 
 // Flatten a page to a PNG with its redaction boxes painted on permanently.
