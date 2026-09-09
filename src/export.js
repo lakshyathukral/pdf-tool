@@ -6,7 +6,7 @@
 // assemble a PDF from things it is given.
 // ---------------------------------------------------------------------------
 
-import { PDFDocument, StandardFonts, degrees, rgb, PDFName, PDFHexString } from 'pdf-lib'
+import { PDFDocument, StandardFonts, degrees, rgb, PDFName, PDFHexString } from '@cantoo/pdf-lib'
 import { zipSync } from 'fflate'
 
 const DEFAULT_MARGIN_MM = 12.7   // half an inch
@@ -108,7 +108,7 @@ function drawWatermark(page, watermark, font, rotation) {
 
 // Assemble a PDF from page images. Used when flattening: every page has been
 // rendered to pixels, so there are no text objects left for anyone to edit.
-export async function buildFlattened(images, metadata = { title: '', author: '' }, bookmarks = []) {
+export async function buildFlattened(images, metadata = { title: '', author: '' }, bookmarks = [], protection = null) {
   if (images.length === 0) throw new Error('There are no pages to flatten.')
 
   const output = await PDFDocument.create({ updateMetadata: false })
@@ -132,6 +132,10 @@ export async function buildFlattened(images, metadata = { title: '', author: '' 
   // rebuilt too — otherwise flattening a bundle for filing would quietly
   // strip the navigation, which is exactly when it matters most.
   buildOutline(output, bookmarks)
+
+  if (protection?.enabled && protection.password) {
+    output.encrypt({ userPassword: protection.password, ownerPassword: protection.password })
+  }
 
   return output.save()
 }
@@ -194,6 +198,7 @@ export async function buildPdf({
   rasterize,
   signatures = new Map(),
   metadata = { title: '', author: '' },
+  protection = null,
   firstNumber = numbering.start,
   totalPages = numbering.start + pages.length - 1,
 }) {
@@ -223,7 +228,9 @@ export async function buildPdf({
     const indices = plain.filter((p) => p.sourceId === sourceId).map((p) => p.pageIndex)
     if (indices.length === 0) continue
 
-    const loaded = await PDFDocument.load(source.bytes)
+    // A protected source has to be decrypted before its pages can be copied,
+    // using the password it was opened with.
+    const loaded = await PDFDocument.load(source.bytes, { password: source.password })
     copiedBySource.set(sourceId, await output.copyPages(loaded, indices))
   }
 
@@ -319,6 +326,17 @@ export async function buildPdf({
     output,
     pages.flatMap((page, pageIndex) => page.bookmarks.map((b) => ({ ...b, pageIndex }))),
   )
+
+  if (protection?.enabled && protection.password) {
+    // userPassword is the one needed to OPEN the file. ownerPassword is set to
+    // the same thing deliberately: a different owner password would let us
+    // impose restrictions the user cannot themselves lift, which is not our
+    // place.
+    output.encrypt({
+      userPassword: protection.password,
+      ownerPassword: protection.password,
+    })
+  }
 
   return output.save()
 }

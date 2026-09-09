@@ -394,64 +394,75 @@
           <p class="hint" id="preset-hint"></p>
         </details>
 
-        <details class="panel" id="panel-saving" open>
+        <details class="panel" id="panel-saving">
           <summary>Saving</summary>
           <label class="field">
             <span>File name</span>
             <input type="text" id="output-name" placeholder="combined" />
           </label>
-          <div class="row">
-            <label class="field grow">
-              <span>Document title (optional)</span>
-              <input type="text" id="meta-title" placeholder="left blank" />
-            </label>
-          </div>
-          <div class="row">
-            <label class="field grow">
-              <span>Author (optional)</span>
-              <input type="text" id="meta-author" placeholder="left blank" />
-            </label>
-          </div>
-          <p class="hint">
-            The source file's own title, author and keywords are never carried
-            into the saved file. These fields add details, they do not strip any.
-          </p>
           <div class="row actions">
             <button id="extract" type="button" disabled>Save selected pages only</button>
           </div>
-          <hr />
-          <label class="checkbox">
-            <input type="checkbox" id="flatten-enabled" />
-            <span>Flatten pages before saving</span>
-          </label>
-          <div id="flatten-options" hidden>
+
+          <details class="sub">
+            <summary>Advanced</summary>
+
             <label class="field">
-              <span>Resolution</span>
-              <select id="flatten-dpi">
-                <option value="96">Small file (96 dpi)</option>
-                <option value="150" selected>Standard (150 dpi)</option>
-                <option value="200">Sharper (200 dpi)</option>
-                <option value="300">Print quality (300 dpi)</option>
-              </select>
+              <span>Document title (optional)</span>
+              <input type="text" id="meta-title" placeholder="left blank" />
             </label>
             <label class="field">
-              <span>Image type</span>
-              <select id="flatten-format">
-                <option value="png" selected>Sharp text (PNG)</option>
-                <option value="jpeg">Much smaller file (JPEG)</option>
-              </select>
+              <span>Author (optional)</span>
+              <input type="text" id="meta-author" placeholder="left blank" />
             </label>
             <p class="hint">
-              Flattening also shrinks a bloated scan: 96 dpi with JPEG is
-              usually a fraction of the original size.
+              The source file's own title, author and keywords are never carried
+              into the saved file. These add details; they do not strip any.
             </p>
-          </div>
-          <p class="hint">
-            Turns every page into an image, so the watermark, page numbers and
-            the document text cannot be selected or edited in Acrobat.
-            <strong>The saved file stops being searchable and gets much
-            larger.</strong> Slow on long documents.
-          </p>
+
+            <hr />
+            <label class="checkbox">
+              <input type="checkbox" id="protect-enabled" />
+              <span>Protect with a password</span>
+            </label>
+            <label class="field" id="protect-field" hidden>
+              <span>Password to open the file</span>
+              <input type="password" id="protect-password" autocomplete="new-password" />
+            </label>
+            <p class="hint" id="protect-note">
+              A file opened with a password saves without one unless you set a
+              new one here — which is how you remove a password you know.
+            </p>
+
+            <hr />
+            <label class="checkbox">
+              <input type="checkbox" id="flatten-enabled" />
+              <span>Flatten pages before saving</span>
+            </label>
+            <div id="flatten-options" hidden>
+              <label class="field">
+                <span>Resolution</span>
+                <select id="flatten-dpi">
+                  <option value="96">Small file (96 dpi)</option>
+                  <option value="150" selected>Standard (150 dpi)</option>
+                  <option value="200">Sharper (200 dpi)</option>
+                  <option value="300">Print quality (300 dpi)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Image type</span>
+                <select id="flatten-format">
+                  <option value="png" selected>Sharp text (PNG)</option>
+                  <option value="jpeg">Much smaller file (JPEG)</option>
+                </select>
+              </label>
+            </div>
+            <p class="hint">
+              Turns every page into an image, so nothing can be selected or
+              edited. <strong>The file stops being searchable and gets
+              larger.</strong> Also shrinks a bloated scan.
+            </p>
+          </details>
 
           <div id="split-block">
             <hr />
@@ -469,6 +480,7 @@
             <p class="hint">More than one file comes back as a single .zip.</p>
           </div>
         </details>
+
       </aside>
 
       <section class="canvas">
@@ -658,6 +670,25 @@
         <button id="sign-clear" type="button">Clear</button>
         <button id="sign-cancel" type="button">Cancel</button>
       </div>
+    </dialog>
+
+    <dialog id="password-dialog">
+      <h2>This PDF is password-protected</h2>
+      <p class="hint" id="password-note"></p>
+      <form method="dialog">
+        <label class="field">
+          <span>Password</span>
+          <input type="password" id="password-input" autocomplete="off" />
+        </label>
+        <p class="hint">
+          Typed here and used in this tab only. It is never sent anywhere and
+          never stored.
+        </p>
+        <div class="row actions">
+          <button id="password-ok" type="button" class="primary">Open</button>
+          <button id="password-cancel" type="button">Skip this file</button>
+        </div>
+      </form>
     </dialog>
 
     <dialog id="viewer-dialog">

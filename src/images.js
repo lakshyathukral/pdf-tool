@@ -6,7 +6,7 @@
 // it without knowing photographs were ever involved.
 // ---------------------------------------------------------------------------
 
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument } from '@cantoo/pdf-lib'
 
 // Page sizes in PDF points (72 per inch).
 export const PAGE_SIZES = {

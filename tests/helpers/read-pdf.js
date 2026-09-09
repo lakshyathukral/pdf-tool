@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
-const { PDFDocument } = require('pdf-lib')
+const { PDFDocument } = require('@cantoo/pdf-lib')
 
 const standardFontDataUrl = new URL('../../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).href
 

@@ -1255,3 +1255,17 @@ html, body { max-width: 100%; }
   border-color: var(--accent);
   color: #fff;
 }
+
+/* --- password prompt ----------------------------------------------------- */
+
+#password-dialog {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem 1.4rem;
+  max-width: min(420px, 92vw);
+}
+
+#password-dialog::backdrop { background: rgb(28 25 23 / 0.5); }
+#password-dialog h2 { margin: 0 0 0.5rem; font-size: 1rem; }
+#password-dialog .row.actions { margin-top: 0.9rem; }
+#password-dialog input { font-family: ui-monospace, monospace; }

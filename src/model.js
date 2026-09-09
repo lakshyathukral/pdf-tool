@@ -55,6 +55,11 @@ let flatten = { enabled: false, dpi: 150, format: 'png' }
 // What the saved file should be called. Empty means "work one out for me".
 let outputName = ''
 
+// A password to put ON the saved file. Empty means save it unprotected —
+// which, for a document opened with a password, means the protection is
+// removed. That only works because opening it required the password.
+let protection = { enabled: false, password: '' }
+
 // Written into the saved file. Copying pages does NOT carry the source's
 // Title/Author/Subject/Keywords across — those are dropped automatically — so
 // these are values you choose to ADD, not ones you are stripping.
@@ -141,6 +146,7 @@ export const getNumbering = () => numbering
 export const getWatermark = () => watermark
 export const getOutputName = () => outputName
 export const getMetadata = () => metadata
+export const getProtection = () => protection
 export const getFlatten = () => flatten
 export const isSelected = (pageId) => selection.has(pageId)
 export const getSelectedIds = () => [...selection]
@@ -170,6 +176,13 @@ function bookmarkTitleFor(fileName) {
 // { title, level, pageIndex }. They are nested one level under the entry named
 // after the file, so merging three bookmarked documents gives three top-level
 // entries each keeping its own structure underneath.
+// The password a protected file was opened with. Needed again at export time,
+// because the exporter has to decrypt the original to copy pages out of it.
+export function setSourcePassword(id, password) {
+  const source = sources.get(id)
+  if (source) source.password = password
+}
+
 export function addSource(id, name, bytes, pageCount, sourceOutline = []) {
   beginChange()
 
@@ -546,6 +559,10 @@ export function setWatermark(patch) {
 export function setFlatten(patch) {
   flatten = { ...flatten, ...patch }
   notify()
+}
+
+export function setProtection(patch) {
+  protection = { ...protection, ...patch }
 }
 
 export function setMetadata(patch) {

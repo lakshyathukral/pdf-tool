@@ -35,10 +35,23 @@ const key = (sourceId, pageIndex) => `${sourceId}:${pageIndex}`
 // NOTE: pdf.js takes OWNERSHIP of the bytes it is given — it transfers them to
 // its worker thread and leaves ours empty. So it gets a clone, and the caller
 // keeps the original for pdf-lib at export time.
-export async function openSource(sourceId, bytes) {
-  const pdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise
+export async function openSource(sourceId, bytes, password) {
+  // pdf.js refuses a protected file unless given the password, and reports
+  // "need one" and "that one was wrong" as separate errors — so the caller can
+  // tell a first prompt from a retry.
+  const pdf = await pdfjsLib.getDocument({ data: bytes.slice(0), password }).promise
   documents.set(sourceId, pdf)
   return pdf.numPages
+}
+
+// pdf.js signals a missing or wrong password with a specific exception name
+// and a code that separates the two cases.
+export const NEEDS_PASSWORD = 1
+export const WRONG_PASSWORD = 2
+
+export function passwordProblem(error) {
+  if (error?.name !== 'PasswordException') return null
+  return error.code === WRONG_PASSWORD ? 'wrong' : 'needed'
 }
 
 // Already-rendered thumbnail, or undefined. Synchronous, for use while drawing.

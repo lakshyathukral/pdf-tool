@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 const FIVE_PAGES = fileURLToPath(new URL('../fixtures/five-pages.pdf', import.meta.url))
 const THREE_PAGES = fileURLToPath(new URL('../fixtures/three-pages.pdf', import.meta.url))
+const LOCKED = fileURLToPath(new URL('../fixtures/locked.pdf', import.meta.url))
 const PHOTO_LANDSCAPE = fileURLToPath(new URL('../fixtures/photo-landscape.png', import.meta.url))
 const PHOTO_PORTRAIT = fileURLToPath(new URL('../fixtures/photo-portrait.png', import.meta.url))
 
@@ -96,7 +97,7 @@ test.describe('watermarking a photo', () => {
     await expect(page.locator('#watermark-tiled')).toBeChecked()
     // An ID card is not A4.
     await expect(page.locator('#photo-page-size')).toHaveValue('match')
-    await expect(page.locator('#dropzone-heading')).toHaveText('Take or drop a photo')
+    await expect(page.locator('#dropzone-heading')).toHaveText('Drop a PDF or a photo')
   })
 
   test('stamps a photograph and previews it', async ({ page }) => {
@@ -109,17 +110,65 @@ test.describe('watermarking a photo', () => {
 
   test('does not overwrite a watermark that is already set', async ({ page }) => {
     // The sidebar only exists once something is loaded, so a file comes first.
-    await page.goto('/#watermark')
+    await page.goto('/#photo-watermark')
     await page.locator('#file-input').setInputFiles([FIVE_PAGES])
     await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
 
-    await page.locator('#panel-watermark > summary').click()
-    await page.locator('#watermark-enabled').check()
     await page.locator('#watermark-text').fill('MY OWN TEXT')
 
-    // Settings are remembered, so they survive the move to the other tool.
+    // Settings are remembered, so they survive a reload of the same tool and
+    // the defaults must not overwrite them.
     await page.goto('/#photo-watermark')
     await expect(page.locator('#watermark-text')).toHaveValue('MY OWN TEXT')
+  })
+})
+
+test.describe('password-protected files', () => {
+  test('asks for the password and opens the file', async ({ page }) => {
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([LOCKED])
+
+    await expect(page.locator('#password-dialog')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#password-note')).toContainText('needs a password')
+
+    await page.locator('#password-input').fill('letmein')
+    await page.locator('#password-ok').click()
+
+    await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
+  })
+
+  test('asks again when the password is wrong', async ({ page }) => {
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([LOCKED])
+
+    await expect(page.locator('#password-dialog')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#password-input').fill('nope')
+    await page.locator('#password-ok').click()
+
+    await expect(page.locator('#password-note')).toContainText('did not open', { timeout: 20_000 })
+    await page.locator('#password-input').fill('letmein')
+    await page.locator('#password-ok').click()
+    await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
+  })
+
+  test('skips the file if no password is given', async ({ page }) => {
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([LOCKED])
+    await expect(page.locator('#password-dialog')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#password-cancel').click()
+    await expect(page.locator('#status')).toContainText('no password given')
+  })
+
+  test('saves a protected file when asked', async ({ page }) => {
+    await load(page)
+    await page.locator('#panel-saving .sub > summary').click()
+    await page.locator('#protect-enabled').check()
+    await expect(page.locator('#protect-field')).toBeVisible()
+    await page.locator('#protect-password').fill('hunter2')
+
+    const download = page.waitForEvent('download', { timeout: 60_000 })
+    await page.locator('#primary-action').click()
+    expect((await download).suggestedFilename()).toMatch(/\.pdf$/)
   })
 })
 
@@ -248,6 +297,24 @@ test.describe('positioning a label by dragging', () => {
   })
 })
 
+test.describe('which panel opens', () => {
+  test('a tool opens its own panel, not Saving', async ({ page }) => {
+    await page.goto('/#numbering')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+
+    await expect(page.locator('#panel-numbering')).toHaveAttribute('open', '')
+    await expect(page.locator('#panel-saving')).not.toHaveAttribute('open', '')
+  })
+
+  test('a split tool opens Saving, where its controls live', async ({ page }) => {
+    await page.goto('/#split')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#panel-saving')).toHaveAttribute('open', '')
+  })
+})
+
 test.describe('the page viewer', () => {
   // Uses the toolbar button rather than double-click. Double-click sits on top
   // of the click-to-select handler, so under load its two clicks can land as
@@ -367,7 +434,7 @@ test.describe('the landing page', () => {
     await page.goto('/')
     await expect(page.locator('.tool-card')).not.toHaveCount(0)
     await page.locator('.tool-card', { hasText: 'Add a watermark' }).click()
-    await expect(page).toHaveURL(/#watermark/)
+    await expect(page).toHaveURL(/#photo-watermark/)
     await expect(page.locator('#tool-name')).toHaveText('Add a watermark')
   })
 

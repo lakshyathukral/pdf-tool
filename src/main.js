@@ -5,7 +5,14 @@
 
 import './style.css'
 import * as model from './model.js'
-import { openSource, renderThumbnail, rasterizeRedacted, flattenDocument, readOutline } from './render.js'
+import {
+  openSource,
+  renderThumbnail,
+  rasterizeRedacted,
+  flattenDocument,
+  readOutline,
+  passwordProblem,
+} from './render.js'
 import {
   buildPdf,
   buildFlattened,
@@ -78,6 +85,22 @@ function applyTool() {
     el(id).hidden = !(isPro || ALWAYS_PANELS.includes(id) || tool.panels.includes(id))
   }
 
+  // Open the panel the tool is actually for. Saving used to be open by default,
+  // which meant arriving at the watermark tool with the watermark controls
+  // collapsed and a long Saving panel expanded — the opposite of what is
+  // wanted. The full editor is different: nothing there is "the" tool, and its
+  // save controls need to be reachable, so Saving stays open.
+  if (isPro) {
+    el('panel-saving').open = true
+  } else {
+    for (const id of PANEL_IDS) {
+      if (id === 'panel-files') continue
+      el(id).open = tool.panels.includes(id)
+    }
+    // Except where the tool's own controls live inside Saving.
+    if (tool.primary === 'split' || tool.primary === 'extract') el('panel-saving').open = true
+  }
+
   for (const id of PAGE_ACTION_IDS) {
     el(id).hidden = !(tool.pageActions === 'all' || tool.pageActions.includes(id))
   }
@@ -98,7 +121,7 @@ function applyTool() {
 
   // A tool that works on photographs should not tell you to drop a PDF.
   const wantsPhotos = tool.panels !== 'all' && tool.panels.includes('panel-photos')
-  el('dropzone-heading').textContent = wantsPhotos ? 'Take or drop a photo' : 'Drop PDFs here'
+  el('dropzone-heading').textContent = wantsPhotos ? 'Drop a PDF or a photo' : 'Drop PDFs here'
   el('photo-empty-button').classList.toggle('primary-file', wantsPhotos)
 }
 
@@ -280,6 +303,60 @@ function describeLoadError(error, name) {
   return `Could not read ${name}: ${error.message}`
 }
 
+// Ask for a password, once, for one file. Resolves to the password or null if
+// the user gives up. The value is used and discarded — never stored, never
+// remembered, never sent.
+function askForPassword(fileName, retry) {
+  const dialog = document.querySelector('#password-dialog')
+  const input = el('password-input')
+
+  el('password-note').textContent = retry
+    ? `That password did not open "${fileName}". Try again?`
+    : `"${fileName}" needs a password to open.`
+  input.value = ''
+
+  return new Promise((resolve) => {
+    const finish = (value) => {
+      el('password-ok').removeEventListener('click', ok)
+      el('password-cancel').removeEventListener('click', cancel)
+      input.removeEventListener('keydown', onKey)
+      dialog.close()
+      resolve(value)
+    }
+
+    const ok = () => finish(input.value)
+    const cancel = () => finish(null)
+    const onKey = (event) => { if (event.key === 'Enter') { event.preventDefault(); ok() } }
+
+    el('password-ok').addEventListener('click', ok)
+    el('password-cancel').addEventListener('click', cancel)
+    input.addEventListener('keydown', onKey)
+
+    dialog.showModal()
+    input.focus()
+  })
+}
+
+// Open a file, asking for a password if it turns out to need one. Returns the
+// page count and the password that worked, or null if the user gave up.
+async function openWithPassword(id, bytes, fileName) {
+  let password
+  let retry = false
+
+  for (;;) {
+    try {
+      return { pageCount: await openSource(id, bytes, password), password }
+    } catch (error) {
+      const problem = passwordProblem(error)
+      if (!problem) throw error
+
+      password = await askForPassword(fileName, retry)
+      if (password === null) return null
+      retry = true
+    }
+  }
+}
+
 async function loadFiles(files) {
   for (const file of files) {
     if (file.type !== 'application/pdf') {
@@ -310,11 +387,16 @@ async function loadFiles(files) {
       // the same id. openSource clones the bytes for pdf.js, which takes
       // ownership of what it is given — `bytes` stays intact for pdf-lib.
       const id = model.reserveSourceId()
-      const pageCount = await openSource(id, bytes)
+      const opened = await openWithPassword(id, bytes, file.name)
+      if (!opened) {
+        setStatus(`Skipped "${file.name}" — no password given.`)
+        continue
+      }
 
       // Keep whatever navigation the document already had.
       const existing = await readOutline(id)
-      model.addSource(id, file.name, bytes, pageCount, existing)
+      model.addSource(id, file.name, bytes, opened.pageCount, existing)
+      if (opened.password) model.setSourcePassword(id, opened.password)
 
       if (existing.length > 0) {
         setStatus(`${file.name} — kept ${existing.length} existing bookmark(s)`)
@@ -645,6 +727,18 @@ for (const name of ['label-text', 'label-position', 'label-size']) {
 
 el('output-name').addEventListener('input', () => model.setOutputName(el('output-name').value))
 
+// --- protecting the saved file ---------------------------------------------
+
+function readProtection() {
+  const enabled = el('protect-enabled').checked
+  el('protect-field').hidden = !enabled
+  model.setProtection({ enabled, password: el('protect-password').value })
+}
+
+for (const name of ['protect-enabled', 'protect-password']) {
+  el(name).addEventListener('input', readProtection)
+}
+
 // --- signatures ------------------------------------------------------------
 
 function drawSignatureList() {
@@ -792,6 +886,7 @@ function exportOptions(pages, firstNumber, totalPages) {
     rasterize: rasterizeRedacted,
     signatures: new Map(signatures.listSignatures().map((sig) => [sig.id, sig])),
     metadata: model.getMetadata(),
+    protection: model.getProtection(),
     firstNumber,
     totalPages,
   }
@@ -816,7 +911,7 @@ async function finish(bytes, pages) {
     page.bookmarks.map((b) => ({ ...b, pageIndex })),
   )
 
-  return buildFlattened(images, model.getMetadata(), bookmarks)
+  return buildFlattened(images, model.getMetadata(), bookmarks, model.getProtection())
 }
 
 // Wraps a save so a failure always reports rather than hanging a disabled button.
@@ -983,5 +1078,6 @@ readNumbering()
 readWatermark()
 readMetadata()
 readFlatten()
+readProtection()
 drawPresetList()
 applyRoute()

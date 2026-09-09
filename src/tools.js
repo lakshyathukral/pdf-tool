@@ -21,15 +21,15 @@ export const TOOLS = {
   },
 
   'photo-watermark': {
-    name: 'Watermark an ID or document',
-    blurb: 'Photograph a PAN, Aadhaar or certificate and stamp it before you send it. The photo never leaves your phone.',
+    name: 'Add a watermark',
+    blurb: 'Stamp DRAFT, CONFIDENTIAL or your own wording across a legal document, a contract, or a photographed PAN or Aadhaar.',
     icon: '▧',
     colour: '#7c3aed',
     panels: ['panel-photos', 'panel-watermark'],
     pageActions: ['select-all', 'select-none', 'view'],
     primary: 'save',
     primaryLabel: 'Save watermarked file',
-    hint: 'Add a photo — on a phone this opens the camera. The watermark is already switched on.',
+    hint: 'Add a PDF, or a photo — on a phone that opens the camera. The watermark is already switched on.',
     // Opening this tool should not mean setting up the thing it is named
     // after. Applied only when a watermark is not already configured, so a
     // saved preset is never overwritten.
@@ -124,17 +124,6 @@ export const TOOLS = {
     hint: 'Add a signature image, click the page to sign, then place it.',
   },
 
-  watermark: {
-    name: 'Add a watermark',
-    blurb: 'Put DRAFT, CONFIDENTIAL or your own text across every page.',
-    icon: '▨',
-    panels: ['panel-watermark'],
-    pageActions: ['view'],
-    primary: 'save',
-    primaryLabel: 'Save watermarked PDF',
-    hint: 'Tick "Add a watermark" in the sidebar, then save.',
-  },
-
   numbering: {
     name: 'Number the pages',
     blurb: 'Bates numbering, "Page 1 of 10", or plain numbers.',
@@ -198,8 +187,10 @@ export const TOOLS = {
 
 // The order they appear on the landing page. Pro sits apart from the rest.
 export const SIMPLE_TOOL_IDS = [
-  'merge', 'photo-watermark', 'photos', 'bookmarks', 'sign', 'organise', 'rotate', 'extract', 'split',
-  'watermark', 'numbering', 'label', 'redact',
+  'merge', 'photo-watermark', 'photos', 'bookmarks', 'organise', 'rotate', 'extract', 'split',
+  'numbering', 'label', 'redact',
+  // Not ready yet, so it goes last.
+  'sign',
 ]
 
 export const getTool = (id) => TOOLS[id] ?? null

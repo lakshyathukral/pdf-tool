@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFile } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { buildPdf, buildOutline, formatPageNumber } from '../src/export.js'
 import { textOfEachPage, rotations, outline, positionOf, centreOf, metadata, open } from './helpers/read-pdf.js'
 
@@ -179,7 +180,7 @@ describe('bookmarks', () => {
   })
 
   it('drops entries with no title or an impossible page', async () => {
-    const { PDFDocument } = await import('pdf-lib')
+    const { PDFDocument } = await import('@cantoo/pdf-lib')
     const doc = await PDFDocument.create({ updateMetadata: false })
     doc.addPage([600, 800])
     const written = buildOutline(doc, [
@@ -193,7 +194,7 @@ describe('bookmarks', () => {
 
 describe('metadata', () => {
   it('does not carry the source file’s own title or author across', async () => {
-    const { PDFDocument } = await import('pdf-lib')
+    const { PDFDocument } = await import('@cantoo/pdf-lib')
     const seed = await PDFDocument.load(five)
     seed.setTitle('PRIVILEGED - internal draft')
     seed.setAuthor('Someone Private')
@@ -224,6 +225,53 @@ describe('metadata', () => {
     const meta = await metadata(out)
     expect(meta.title).toBe('Bundle A')
     expect(meta.author).toBe('Thukral')
+  })
+})
+
+describe('passwords', () => {
+  const locked = readFileSync(new URL('./fixtures/locked.pdf', import.meta.url))
+
+  it('opens a protected source and copies its pages', async () => {
+    const out = await buildPdf({
+      pages: [page('lk', 0), page('lk', 1)],
+      sources: new Map([['lk', { id: 'lk', name: 'locked.pdf', bytes: locked, password: 'letmein' }]]),
+      numbering: numberingOff,
+      watermark: watermarkOff,
+      rasterize: async () => { throw new Error('n/a') },
+    })
+    const text = await textOfEachPage(out)
+    expect(text[0]).toContain('Page One')
+    expect(text[1]).toContain('Page Two')
+  })
+
+  it('saves without a password, which is how one is removed', async () => {
+    const out = await buildPdf({
+      pages: [page('lk', 0)],
+      sources: new Map([['lk', { id: 'lk', name: 'locked.pdf', bytes: locked, password: 'letmein' }]]),
+      numbering: numberingOff,
+      watermark: watermarkOff,
+      rasterize: async () => { throw new Error('n/a') },
+    })
+    expect(Buffer.from(out).toString('latin1')).not.toContain('/Encrypt')
+    // Readable with no password at all.
+    expect((await textOfEachPage(out))[0]).toContain('Page One')
+  })
+
+  it('puts a password on the saved file when asked', async () => {
+    const { PDFDocument } = await import('@cantoo/pdf-lib')
+    const out = await build([page('s1', 0)], {
+      protection: { enabled: true, password: 'newpass' },
+    })
+
+    expect(Buffer.from(out).toString('latin1')).toContain('/Encrypt')
+    await expect(PDFDocument.load(out)).rejects.toThrow()
+    const opened = await PDFDocument.load(out, { password: 'newpass' })
+    expect(opened.getPageCount()).toBe(1)
+  })
+
+  it('ignores an empty password rather than producing a file nobody can open', async () => {
+    const out = await build([page('s1', 0)], { protection: { enabled: true, password: '' } })
+    expect(Buffer.from(out).toString('latin1')).not.toContain('/Encrypt')
   })
 })
 
