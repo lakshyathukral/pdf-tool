@@ -10,7 +10,11 @@
 let sources = new Map()
 
 // The document, in order. Each entry describes ONE page of the output:
-//   { id, sourceId, pageIndex, rotation, stamps: [], redactions: [], bookmarks }
+//   { id, sourceId, pageIndex, rotation, stamps: [], redactions: [],
+//     bookmarks: [], signatures: [] }
+// signatures are placements: { signatureId, x, y, w, h } as fractions of the
+// page AS DISPLAYED, measured from the top-left — the same convention as
+// redaction boxes, so both survive zooming and rotation the same way.
 // bookmarks is a LIST of { title, level }. A page needs more than one because a
 // section heading and the first document under it usually start on the same
 // page: "A. Pleadings" and "A1. Particulars of Claim" both point at page 1.
@@ -88,6 +92,7 @@ function cloneState() {
       stamps: p.stamps.map((s) => ({ ...s })),
       redactions: p.redactions.map((r) => ({ ...r })),
       bookmarks: p.bookmarks.map((b) => ({ ...b })),
+      signatures: p.signatures.map((sig) => ({ ...sig })),
     })),
     // A shallow copy: the entries are copied, the file bytes inside them are
     // shared references, so this stays cheap however large the PDFs are.
@@ -187,6 +192,7 @@ export function addSource(id, name, bytes, pageCount, sourceOutline = []) {
       // The first page of each file added gets a bookmark named after it, so
       // merging a set of exhibits produces a navigable bundle with no work.
       bookmarks: pageIndex === 0 ? [{ title: bookmarkTitleFor(name), level: 1 }] : [],
+      signatures: [],
     })
   }
 
@@ -345,6 +351,8 @@ export function duplicateSelected() {
       // A duplicated page must not duplicate its bookmarks: two entries with
       // the same name pointing at different pages is worse than none.
       bookmarks: [],
+      // Signatures DO copy — duplicating a signed page should stay signed.
+      signatures: page.signatures.map((sig) => ({ ...sig })),
     })
   }
 
@@ -442,6 +450,49 @@ export function bookmarkSelected(pattern, level, startAt = 1) {
   }
   notify()
 }
+
+// --- signatures ------------------------------------------------------------
+
+// Put a signature on one page at the given spot.
+export function placeSignature(pageId, signatureId, box) {
+  beginChange()
+  pages.find((p) => p.id === pageId)?.signatures.push({ signatureId, ...box })
+  notify()
+}
+
+// The same signature in the same spot on every selected page — how you initial
+// each page of a bundle without doing it forty times.
+export function placeSignatureOnSelected(signatureId, box) {
+  if (selection.size === 0) return
+  beginChange()
+  for (const page of pages) {
+    if (selection.has(page.id)) page.signatures.push({ signatureId, ...box })
+  }
+  notify()
+}
+
+export function removeSignaturePlacement(pageId, index) {
+  beginChange()
+  pages.find((p) => p.id === pageId)?.signatures.splice(index, 1)
+  notify()
+}
+
+export function clearSignaturesOnSelected() {
+  if (selection.size === 0) return
+  beginChange()
+  for (const page of pages) {
+    if (selection.has(page.id)) page.signatures = []
+  }
+  notify()
+}
+
+// Every page a given signature image appears on — so removing the image can
+// warn about what it would take with it.
+export const pagesUsingSignature = (signatureId) =>
+  pages.filter((p) => p.signatures.some((sig) => sig.signatureId === signatureId)).length
+
+export const signaturePlacementCount = () =>
+  pages.reduce((n, p) => n + p.signatures.length, 0)
 
 export function setRedactions(pageId, rects) {
   beginChange()

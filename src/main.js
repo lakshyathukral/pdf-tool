@@ -22,7 +22,9 @@ import { openRedactor, setupRedactor } from './ui/redact.js'
 import { drawFileList, setupFileList } from './ui/files.js'
 import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
+import { openSigner, setupSigner } from './ui/sign.js'
 import * as presets from './presets.js'
+import * as signatures from './signatures.js'
 import { TOOLS, ALWAYS_PANELS, getTool, currentToolId, goToTool, goToLanding } from './tools.js'
 import { drawLanding } from './ui/landing.js'
 
@@ -55,7 +57,7 @@ const clearError = () => { el('error-banner').hidden = true }
 const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
 const onLanding = () => getTool(currentToolId()) === null
 
-const PANEL_IDS = ['panel-files', 'panel-bookmarks', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
+const PANEL_IDS = ['panel-files', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
 
 // Show only the parts this tool needs. Everything still exists and still works
@@ -107,6 +109,18 @@ function refreshControls() {
   el('delete').disabled = !hasSelection
   el('label-apply').disabled = !hasSelection
   el('label-clear').disabled = !hasSelection
+  // Signing needs an image loaded and exactly one page chosen.
+  el('sign-open').disabled = selected !== 1 || !signatures.hasSignatures()
+  el('sign-remove-pages').disabled = !hasSelection
+
+  el('signature-hint').textContent =
+    !signatures.hasSignatures() ? 'Add a signature image to begin.'
+    : selected === 0 ? 'Select the page to sign — click a thumbnail.'
+    : selected > 1 ? 'Select a single page to place a signature; you can then copy it to the rest.'
+    : ''
+
+  drawSignatureList()
+
   el('bookmark-add').disabled = !hasSelection
   el('bookmark-add-sub').disabled = !hasSelection
 
@@ -439,6 +453,64 @@ for (const name of ['label-text', 'label-position', 'label-size']) {
 
 el('output-name').addEventListener('input', () => model.setOutputName(el('output-name').value))
 
+// --- signatures ------------------------------------------------------------
+
+function drawSignatureList() {
+  const list = el('signature-list')
+  list.replaceChildren(...signatures.listSignatures().map((sig) => {
+    const row = document.createElement('li')
+    row.className = 'signature-row'
+
+    const preview = document.createElement('img')
+    preview.src = sig.url
+    preview.alt = ''
+
+    const name = document.createElement('span')
+    name.className = 'file-name'
+    name.textContent = sig.name
+    name.title = sig.name
+
+    const used = document.createElement('span')
+    used.className = 'file-meta'
+    const pages = model.pagesUsingSignature(sig.id)
+    used.textContent = pages === 0 ? 'not placed' : `on ${pages} page${pages === 1 ? '' : 's'}`
+
+    const remove = document.createElement('button')
+    remove.type = 'button'
+    remove.textContent = 'Remove'
+    remove.addEventListener('click', () => {
+      signatures.removeSignature(sig.id)
+      drawSignatureList()
+      refreshControls()
+      drawGrid()
+    })
+
+    row.append(preview, name, used, remove)
+    return row
+  }))
+}
+
+el('signature-input').addEventListener('change', async () => {
+  const input = el('signature-input')
+  const file = input.files[0]
+  input.value = ''
+  if (!file) return
+
+  clearError()
+  try {
+    await signatures.addSignature(file, { removeBackground: el('signature-transparent').checked })
+    setStatus(`Added signature "${file.name}"`)
+  } catch (error) {
+    showError(error.message)
+    console.error(error)
+  }
+  drawSignatureList()
+  refreshControls()
+})
+
+el('sign-open').addEventListener('click', () => openSigner(model.getSelectedIds()[0]))
+el('sign-remove-pages').addEventListener('click', model.clearSignaturesOnSelected)
+
 // --- presets ---------------------------------------------------------------
 
 function drawPresetList() {
@@ -523,6 +595,7 @@ function exportOptions(pages, firstNumber, totalPages) {
     numbering: model.getNumbering(),
     watermark: model.getWatermark(),
     rasterize: rasterizeRedacted,
+    signatures: new Map(signatures.listSignatures().map((sig) => [sig.id, sig])),
     metadata: model.getMetadata(),
     firstNumber,
     totalPages,
@@ -650,6 +723,7 @@ window.addEventListener('hashchange', applyRoute)
 setupDragDrop(openViewer)
 setupRedactor()
 setupViewer(openRedactor)
+setupSigner()
 setupFileList()
 setupBookmarks(openViewer)
 drawFileList()

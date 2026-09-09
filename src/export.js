@@ -121,6 +121,37 @@ export async function buildFlattened(images, metadata = { title: '', author: '' 
   return output.save()
 }
 
+// --- signatures ------------------------------------------------------------
+
+// Draw one signature image where the user put it.
+//
+// Placements are fractions of the page AS DISPLAYED, measured from the
+// top-left. PDF drawing coordinates run from the bottom-left of the UNROTATED
+// page, so both of those have to be undone.
+function drawSignature(page, placement, image, rotation) {
+  const { width: w, height: h } = page.getSize()
+  const [visualWidth, visualHeight] = rotation === 90 || rotation === 270 ? [h, w] : [w, h]
+
+  const boxWidth = placement.w * visualWidth
+  const boxHeight = placement.h * visualHeight
+
+  // Fractions count down from the top; PDF counts up from the bottom.
+  const vx = placement.x * visualWidth
+  const vy = (1 - placement.y - placement.h) * visualHeight
+
+  const [x, y] = visualToPage(vx, vy, w, h, rotation)
+
+  // Rotating the image by the same amount as the page cancels the page's own
+  // rotation out, so the signature sits square to what the reader sees.
+  page.drawImage(image, {
+    x,
+    y,
+    width: boxWidth,
+    height: boxHeight,
+    rotate: degrees(rotation),
+  })
+}
+
 // --- page numbering styles -------------------------------------------------
 
 export function formatPageNumber(numbering, n, total) {
@@ -146,6 +177,7 @@ export async function buildPdf({
   numbering,
   watermark,
   rasterize,
+  signatures = new Map(),
   metadata = { title: '', author: '' },
   firstNumber = numbering.start,
   totalPages = numbering.start + pages.length - 1,
@@ -202,6 +234,24 @@ export async function buildPdf({
     }
   }
 
+  // Embed each signature image once, however many pages it appears on.
+  const embedded = new Map()
+  for (const modelPage of pages) {
+    for (const placement of modelPage.signatures) {
+      if (embedded.has(placement.signatureId)) continue
+
+      const asset = signatures.get(placement.signatureId)
+      if (!asset) continue
+
+      embedded.set(
+        placement.signatureId,
+        asset.mime === 'image/jpeg'
+          ? await output.embedJpg(asset.bytes)
+          : await output.embedPng(asset.bytes),
+      )
+    }
+  }
+
   // Now rotate, watermark and number, walking model and output side by side.
   let number = firstNumber
 
@@ -219,6 +269,13 @@ export async function buildPdf({
 
     if (watermark.enabled && watermark.text) {
       drawWatermark(page, watermark, font, rotation)
+    }
+
+    // Signatures go on before labels and numbering, so a page number is never
+    // hidden underneath a signature.
+    for (const placement of modelPage.signatures) {
+      const image = embedded.get(placement.signatureId)
+      if (image) drawSignature(page, placement, image, rotation)
     }
 
     for (const stamp of modelPage.stamps) {

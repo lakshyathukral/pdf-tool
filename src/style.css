@@ -641,3 +641,72 @@ input[type="range"] { width: 100%; }
   font-weight: 500;
   color: #18181b;
 }
+
+/* --- signatures ---------------------------------------------------------- */
+
+#signature-list { list-style: none; margin: 0.6rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+
+.signature-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-areas: 'img name button' 'img meta button';
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.signature-row img {
+  grid-area: img;
+  width: 48px;
+  max-height: 28px;
+  object-fit: contain;
+  /* Signatures are knocked out to transparent, so a chequer makes it obvious
+     the background really is gone rather than white. */
+  background:
+    repeating-conic-gradient(#e4e4e7 0% 25%, #fff 0% 50%) 50% / 8px 8px;
+}
+
+.signature-row .file-name { grid-area: name; }
+.signature-row .file-meta { grid-area: meta; }
+.signature-row button { grid-area: button; font-size: 0.72rem; padding: 0.2rem 0.4rem; }
+
+/* A placed signature, on a thumbnail or in a dialog. */
+.sign-mark { position: absolute; object-fit: contain; pointer-events: none; }
+
+#sign-dialog {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  max-width: min(860px, 94vw);
+  max-height: 94vh;
+  overflow: auto;
+}
+
+#sign-dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+#sign-dialog h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+#sign-dialog .hint { max-width: 62ch; }
+#sign-dialog .caption { margin: 0.75rem 0 0.5rem; font-size: 0.82rem; font-weight: 600; }
+
+#sign-stage {
+  position: relative;
+  margin: 0.6rem auto;
+  background: #f4f4f5;
+  border: 1px solid var(--border);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+#sign-stage > img:not(.sign-mark) { display: block; width: 100%; height: 100%; }
+
+#sign-stage.loading::after {
+  content: 'Rendering page...';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

@@ -97,6 +97,34 @@
           <p class="hint" id="bookmark-empty">No bookmarks yet. Each file you add gets one automatically, named after the file.</p>
         </details>
 
+        <details class="panel" id="panel-signatures">
+          <summary>Signature</summary>
+          <p class="hint">
+            <strong>This is a picture, not a digital signature.</strong> It does
+            not prove who signed or show whether the document was changed
+            afterwards. Fine for engrossments, letters and initialling a bundle.
+          </p>
+          <label class="file-button" style="display:inline-block">
+            Add a signature image
+            <input type="file" id="signature-input" accept="image/*" hidden />
+          </label>
+          <p class="hint">
+            On a phone or tablet this offers your camera — sign a sheet of
+            paper and photograph it directly.
+          </p>
+          <label class="checkbox" style="margin-top:0.6rem">
+            <input type="checkbox" id="signature-transparent" checked />
+            <span>Remove the white background</span>
+          </label>
+          <p class="hint">A photo on paper has an opaque background that would cover whatever it sits over.</p>
+          <ul id="signature-list"></ul>
+          <div class="row actions">
+            <button id="sign-open" type="button" class="primary" disabled>Place on selected page</button>
+            <button id="sign-remove-pages" type="button" disabled>Remove from selected</button>
+          </div>
+          <p class="hint" id="signature-hint"></p>
+        </details>
+
         <details class="panel" id="panel-label">
           <summary>Label pages</summary>
           <p class="hint">Fixed text on the pages you have selected — an exhibit number, a confidentiality notice.</p>
@@ -319,6 +347,31 @@
         <div id="thumbnails" class="empty"></div>
       </section>
     </main>
+
+    <dialog id="sign-dialog">
+      <h2>Place signature</h2>
+      <p class="hint">
+        Drag a box where the signature should go — its height follows the
+        image's own proportions. This adds a picture to the page; it is not a
+        digital signature and proves nothing about who signed.
+      </p>
+      <p class="caption" id="sign-caption"></p>
+      <div class="row">
+        <label class="field grow">
+          <span>Which signature</span>
+          <select id="sign-choose"></select>
+        </label>
+      </div>
+      <div id="sign-stage"></div>
+      <p class="inline-hint" id="sign-count"></p>
+      <div class="row actions">
+        <button id="sign-apply" type="button" class="primary">Done</button>
+        <button id="sign-all" type="button">Also put it on every selected page</button>
+        <button id="sign-undo" type="button">Remove last</button>
+        <button id="sign-clear" type="button">Clear</button>
+        <button id="sign-cancel" type="button">Cancel</button>
+      </div>
+    </dialog>
 
     <dialog id="viewer-dialog">
       <div class="dialog-head">

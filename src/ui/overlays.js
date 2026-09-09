@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import * as model from '../model.js'
+import * as signatures from '../signatures.js'
 import { formatPageNumber } from '../export.js'
 
 // A preview of a stamp, placed in the corner it will actually print in.
@@ -30,6 +31,21 @@ export function addOverlays(frame, page, position, { scale = 1 } = {}) {
     box.style.width = `${r.w * 100}%`
     box.style.height = `${r.h * 100}%`
     frame.append(box)
+  }
+
+  // Signature placements, drawn where they will actually print.
+  for (const placement of page.signatures) {
+    const asset = signatures.getSignature(placement.signatureId)
+    if (!asset) continue
+
+    const mark = document.createElement('img')
+    mark.className = 'sign-mark'
+    mark.src = asset.url
+    mark.style.left = `${placement.x * 100}%`
+    mark.style.top = `${placement.y * 100}%`
+    mark.style.width = `${placement.w * 100}%`
+    mark.style.height = `${placement.h * 100}%`
+    frame.append(mark)
   }
 
   const watermark = model.getWatermark()

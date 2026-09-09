@@ -64,6 +64,17 @@ export const TOOLS = {
     hint: 'Each file you add is bookmarked automatically. Select a page to add more.',
   },
 
+  sign: {
+    name: 'Sign a document',
+    blurb: 'Drop a picture of your signature onto a page — or onto every page.',
+    icon: '✍',
+    panels: ['panel-signatures'],
+    pageActions: ['select-all', 'select-none', 'view'],
+    primary: 'save',
+    primaryLabel: 'Save signed PDF',
+    hint: 'Add a signature image, click the page to sign, then place it.',
+  },
+
   watermark: {
     name: 'Add a watermark',
     blurb: 'Put DRAFT, CONFIDENTIAL or your own text across every page.',
@@ -133,7 +144,7 @@ export const TOOLS = {
 
 // The order they appear on the landing page. Pro sits apart from the rest.
 export const SIMPLE_TOOL_IDS = [
-  'merge', 'bookmarks', 'organise', 'rotate', 'extract', 'split',
+  'merge', 'bookmarks', 'sign', 'organise', 'rotate', 'extract', 'split',
   'watermark', 'numbering', 'label', 'redact',
 ]
 
