@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Tool</title>
+  </head>
+  <body>
+    <!-- Always visible: identity on the left, the things you always need on
+         the right. Stays put while the pages scroll underneath. -->
+    <header class="topbar">
+      <div class="brand">
+        <button id="home-link" type="button" class="linkish">PDF Tool</button>
+        <span id="tool-name">Runs entirely in your browser — nothing is uploaded.</span>
+      </div>
+
+      <div class="top-actions">
+        <p id="status">No PDFs loaded yet.</p>
+        <label class="file-button">
+          Add PDFs
+          <input type="file" id="file-input" accept="application/pdf" multiple hidden />
+        </label>
+        <button id="open-pro" type="button" hidden>Open in full editor</button>
+        <button id="undo" type="button" disabled title="Undo (Cmd+Z)">Undo</button>
+        <button id="redo" type="button" disabled title="Redo (Cmd+Shift+Z)">Redo</button>
+        <button id="primary-action" type="button" class="primary" disabled>Save PDF</button>
+      </div>
+    </header>
+
+    <!-- Failures go here, not in the status line: that one truncates. -->
+    <div id="error-banner" hidden>
+      <p id="error-text"></p>
+      <button id="error-dismiss" type="button">Dismiss</button>
+    </div>
+
+    <!-- The front page: pick a job. Each tool is this same editor with the
+         parts you do not need hidden. -->
+    <div id="app-landing">
+      <div class="landing-inner">
+        <h1>What do you need to do?</h1>
+        <p class="lede">
+          Every tool below runs entirely inside this browser tab. Your files are
+          never uploaded, and nothing is stored anywhere but your own computer.
+        </p>
+        <div id="pro-card"></div>
+        <h2 class="section-title">One job at a time</h2>
+        <div id="tool-grid"></div>
+      </div>
+    </div>
+
+    <!-- Shown only when nothing is loaded. One instruction, one action. -->
+    <div id="app-empty">
+      <div class="dropzone" id="dropzone">
+        <p class="eyebrow" id="dropzone-tool"></p>
+        <h2>Drop PDFs here</h2>
+        <p>or</p>
+        <label class="file-button">
+          Choose files
+          <input type="file" id="file-input-empty" accept="application/pdf" multiple hidden />
+        </label>
+        <p class="hint" id="dropzone-hint"></p>
+        <p class="hint">
+          Nothing leaves your computer — files are read in this browser tab and
+          never uploaded.
+        </p>
+      </div>
+    </div>
+
+    <!-- Shown once something is loaded: settings left, pages right. -->
+    <main id="app-workspace" hidden>
+      <aside class="sidebar">
+        <details class="panel" id="panel-files" open>
+          <summary>Files</summary>
+          <ul id="file-list"></ul>
+          <button id="group-by-file" type="button">Group pages by file</button>
+          <p class="hint">Puts each file's pages back together, in their original order.</p>
+        </details>
+
+        <details class="panel" id="panel-label">
+          <summary>Label pages</summary>
+          <p class="hint">Fixed text on the pages you have selected — an exhibit number, a confidentiality notice.</p>
+          <label class="field">
+            <span>Label text</span>
+            <input type="text" id="label-text" placeholder="e.g. EXHIBIT A" />
+          </label>
+          <div class="row">
+            <label class="field grow">
+              <span>Where on the page</span>
+              <select id="label-position">
+                <option value="top-left">Top left</option>
+                <option value="top-center">Top centre</option>
+                <option value="top-right">Top right</option>
+                <option value="middle-center">Centre</option>
+                <option value="bottom-left">Bottom left</option>
+                <option value="bottom-center">Bottom centre</option>
+                <option value="bottom-right" selected>Bottom right</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Size (pt)</span>
+              <input type="number" id="label-size" value="12" min="6" max="72" />
+            </label>
+          </div>
+          <div class="row actions">
+            <button id="label-apply" type="button" class="primary" disabled>Add label</button>
+            <button id="label-clear" type="button" disabled>Remove</button>
+          </div>
+          <p class="hint" id="label-hint"></p>
+        </details>
+
+        <details class="panel" id="panel-numbering">
+          <summary>Page numbering</summary>
+          <label class="checkbox">
+            <input type="checkbox" id="numbering-enabled" />
+            <span>Number the pages</span>
+          </label>
+          <label class="field">
+            <span>Style</span>
+            <select id="numbering-style">
+              <option value="bates" selected>Bates (ABC-00001)</option>
+              <option value="page-of">Page 1 of 10</option>
+              <option value="page">Page 1</option>
+              <option value="plain">1</option>
+              <option value="dashes">- 1 -</option>
+            </select>
+          </label>
+          <div class="row">
+            <label class="field grow" id="numbering-prefix-field">
+              <span>Prefix</span>
+              <input type="text" id="numbering-prefix" placeholder="e.g. ABC-" />
+            </label>
+            <label class="field" id="numbering-padding-field">
+              <span>Digits</span>
+              <input type="number" id="numbering-padding" value="4" min="1" max="10" />
+            </label>
+            <label class="field">
+              <span>Start at</span>
+              <input type="number" id="numbering-start" value="1" min="0" />
+            </label>
+          </div>
+          <div class="row">
+            <label class="field grow">
+              <span>Where on the page</span>
+              <select id="numbering-position">
+                <option value="bottom-right" selected>Bottom right</option>
+                <option value="bottom-left">Bottom left</option>
+                <option value="bottom-center">Bottom centre</option>
+                <option value="top-right">Top right</option>
+                <option value="top-left">Top left</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Size (pt)</span>
+              <input type="number" id="numbering-size" value="10" min="6" max="24" />
+            </label>
+          </div>
+          <p class="preview" id="numbering-preview"></p>
+        </details>
+
+        <details class="panel" id="panel-watermark">
+          <summary>Watermark</summary>
+          <label class="checkbox">
+            <input type="checkbox" id="watermark-enabled" />
+            <span>Add a watermark</span>
+          </label>
+          <label class="field">
+            <span>Watermark text</span>
+            <input type="text" id="watermark-text" value="DRAFT" placeholder="e.g. DRAFT" />
+          </label>
+          <div class="row">
+            <label class="field">
+              <span>Size (pt)</span>
+              <input type="number" id="watermark-size" value="60" min="10" max="200" />
+            </label>
+            <label class="field">
+              <span>Angle</span>
+              <input type="number" id="watermark-angle" value="45" min="-90" max="90" />
+            </label>
+            <label class="field grow">
+              <span>Darkness</span>
+              <input type="range" id="watermark-opacity" value="15" min="2" max="60" />
+            </label>
+          </div>
+          <label class="checkbox">
+            <input type="checkbox" id="watermark-tiled" />
+            <span>Repeat across the page</span>
+          </label>
+          <p class="hint">
+            Repeating makes it harder to remove cleanly — a PDF editor has to
+            delete nine separate pieces of text instead of one, and a partial
+            job shows. To stop it being editable at all, use "Flatten pages"
+            under Saving.
+          </p>
+        </details>
+
+        <details class="panel" id="panel-presets">
+          <summary>Presets</summary>
+          <p class="hint">Save the numbering, watermark and label settings under a name and reuse them. Kept in this browser only.</p>
+          <div class="row">
+            <label class="field grow">
+              <span>Saved presets</span>
+              <select id="preset-select"><option value="">None saved yet</option></select>
+            </label>
+          </div>
+          <div class="row actions">
+            <button id="preset-apply" type="button" disabled>Use</button>
+            <button id="preset-delete" type="button" disabled>Delete</button>
+          </div>
+          <div class="row">
+            <label class="field grow">
+              <span>Save current settings as</span>
+              <input type="text" id="preset-name" placeholder="e.g. Bundle - Smith" />
+            </label>
+          </div>
+          <div class="row actions">
+            <button id="preset-save" type="button">Save preset</button>
+          </div>
+          <p class="hint" id="preset-hint"></p>
+        </details>
+
+        <details class="panel" id="panel-saving" open>
+          <summary>Saving</summary>
+          <label class="field">
+            <span>File name</span>
+            <input type="text" id="output-name" placeholder="combined" />
+          </label>
+          <div class="row">
+            <label class="field grow">
+              <span>Document title (optional)</span>
+              <input type="text" id="meta-title" placeholder="left blank" />
+            </label>
+          </div>
+          <div class="row">
+            <label class="field grow">
+              <span>Author (optional)</span>
+              <input type="text" id="meta-author" placeholder="left blank" />
+            </label>
+          </div>
+          <p class="hint">
+            The source file's own title, author and keywords are never carried
+            into the saved file. These fields add details, they do not strip any.
+          </p>
+          <div class="row actions">
+            <button id="extract" type="button" disabled>Save selected pages only</button>
+          </div>
+          <hr />
+          <label class="checkbox">
+            <input type="checkbox" id="flatten-enabled" />
+            <span>Flatten pages before saving</span>
+          </label>
+          <label class="field" id="flatten-dpi-field">
+            <span>Flatten quality</span>
+            <select id="flatten-dpi">
+              <option value="150" selected>Standard (150 dpi)</option>
+              <option value="200">Sharper (200 dpi)</option>
+              <option value="300">Print quality (300 dpi) — large files</option>
+            </select>
+          </label>
+          <p class="hint">
+            Turns every page into an image, so the watermark, page numbers and
+            the document text cannot be selected or edited in Acrobat.
+            <strong>The saved file stops being searchable and gets much
+            larger.</strong> Slow on long documents.
+          </p>
+
+          <div id="split-block">
+            <hr />
+            <label class="field">
+              <span>Split into several files</span>
+              <select id="split-mode">
+                <option value="each">One file per page</option>
+                <option value="selected">New file at each selected page</option>
+              </select>
+            </label>
+            <div class="row actions">
+              <button id="split" type="button" disabled>Split</button>
+            </div>
+            <p class="hint">More than one file comes back as a single .zip.</p>
+          </div>
+        </details>
+      </aside>
+
+      <section class="canvas">
+        <!-- Actions on pages, directly above the pages they act on. -->
+        <div class="selection-bar">
+          <span id="selection-summary">Click a page to select it</span>
+          <button id="select-all" type="button" disabled>Select all</button>
+          <button id="select-none" type="button" disabled>Deselect</button>
+          <span class="divider"></span>
+          <button id="rotate-left" type="button" disabled>Rotate left</button>
+          <button id="rotate-right" type="button" disabled>Rotate right</button>
+          <button id="duplicate" type="button" disabled>Duplicate</button>
+          <button id="delete" type="button" disabled>Delete</button>
+          <button id="view" type="button" disabled>View full size</button>
+          <button id="redact" type="button" disabled>Redact&hellip;</button>
+        </div>
+
+        <div id="thumbnails" class="empty"></div>
+      </section>
+    </main>
+
+    <dialog id="viewer-dialog">
+      <div class="dialog-head">
+        <p class="caption" id="viewer-caption"></p>
+        <span class="inline-hint" id="viewer-counter"></span>
+        <button id="viewer-close" type="button">Close</button>
+      </div>
+      <div id="viewer-frame"></div>
+      <div class="row actions">
+        <button id="viewer-prev" type="button">&larr; Previous</button>
+        <button id="viewer-next" type="button">Next &rarr;</button>
+        <span class="divider"></span>
+        <button id="viewer-rotate-left" type="button">Rotate left</button>
+        <button id="viewer-rotate-right" type="button">Rotate right</button>
+        <button id="viewer-redact" type="button">Redact this page&hellip;</button>
+      </div>
+      <p class="hint">Use the left and right arrow keys to page through.</p>
+    </dialog>
+
+    <dialog id="redact-dialog">
+      <h2>Redact</h2>
+      <p class="hint">
+        Drag a box over anything that must be removed. The page is re-rendered as
+        an image with the boxes burned in, so the text underneath is destroyed
+        rather than covered up. Redacted pages stop being searchable.
+      </p>
+      <p class="caption" id="redact-caption"></p>
+      <div id="redact-stage"></div>
+      <p class="inline-hint" id="redact-count"></p>
+      <div class="row actions">
+        <button id="redact-apply" type="button" class="primary">Apply redactions</button>
+        <button id="redact-undo" type="button">Remove last box</button>
+        <button id="redact-clear" type="button">Clear all</button>
+        <button id="redact-cancel" type="button">Cancel</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
