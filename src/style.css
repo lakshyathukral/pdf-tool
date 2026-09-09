@@ -578,6 +578,8 @@ input[type="range"] { width: 100%; }
 /* Indentation is the whole hierarchy — no tree widget needed. */
 .bookmark-row.level-2 { padding-left: 1rem; }
 .bookmark-row.level-3 { padding-left: 2rem; }
+.bookmark-row.level-4 { padding-left: 3rem; }
+.bookmark-row.level-5 { padding-left: 4rem; }
 
 .bookmark-jump {
   flex: 1 1 auto;
@@ -628,7 +630,9 @@ input[type="range"] { width: 100%; }
 }
 
 .bookmark-flag.level-2 { background: #3d6b9e; left: 12px; }
-.bookmark-flag.level-3 { background: #7ba3cc; left: 18px; }
+.bookmark-flag.level-3 { background: #6a94c2; left: 18px; }
+.bookmark-flag.level-4 { background: #90b4d8; left: 24px; }
+.bookmark-flag.level-5 { background: #b3cde5; color: #1e3a5f; left: 30px; }
 
 /* The line under the landing heading. */
 .tagline-big {

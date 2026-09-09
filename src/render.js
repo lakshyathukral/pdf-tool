@@ -187,3 +187,46 @@ export async function flattenDocument(bytes, { dpi = 150, onProgress } = {}) {
 
   return images
 }
+
+// Read the bookmarks a document already has, flattened to a list with levels.
+//
+// A PDF destination can be an array whose first element points at a page, or
+// the name of a destination defined elsewhere in the file — both appear in real
+// documents, so both are resolved here. Entries that point nowhere usable are
+// dropped rather than becoming bookmarks that go nowhere when clicked.
+export async function readOutline(sourceId) {
+  const pdf = documents.get(sourceId)
+  if (!pdf) return []
+
+  let outline
+  try {
+    outline = await pdf.getOutline()
+  } catch {
+    return []  // a malformed outline should not stop the file loading
+  }
+  if (!outline?.length) return []
+
+  const pageIndexOf = async (dest) => {
+    try {
+      const resolved = typeof dest === 'string' ? await pdf.getDestination(dest) : dest
+      if (!Array.isArray(resolved) || !resolved[0]) return null
+      return await pdf.getPageIndex(resolved[0])
+    } catch {
+      return null
+    }
+  }
+
+  const flat = []
+
+  const walk = async (items, level) => {
+    for (const item of items) {
+      const pageIndex = await pageIndexOf(item.dest)
+      const title = (item.title ?? '').trim()
+      if (pageIndex !== null && title) flat.push({ title, level, pageIndex })
+      if (item.items?.length) await walk(item.items, level + 1)
+    }
+  }
+
+  await walk(outline, 1)
+  return flat
+}

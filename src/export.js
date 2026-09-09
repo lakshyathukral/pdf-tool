@@ -262,12 +262,16 @@ export async function buildPdf({
 // A level-2 entry becomes a child of the level-1 entry above it. An entry that
 // is deeper than the one before allows is pulled up rather than dropped, so a
 // stray sub-bookmark with no parent still appears.
+// Deep enough for a real document's own structure once it has been pushed a
+// level down to sit under its filename. Hand-made bookmarks rarely go past 2.
+export const MAX_BOOKMARK_LEVEL = 5
+
 function nestEntries(entries) {
   const root = { children: [] }
   const openAt = [root]  // openAt[n] is the node currently open at depth n
 
   for (const entry of entries) {
-    const wanted = Math.max(1, Math.min(entry.level ?? 1, 3))
+    const wanted = Math.max(1, Math.min(entry.level ?? 1, MAX_BOOKMARK_LEVEL))
     const depth = Math.min(wanted, openAt.length)
 
     openAt.length = depth

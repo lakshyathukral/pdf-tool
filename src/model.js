@@ -161,7 +161,11 @@ function bookmarkTitleFor(fileName) {
   return fileName.replace(/\.pdf$/i, '').replace(/[_]+/g, ' ').trim()
 }
 
-export function addSource(id, name, bytes, pageCount) {
+// `sourceOutline` is the bookmarks the file already had, as
+// { title, level, pageIndex }. They are nested one level under the entry named
+// after the file, so merging three bookmarked documents gives three top-level
+// entries each keeping its own structure underneath.
+export function addSource(id, name, bytes, pageCount, sourceOutline = []) {
   beginChange()
 
   sources.set(id, {
@@ -183,6 +187,16 @@ export function addSource(id, name, bytes, pageCount) {
       // The first page of each file added gets a bookmark named after it, so
       // merging a set of exhibits produces a navigable bundle with no work.
       bookmarks: pageIndex === 0 ? [{ title: bookmarkTitleFor(name), level: 1 }] : [],
+    })
+  }
+
+  for (const entry of sourceOutline) {
+    const page = pages.find((p) => p.sourceId === id && p.pageIndex === entry.pageIndex)
+    // +1 so the document's own structure sits under the entry named after it,
+    // keeping its internal nesting intact rather than flattening it.
+    page?.bookmarks.push({
+      title: entry.title,
+      level: Math.min(MAX_BOOKMARK_LEVEL, entry.level + 1),
     })
   }
 
@@ -350,6 +364,9 @@ export function setLabelOnSelected(text, position, size) {
   notify()
 }
 
+// Matches the exporter's limit; imported documents keep their own nesting.
+const MAX_BOOKMARK_LEVEL = 5
+
 // --- bookmarks -------------------------------------------------------------
 
 // A sub-bookmark nests under whatever comes before it. An entry deeper than
@@ -399,13 +416,17 @@ export function removeBookmark(pageId, index) {
   notify()
 }
 
-// Indent or outdent one entry, clamped to levels 1-3.
+// Indent or outdent one entry.
 export function nudgeBookmarkLevel(pageId, index, delta) {
   beginChange()
   const bookmark = pages.find((p) => p.id === pageId)?.bookmarks[index]
-  if (bookmark) bookmark.level = Math.max(1, Math.min(3, bookmark.level + delta))
+  if (bookmark) {
+    bookmark.level = Math.max(1, Math.min(MAX_BOOKMARK_LEVEL, bookmark.level + delta))
+  }
   notify()
 }
+
+export const maxBookmarkLevel = () => MAX_BOOKMARK_LEVEL
 
 // Name every selected page at once. {n} in the title is replaced by a counter,
 // so "Exhibit {n}" gives Exhibit 1, Exhibit 2, and so on in page order.

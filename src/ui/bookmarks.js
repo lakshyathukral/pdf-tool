@@ -49,7 +49,7 @@ function makeRow(entry) {
   into.type = 'button'
   into.textContent = '→'
   into.title = 'Make this a sub-bookmark'
-  into.disabled = entry.level === 3
+  into.disabled = entry.level >= model.maxBookmarkLevel()
   into.addEventListener('click', () => model.nudgeBookmarkLevel(entry.pageId, entry.index, 1))
 
   const remove = document.createElement('button')

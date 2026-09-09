@@ -5,7 +5,7 @@
 
 import './style.css'
 import * as model from './model.js'
-import { openSource, renderThumbnail, rasterizeRedacted, flattenDocument } from './render.js'
+import { openSource, renderThumbnail, rasterizeRedacted, flattenDocument, readOutline } from './render.js'
 import {
   buildPdf,
   buildFlattened,
@@ -226,7 +226,14 @@ async function loadFiles(files) {
       // ownership of what it is given — `bytes` stays intact for pdf-lib.
       const id = model.reserveSourceId()
       const pageCount = await openSource(id, bytes)
-      model.addSource(id, file.name, bytes, pageCount)
+
+      // Keep whatever navigation the document already had.
+      const existing = await readOutline(id)
+      model.addSource(id, file.name, bytes, pageCount, existing)
+
+      if (existing.length > 0) {
+        setStatus(`${file.name} — kept ${existing.length} existing bookmark(s)`)
+      }
 
       // Render thumbnails one at a time. Doing them all at once does not make
       // them faster — canvas work runs on the main thread — and it would stop
