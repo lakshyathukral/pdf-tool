@@ -1230,3 +1230,11 @@ html, body { max-width: 100%; }
 
 .file-button.subtle:hover { background: var(--accent-wash); border-color: var(--accent); }
 .dropzone .file-button.subtle { margin-left: 0.4rem; }
+
+/* In a photo-first tool, "Take photos" is the main action on the drop screen
+   and choosing a PDF steps back. */
+.dropzone .file-button.subtle.primary-file {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}

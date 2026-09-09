@@ -20,6 +20,33 @@ export const TOOLS = {
     primaryLabel: 'Save PDF',
   },
 
+  'photo-watermark': {
+    name: 'Watermark an ID or document',
+    blurb: 'Photograph a PAN, Aadhaar or certificate and stamp it before you send it. The photo never leaves your phone.',
+    icon: '▧',
+    panels: ['panel-photos', 'panel-watermark'],
+    pageActions: ['select-all', 'select-none', 'view'],
+    primary: 'save',
+    primaryLabel: 'Save watermarked file',
+    hint: 'Add a photo — on a phone this opens the camera. The watermark is already switched on.',
+    // Opening this tool should not mean setting up the thing it is named
+    // after. Applied only when a watermark is not already configured, so a
+    // saved preset is never overwritten.
+    defaults: {
+      watermark: {
+        enabled: true,
+        tiled: true,
+        text: 'FOR VERIFICATION ONLY',
+        size: 22,
+        opacity: 0.32,
+        angle: 45,
+      },
+      // An ID card is not A4. Matching the photo avoids a small card marooned
+      // in the middle of a sheet of white.
+      photoPageSize: 'match',
+    },
+  },
+
   photos: {
     name: 'Photos to PDF',
     blurb: 'Photograph documents with your phone and turn them into a PDF.',
@@ -158,7 +185,7 @@ export const TOOLS = {
 
 // The order they appear on the landing page. Pro sits apart from the rest.
 export const SIMPLE_TOOL_IDS = [
-  'merge', 'photos', 'bookmarks', 'sign', 'organise', 'rotate', 'extract', 'split',
+  'merge', 'photo-watermark', 'photos', 'bookmarks', 'sign', 'organise', 'rotate', 'extract', 'split',
   'watermark', 'numbering', 'label', 'redact',
 ]
 

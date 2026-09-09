@@ -88,6 +88,41 @@ test.describe('photos to PDF', () => {
   })
 })
 
+test.describe('watermarking a photo', () => {
+  test('arrives with the watermark already on', async ({ page }) => {
+    await page.goto('/#photo-watermark')
+    await expect(page.locator('#watermark-enabled')).toBeChecked()
+    await expect(page.locator('#watermark-text')).toHaveValue('FOR VERIFICATION ONLY')
+    await expect(page.locator('#watermark-tiled')).toBeChecked()
+    // An ID card is not A4.
+    await expect(page.locator('#photo-page-size')).toHaveValue('match')
+    await expect(page.locator('#dropzone-heading')).toHaveText('Take or drop a photo')
+  })
+
+  test('stamps a photograph and previews it', async ({ page }) => {
+    await page.goto('/#photo-watermark')
+    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE])
+    await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
+    // Nine copies, because the default is tiled.
+    await expect(page.locator('.watermark-preview')).toHaveCount(9)
+  })
+
+  test('does not overwrite a watermark that is already set', async ({ page }) => {
+    // The sidebar only exists once something is loaded, so a file comes first.
+    await page.goto('/#watermark')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#panel-watermark > summary').click()
+    await page.locator('#watermark-enabled').check()
+    await page.locator('#watermark-text').fill('MY OWN TEXT')
+
+    // Settings are remembered, so they survive the move to the other tool.
+    await page.goto('/#photo-watermark')
+    await expect(page.locator('#watermark-text')).toHaveValue('MY OWN TEXT')
+  })
+})
+
 test.describe('choosing pages', () => {
   test.beforeEach(async ({ page }) => load(page))
 

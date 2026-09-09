@@ -93,14 +93,51 @@ function applyTool() {
 
   el('primary-action').textContent = tool.primaryLabel
   el('open-pro').hidden = onLanding() || isPro
-  el('dropzone-tool').textContent = tool.name
+  el('dropzone-tool').textContent = onLanding() ? '' : tool.name
   el('dropzone-hint').textContent = tool.hint ?? ''
+
+  // A tool that works on photographs should not tell you to drop a PDF.
+  const wantsPhotos = tool.panels !== 'all' && tool.panels.includes('panel-photos')
+  el('dropzone-heading').textContent = wantsPhotos ? 'Take or drop a photo' : 'Drop PDFs here'
+  el('photo-empty-button').classList.toggle('primary-file', wantsPhotos)
 }
+
+// Remembered so a tool's defaults are applied when you arrive at it, not on
+// every redraw — otherwise turning the watermark off would turn itself back on.
+let lastToolId = null
 
 function applyRoute() {
   clearError()
+
+  const id = currentToolId()
+  if (id !== lastToolId) {
+    lastToolId = id
+    applyToolDefaults(getTool(id))
+  }
+
   applyTool()
   refreshControls()
+}
+
+// A single-purpose tool should arrive ready to do its job. Only fills in what
+// has not been set, so a saved preset always wins.
+function applyToolDefaults(tool) {
+  if (!tool?.defaults) return
+
+  const { watermark, photoPageSize } = tool.defaults
+
+  if (watermark && !model.getWatermark().enabled) {
+    el('watermark-enabled').checked = true
+    el('watermark-text').value = watermark.text
+    el('watermark-size').value = watermark.size
+    el('watermark-angle').value = watermark.angle
+    el('watermark-opacity').value = Math.round(watermark.opacity * 100)
+    el('watermark-tiled').checked = watermark.tiled
+    el('panel-watermark').open = true
+    readWatermark()
+  }
+
+  if (photoPageSize) el('photo-page-size').value = photoPageSize
 }
 
 function refreshControls() {
