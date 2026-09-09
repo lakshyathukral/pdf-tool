@@ -494,6 +494,12 @@
       </aside>
 
       <section class="canvas">
+        <!-- Every loaded file, as a chip with a remove button. Always visible
+             while working: the sidebar panel was there too, but a collapsible
+             list in a side column is not where anyone looks for "what have I
+             got open". -->
+        <div id="file-strip" hidden></div>
+
         <!-- Actions on pages, directly above the pages they act on. -->
         <div class="selection-bar">
           <span id="selection-summary">Click a page to select it</span>

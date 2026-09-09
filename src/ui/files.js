@@ -54,6 +54,45 @@ function makeRow(source) {
   return row
 }
 
+const strip = document.querySelector('#file-strip')
+
+function makeChip(source) {
+  const inDocument = model.pagesFromSource(source.id)
+
+  const chip = document.createElement('span')
+  chip.className = 'file-chip'
+  chip.dataset.sourceId = source.id
+  chip.title = `${source.name} — click to select its pages`
+
+  const swatch = document.createElement('span')
+  swatch.className = 'swatch'
+  swatch.style.background = source.color
+
+  const name = document.createElement('span')
+  name.className = 'chip-name'
+  name.textContent = source.name
+
+  const meta = document.createElement('span')
+  meta.className = 'chip-meta'
+  meta.textContent = `${inDocument} page${inDocument === 1 ? '' : 's'}`
+
+  const remove = document.createElement('button')
+  remove.type = 'button'
+  remove.dataset.action = 'remove'
+  remove.textContent = '×'
+  remove.title = `Remove ${source.name} and all its pages`
+  remove.setAttribute('aria-label', `Remove ${source.name}`)
+
+  chip.append(swatch, name, meta, remove)
+  return chip
+}
+
+export function drawFileStrip() {
+  const sources = [...model.getSources().values()]
+  strip.hidden = sources.length === 0
+  strip.replaceChildren(...sources.map(makeChip))
+}
+
 export function drawFileList() {
   const sources = [...model.getSources().values()]
   panel.hidden = sources.length === 0
@@ -74,4 +113,14 @@ export function setupFileList() {
   })
 
   document.querySelector('#group-by-file').addEventListener('click', model.groupBySource)
+
+  // One listener for the whole strip; chips are rebuilt on every change.
+  strip.addEventListener('click', (event) => {
+    const chip = event.target.closest('.file-chip')
+    if (!chip) return
+    const sourceId = chip.dataset.sourceId
+
+    if (event.target.closest('[data-action="remove"]')) model.removeSource(sourceId)
+    else model.selectSource(sourceId)
+  })
 }

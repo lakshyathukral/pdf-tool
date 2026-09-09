@@ -28,7 +28,7 @@ import {
 import { drawGrid } from './ui/grid.js'
 import { setupDragDrop } from './ui/dragdrop.js'
 import { openRedactor, setupRedactor } from './ui/redact.js'
-import { drawFileList, setupFileList } from './ui/files.js'
+import { drawFileList, drawFileStrip, setupFileList } from './ui/files.js'
 import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
 import { parsePageRanges, formatPageRanges } from './ranges.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
@@ -282,12 +282,23 @@ function refreshControls() {
     const parts = [`${pageCount} pages · ${fileCount} file(s)`]
     if (redacted > 0) parts.push(`${redacted} redacted`)
     setStatus(parts.join(' · '))
+  } else {
+    // This used to be left alone, so after undoing a load the bar still
+    // claimed "774 pages · 1 file" over an empty screen.
+    setStatus('No PDFs loaded yet.')
+  }
+
+  // Undo can un-load a file. If that just happened, say how to get it back
+  // rather than presenting a blank drop zone as if nothing had occurred.
+  if (!hasPages && model.canRedo()) {
+    el('dropzone-hint').textContent = 'You just removed a file. Press Redo to bring it back.'
   }
 }
 
 model.subscribe(() => {
   drawGrid()
   drawFileList()
+  drawFileStrip()
   drawBookmarks()
   refreshViewer()
   refreshControls()
@@ -1083,6 +1094,7 @@ setupPlacer()
 setupFileList()
 setupBookmarks(openViewer)
 drawFileList()
+drawFileStrip()
 drawBookmarks()
 
 // Restore whatever settings were in use last time, then fall back to reading

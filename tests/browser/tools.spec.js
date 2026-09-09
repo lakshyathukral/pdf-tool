@@ -189,6 +189,36 @@ test.describe('password-protected files', () => {
   })
 })
 
+test.describe('the file strip', () => {
+  test('lists every loaded file above the pages, with a remove button', async ({ page }) => {
+    await load(page, [FIVE_PAGES, THREE_PAGES])
+    const chips = page.locator('.file-chip')
+    await expect(chips).toHaveCount(2)
+    await expect(chips.first()).toContainText('5 pages')
+
+    await chips.first().locator('[data-action="remove"]').click()
+    await expect(chips).toHaveCount(1)
+    await expect(tiles(page)).toHaveCount(3)
+  })
+
+  test('clicking a chip selects that file\'s pages', async ({ page }) => {
+    await load(page, [FIVE_PAGES, THREE_PAGES])
+    await page.locator('.file-chip').nth(1).locator('.chip-name').click()
+    await expect(page.locator('#selection-summary')).toHaveText('3 pages selected')
+  })
+
+  test('undoing a load leaves an honest empty state', async ({ page }) => {
+    // The bug: the bar kept saying "774 pages · 1 file" over an empty screen.
+    await load(page)
+    await page.locator('#undo').click()
+    await expect(page.locator('#status')).toHaveText('No PDFs loaded yet.')
+    await expect(page.locator('#dropzone')).toBeVisible()
+    await expect(page.locator('#dropzone-hint')).toContainText('Redo')
+    await expect(page.locator('#redo')).toBeEnabled()
+    await expect(page.locator('.file-chip')).toHaveCount(0)
+  })
+})
+
 test.describe('choosing pages', () => {
   test.beforeEach(async ({ page }) => load(page))
 
