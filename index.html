@@ -394,6 +394,30 @@
           <p class="hint" id="preset-hint"></p>
         </details>
 
+        <details class="panel" id="panel-password">
+          <summary>Password</summary>
+          <p class="hint" id="password-state">
+            Add a PDF. If it is protected you will be asked for its password.
+          </p>
+          <label class="checkbox">
+            <input type="checkbox" id="protect-enabled" />
+            <span>Protect the saved file with a password</span>
+          </label>
+          <label class="field" id="protect-field" hidden>
+            <span>Password to open the file</span>
+            <input type="password" id="protect-password" autocomplete="new-password" />
+          </label>
+          <p class="hint">
+            <strong>To remove a password:</strong> open the file — you will be
+            asked for it — then save with this box unticked.
+            <strong>To add one:</strong> tick the box, choose a password, save.
+          </p>
+          <p class="hint">
+            Removing a password needs the password. This cannot unlock a file
+            you do not have the password for.
+          </p>
+        </details>
+
         <details class="panel" id="panel-saving">
           <summary>Saving</summary>
           <label class="field">
@@ -418,20 +442,6 @@
             <p class="hint">
               The source file's own title, author and keywords are never carried
               into the saved file. These add details; they do not strip any.
-            </p>
-
-            <hr />
-            <label class="checkbox">
-              <input type="checkbox" id="protect-enabled" />
-              <span>Protect with a password</span>
-            </label>
-            <label class="field" id="protect-field" hidden>
-              <span>Password to open the file</span>
-              <input type="password" id="protect-password" autocomplete="new-password" />
-            </label>
-            <p class="hint" id="protect-note">
-              A file opened with a password saves without one unless you set a
-              new one here — which is how you remove a password you know.
             </p>
 
             <hr />

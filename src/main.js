@@ -72,7 +72,7 @@ const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
 // landing page rather than a half-working screen.
 const onLanding = () => getTool(currentToolId()) === null || isComingSoon(currentToolId())
 
-const PANEL_IDS = ['panel-files', 'panel-photos', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
+const PANEL_IDS = ['panel-files', 'panel-photos', 'panel-password', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
 
 // Show only the parts this tool needs. Everything still exists and still works
@@ -257,6 +257,17 @@ function refreshControls() {
       `${formatPageNumber(numbering, last, last)}, added when you save.`
 
   el('flatten-options').hidden = !model.getFlatten().enabled
+
+  // Say plainly what saving will do to a protected file.
+  el('password-state').textContent = !hasPages
+    ? 'Add a PDF. If it is protected you will be asked for its password.'
+    : model.anySourceProtected()
+      ? (model.getProtection().enabled
+          ? 'This file was opened with a password. Saving will replace it with the one below.'
+          : 'This file was opened with a password. Saving now will REMOVE it.')
+      : (model.getProtection().enabled
+          ? 'Saving will protect the file with the password below.'
+          : 'This file has no password. Tick the box to add one.')
 
   el('output-name').placeholder = hasPages ? defaultOutputName(model.getSources()) : 'combined'
 
@@ -733,6 +744,10 @@ function readProtection() {
   const enabled = el('protect-enabled').checked
   el('protect-field').hidden = !enabled
   model.setProtection({ enabled, password: el('protect-password').value })
+  // setProtection does not notify — that would redraw the grid on every
+  // keystroke — so the panel's explanation of what saving will do needs a
+  // nudge here.
+  refreshControls()
 }
 
 for (const name of ['protect-enabled', 'protect-password']) {

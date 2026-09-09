@@ -147,6 +147,10 @@ export const getWatermark = () => watermark
 export const getOutputName = () => outputName
 export const getMetadata = () => metadata
 export const getProtection = () => protection
+
+// Whether any loaded file needed a password to open — the panel says so, since
+// "save it unticked and the password is gone" is not obvious otherwise.
+export const anySourceProtected = () => [...sources.values()].some((s) => s.password)
 export const getFlatten = () => flatten
 export const isSelected = (pageId) => selection.has(pageId)
 export const getSelectedIds = () => [...selection]

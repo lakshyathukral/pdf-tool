@@ -159,9 +159,26 @@ test.describe('password-protected files', () => {
     await expect(page.locator('#status')).toContainText('no password given')
   })
 
+  test('the password tool explains what saving will do', async ({ page }) => {
+    await page.goto('/#password')
+    await expect(page.locator('#dropzone-hint')).toContainText('asks for its password')
+
+    await page.locator('#file-input').setInputFiles([LOCKED])
+    await page.locator('#password-input').fill('letmein')
+    await page.locator('#password-ok').click()
+    await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
+
+    // Its own panel is open, and it says the password will be removed.
+    await expect(page.locator('#panel-password')).toHaveAttribute('open', '')
+    await expect(page.locator('#password-state')).toContainText('REMOVE')
+
+    await page.locator('#protect-enabled').check()
+    await expect(page.locator('#password-state')).toContainText('replace it')
+  })
+
   test('saves a protected file when asked', async ({ page }) => {
     await load(page)
-    await page.locator('#panel-saving .sub > summary').click()
+    await page.locator('#panel-password > summary').click()
     await page.locator('#protect-enabled').check()
     await expect(page.locator('#protect-field')).toBeVisible()
     await page.locator('#protect-password').fill('hunter2')

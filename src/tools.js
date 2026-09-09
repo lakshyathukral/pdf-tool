@@ -172,6 +172,18 @@ export const TOOLS = {
     hint: 'Choose how to split it in the sidebar, then press Split.',
   },
 
+  password: {
+    name: 'Add or remove a password',
+    blurb: 'Lock a PDF with a password, or take one off a file whose password you have.',
+    icon: '⚿',
+    colour: '#475569',
+    panels: ['panel-password'],
+    pageActions: ['view'],
+    primary: 'save',
+    primaryLabel: 'Save PDF',
+    hint: 'Add a PDF. A protected one asks for its password. Then set a new password, or save without one to remove it.',
+  },
+
   redact: {
     name: 'Redact',
     blurb: 'Black out text so it is destroyed, not just covered over.',
@@ -188,7 +200,7 @@ export const TOOLS = {
 // The order they appear on the landing page. Pro sits apart from the rest.
 export const SIMPLE_TOOL_IDS = [
   'merge', 'photo-watermark', 'photos', 'bookmarks', 'organise', 'rotate', 'extract', 'split',
-  'numbering', 'label', 'redact',
+  'numbering', 'label', 'redact', 'password',
   // Not ready yet, so it goes last.
   'sign',
 ]
