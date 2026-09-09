@@ -125,7 +125,10 @@ export async function rasterizeRedacted(sourceId, pageIndex, rotation, redaction
 // Doing it as a second pass over the finished file, rather than drawing the
 // marks onto canvases directly, means the flattened output is guaranteed to
 // match the normal output. There is only one piece of positioning code.
-export async function flattenDocument(bytes, { dpi = 150, onProgress } = {}) {
+// `format` is 'png' for sharp text or 'jpeg' for a much smaller file. A page of
+// text as PNG can be several hundred kilobytes; the same page as JPEG is often
+// a tenth of that, at the cost of slight softness around the letters.
+export async function flattenDocument(bytes, { dpi = 150, format = 'png', quality = 0.75, onProgress } = {}) {
   // getDocument returns a LOADING TASK; awaiting its .promise gives the
   // document. Cleanup lives on the loading task, not on the document — so we
   // have to keep hold of both.
@@ -158,11 +161,21 @@ export async function flattenDocument(bytes, { dpi = 150, onProgress } = {}) {
       const canvas = document.createElement('canvas')
       canvas.width = Math.round(viewport.width)
       canvas.height = Math.round(viewport.height)
+
+      // JPEG has no transparency, so anything the page does not paint would
+      // come out black. Lay down white first.
+      if (format === 'jpeg') {
+        const ctx = canvas.getContext('2d')
+        ctx.fillStyle = '#fff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+      }
+
       await page.render({ canvas, viewport }).promise
 
       // toBlob reports failure by handing back null instead of throwing, so an
       // unchecked result turns into a baffling error on the following line.
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+      const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png'
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, quality))
       if (!blob) {
         throw new Error(
           `The browser ran out of room turning page ${pageNumber} into an image. ` +
@@ -171,6 +184,7 @@ export async function flattenDocument(bytes, { dpi = 150, onProgress } = {}) {
       }
 
       images.push({
+        mime,
         bytes: new Uint8Array(await blob.arrayBuffer()),
         // Back to PDF points, so the flattened page keeps its physical size
         // even if the scale above had to be reduced. canvas.width is

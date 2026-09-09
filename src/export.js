@@ -108,7 +108,9 @@ export async function buildFlattened(images, metadata = { title: '', author: '' 
   output.setKeywords([])
 
   for (const image of images) {
-    const embedded = await output.embedPng(image.bytes)
+    const embedded = image.mime === 'image/jpeg'
+      ? await output.embedJpg(image.bytes)
+      : await output.embedPng(image.bytes)
     const page = output.addPage([image.width, image.height])
     page.drawImage(embedded, { x: 0, y: 0, width: image.width, height: image.height })
   }
@@ -409,15 +411,21 @@ export function buildOutline(output, entries) {
 // --- splitting -------------------------------------------------------------
 
 // Where each output file should start, as indexes into the document.
-//   'each'     — every page becomes its own file
-//   'selected' — each selected page begins a new file
+//   'each'      — every page becomes its own file
+//   'selected'  — each selected page begins a new file
+//   'bookmarks' — each top-level bookmark begins a new file
 // Pure arithmetic, kept out of the UI so it can be tested on its own.
-export function splitStarts(pages, mode, isSelected) {
+export function splitStarts(pages, mode, isSelected, topLevelPositions = []) {
   if (mode === 'each') return pages.map((_, i) => i)
 
-  return pages
-    .map((page, i) => (i === 0 || isSelected(page.id) ? i : -1))
-    .filter((i) => i !== -1)
+  const begins =
+    mode === 'bookmarks'
+      ? new Set(topLevelPositions)
+      : new Set(pages.map((page, i) => (isSelected(page.id) ? i : -1)))
+
+  // The first page always begins a file, whatever else is marked.
+  return [...new Set([0, ...pages.map((_, i) => i).filter((i) => begins.has(i))])]
+    .sort((a, b) => a - b)
 }
 
 // --- naming ----------------------------------------------------------------

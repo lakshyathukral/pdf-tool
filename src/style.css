@@ -727,3 +727,13 @@ input[type="range"] { width: 100%; }
   letter-spacing: 0.02em;
   vertical-align: middle;
 }
+
+/* The typed page-range box, in the selection bar. */
+#range-input {
+  width: 11rem;
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.4rem;
+}
+
+#flatten-options { margin-top: 0.55rem; }

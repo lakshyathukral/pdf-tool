@@ -50,7 +50,7 @@ let watermark = {
 
 // Flattening re-renders every page to an image at save time, so no text can be
 // selected or edited afterwards. Costs searchability and file size.
-let flatten = { enabled: false, dpi: 150 }
+let flatten = { enabled: false, dpi: 150, format: 'png' }
 
 // What the saved file should be called. Empty means "work one out for me".
 let outputName = ''
@@ -261,6 +261,32 @@ export function selectRangeTo(pageId, anchorId) {
 
 export function selectSource(sourceId) {
   selection = new Set(pages.filter((p) => p.sourceId === sourceId).map((p) => p.id))
+  notify()
+}
+
+// Select by position, for typed page ranges.
+export function selectPositions(positions) {
+  selection = new Set(positions.map((i) => pages[i]?.id).filter(Boolean))
+  notify()
+}
+
+export const getSelectedPositions = () =>
+  pages.map((p, i) => (selection.has(p.id) ? i : -1)).filter((i) => i !== -1)
+
+// Odd and even count the way a reader does — page 1 is odd — which is what
+// people mean when separating the two sides of a double-sided scan.
+export function selectOdd() {
+  selection = new Set(pages.filter((_, i) => i % 2 === 0).map((p) => p.id))
+  notify()
+}
+
+export function selectEven() {
+  selection = new Set(pages.filter((_, i) => i % 2 === 1).map((p) => p.id))
+  notify()
+}
+
+export function invertSelection() {
+  selection = new Set(pages.filter((p) => !selection.has(p.id)).map((p) => p.id))
   notify()
 }
 

@@ -21,6 +21,7 @@ import { setupDragDrop } from './ui/dragdrop.js'
 import { openRedactor, setupRedactor } from './ui/redact.js'
 import { drawFileList, setupFileList } from './ui/files.js'
 import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
+import { parsePageRanges, formatPageRanges } from './ranges.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
 import { openSigner, setupSigner } from './ui/sign.js'
 import * as presets from './presets.js'
@@ -109,6 +110,17 @@ function refreshControls() {
   el('redo').disabled = !model.canRedo()
   el('select-all').disabled = !hasPages
   el('select-none').disabled = !hasSelection
+  el('select-odd').disabled = !hasPages
+  el('select-even').disabled = !hasPages
+  el('select-invert').disabled = !hasPages
+  el('range-select').disabled = !hasPages
+  el('range-input').disabled = !hasPages
+
+  // Show what is selected in the same language the box accepts, so a
+  // selection made by clicking can be read, adjusted and retyped.
+  if (document.activeElement !== el('range-input')) {
+    el('range-input').value = formatPageRanges(model.getSelectedPositions())
+  }
   el('rotate-left').disabled = !hasSelection
   el('rotate-right').disabled = !hasSelection
   el('duplicate').disabled = !hasSelection
@@ -174,7 +186,7 @@ function refreshControls() {
     : `Pages will read ${formatPageNumber(numbering, numbering.start, last)} to ` +
       `${formatPageNumber(numbering, last, last)}, added when you save.`
 
-  el('flatten-dpi-field').hidden = !model.getFlatten().enabled
+  el('flatten-options').hidden = !model.getFlatten().enabled
 
   el('output-name').placeholder = hasPages ? defaultOutputName(model.getSources()) : 'combined'
 
@@ -313,6 +325,19 @@ el('undo').addEventListener('click', model.undo)
 el('redo').addEventListener('click', model.redo)
 el('select-all').addEventListener('click', model.selectAll)
 el('select-none').addEventListener('click', model.clearSelection)
+el('select-odd').addEventListener('click', model.selectOdd)
+el('select-even').addEventListener('click', model.selectEven)
+el('select-invert').addEventListener('click', model.invertSelection)
+
+function applyTypedRange() {
+  const positions = parsePageRanges(el('range-input').value, model.getPages().length)
+  model.selectPositions(positions)
+}
+
+el('range-select').addEventListener('click', applyTypedRange)
+el('range-input').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') { event.preventDefault(); applyTypedRange() }
+})
 el('rotate-left').addEventListener('click', () => model.rotateSelected(-90))
 el('rotate-right').addEventListener('click', () => model.rotateSelected(90))
 el('duplicate').addEventListener('click', model.duplicateSelected)
@@ -378,6 +403,7 @@ function applySettings(settings) {
   if (flatten) {
     el('flatten-enabled').checked = flatten.enabled
     el('flatten-dpi').value = flatten.dpi
+    el('flatten-format').value = flatten.format ?? 'png'
   }
 
   if (label) {
@@ -430,6 +456,7 @@ function readFlatten() {
   model.setFlatten({
     enabled: el('flatten-enabled').checked,
     dpi: Number(el('flatten-dpi').value),
+    format: el('flatten-format').value,
   })
 }
 
@@ -445,7 +472,7 @@ for (const name of ['enabled', 'text', 'size', 'angle', 'opacity', 'tiled']) {
   el(`watermark-${name}`).addEventListener('input', () => { readWatermark(); remember() })
 }
 
-for (const name of ['flatten-enabled', 'flatten-dpi']) {
+for (const name of ['flatten-enabled', 'flatten-dpi', 'flatten-format']) {
   el(name).addEventListener('input', () => { readFlatten(); remember() })
 }
 
@@ -591,6 +618,9 @@ document.addEventListener('keydown', (event) => {
 // Saving
 // ---------------------------------------------------------------------------
 
+const describeSize = (n) =>
+  n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`
+
 const chosenName = () => model.getOutputName().trim() || defaultOutputName(model.getSources())
 
 // Everything the builder needs, in one place.
@@ -618,6 +648,7 @@ async function finish(bytes, pages) {
 
   const images = await flattenDocument(bytes, {
     dpi: flatten.dpi,
+    format: flatten.format,
     onProgress: (page, total) => setStatus(`Flattening page ${page} of ${total}...`),
   })
 
@@ -654,7 +685,7 @@ function doSave() {
     ), pages)
     const name = safeFileName(chosenName())
     downloadBytes(bytes, name)
-    setStatus(`Saved ${name}`)
+    setStatus(`Saved ${name} — ${describeSize(bytes.length)}`)
   })
 }
 
@@ -676,12 +707,24 @@ function doSplit() {
     const all = model.getPages()
     const mode = el('split-mode').value
 
-    const starts = splitStarts(all, mode, model.isSelected)
+    // Positions of the entries that will be top level in the saved file.
+    const topLevel = model.getBookmarks().filter((b) => b.effectiveLevel === 1).map((b) => b.position)
+    const starts = splitStarts(all, mode, model.isSelected, topLevel)
 
     if (starts.length < 2) {
-      setStatus('Nothing to split — select the pages where a new file should start.')
+      setStatus(
+        mode === 'bookmarks'
+          ? 'Nothing to split — this document has fewer than two top-level bookmarks.'
+          : 'Nothing to split — select the pages where a new file should start.',
+      )
       return
     }
+
+    // Splitting at bookmarks names each file after its bookmark, which is far
+    // more use than part-001 when the pieces are separate documents.
+    const titleAt = new Map(
+      model.getBookmarks().filter((b) => b.effectiveLevel === 1).map((b) => [b.position, b.title]),
+    )
 
     const numbering = model.getNumbering()
     const base = chosenName()
@@ -698,8 +741,13 @@ function doSplit() {
         exportOptions(chunk, numbering.start + from, numbering.start + all.length - 1),
       ), chunk)
 
+      const title = mode === 'bookmarks' ? titleAt.get(from) : null
       files.push({
-        name: safeFileName(`${base}-${String(part + 1).padStart(3, '0')}`),
+        name: safeFileName(
+          title
+            ? `${String(part + 1).padStart(2, '0')} ${title}`
+            : `${base}-${String(part + 1).padStart(3, '0')}`,
+        ),
         bytes,
       })
       setStatus(`Splitting... ${part + 1} of ${starts.length}`)

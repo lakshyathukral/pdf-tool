@@ -297,14 +297,28 @@
             <input type="checkbox" id="flatten-enabled" />
             <span>Flatten pages before saving</span>
           </label>
-          <label class="field" id="flatten-dpi-field">
-            <span>Flatten quality</span>
-            <select id="flatten-dpi">
-              <option value="150" selected>Standard (150 dpi)</option>
-              <option value="200">Sharper (200 dpi)</option>
-              <option value="300">Print quality (300 dpi) — large files</option>
-            </select>
-          </label>
+          <div id="flatten-options" hidden>
+            <label class="field">
+              <span>Resolution</span>
+              <select id="flatten-dpi">
+                <option value="96">Small file (96 dpi)</option>
+                <option value="150" selected>Standard (150 dpi)</option>
+                <option value="200">Sharper (200 dpi)</option>
+                <option value="300">Print quality (300 dpi)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Image type</span>
+              <select id="flatten-format">
+                <option value="png" selected>Sharp text (PNG)</option>
+                <option value="jpeg">Much smaller file (JPEG)</option>
+              </select>
+            </label>
+            <p class="hint">
+              Flattening also shrinks a bloated scan: 96 dpi with JPEG is
+              usually a fraction of the original size.
+            </p>
+          </div>
           <p class="hint">
             Turns every page into an image, so the watermark, page numbers and
             the document text cannot be selected or edited in Acrobat.
@@ -317,8 +331,9 @@
             <label class="field">
               <span>Split into several files</span>
               <select id="split-mode">
-                <option value="each">One file per page</option>
+                <option value="bookmarks">New file at each top-level bookmark</option>
                 <option value="selected">New file at each selected page</option>
+                <option value="each">One file per page</option>
               </select>
             </label>
             <div class="row actions">
@@ -335,6 +350,11 @@
           <span id="selection-summary">Click a page to select it</span>
           <button id="select-all" type="button" disabled>Select all</button>
           <button id="select-none" type="button" disabled>Deselect</button>
+          <button id="select-odd" type="button" disabled title="Pages 1, 3, 5…">Odd</button>
+          <button id="select-even" type="button" disabled title="Pages 2, 4, 6…">Even</button>
+          <button id="select-invert" type="button" disabled>Invert</button>
+          <input type="text" id="range-input" placeholder="e.g. 1-5, 12, 20-30" />
+          <button id="range-select" type="button" disabled>Select range</button>
           <span class="divider"></span>
           <button id="rotate-left" type="button" disabled>Rotate left</button>
           <button id="rotate-right" type="button" disabled>Rotate right</button>
