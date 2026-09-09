@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { defineConfig } from 'vite'
 
 // GitHub Pages serves a project site from a subfolder:
@@ -10,8 +11,15 @@ import { defineConfig } from 'vite'
 // variable does not exist — still use the plain root.
 const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1]
 
+// A custom domain serves the site from the ROOT, not from /<repo-name>/, so
+// the prefix has to go — otherwise every asset 404s and the page comes up
+// blank while the DNS looks perfectly fine. public/CNAME is the signal:
+// GitHub Pages reads that file for the domain, and Vite copies it into the
+// build, so its presence is exactly the condition we want to key off.
+const hasCustomDomain = existsSync('public/CNAME')
+
 export default defineConfig({
-  base: repoName ? `/${repoName}/` : '/',
+  base: hasCustomDomain || !repoName ? '/' : `/${repoName}/`,
 
   // pdf.js starts its worker as a module, so ours has to be one too.
   worker: { format: 'es' },
