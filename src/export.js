@@ -6,7 +6,7 @@
 // assemble a PDF from things it is given.
 // ---------------------------------------------------------------------------
 
-import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib'
+import { PDFDocument, StandardFonts, degrees, rgb, PDFName, PDFHexString } from 'pdf-lib'
 import { zipSync } from 'fflate'
 
 const MARGIN = 36  // half an inch, in PDF points (72 per inch)
@@ -95,7 +95,7 @@ function drawWatermark(page, watermark, font, rotation) {
 
 // Assemble a PDF from page images. Used when flattening: every page has been
 // rendered to pixels, so there are no text objects left for anyone to edit.
-export async function buildFlattened(images, metadata = { title: '', author: '' }) {
+export async function buildFlattened(images, metadata = { title: '', author: '' }, bookmarks = []) {
   if (images.length === 0) throw new Error('There are no pages to flatten.')
 
   const output = await PDFDocument.create({ updateMetadata: false })
@@ -112,6 +112,11 @@ export async function buildFlattened(images, metadata = { title: '', author: '' 
     const page = output.addPage([image.width, image.height])
     page.drawImage(embedded, { x: 0, y: 0, width: image.width, height: image.height })
   }
+
+  // The flattened document is built from scratch, so its outline must be
+  // rebuilt too — otherwise flattening a bundle for filing would quietly
+  // strip the navigation, which is exactly when it matters most.
+  buildOutline(output, bookmarks)
 
   return output.save()
 }
@@ -235,7 +240,109 @@ export async function buildPdf({
     }
   })
 
+  // Page indexes here are positions within this document, so a split piece or
+  // an extract gets exactly the bookmarks belonging to its own pages.
+  buildOutline(
+    output,
+    pages.flatMap((page, pageIndex) => page.bookmarks.map((b) => ({ ...b, pageIndex }))),
+  )
+
   return output.save()
+}
+
+// --- bookmarks -------------------------------------------------------------
+
+// pdf-lib has no bookmark API, so the outline has to be built out of raw PDF
+// objects. A PDF outline is a doubly-linked tree: every entry points at its
+// parent, its previous and next siblings, and its first and last children.
+// Every one of those has to agree, or Acrobat shows an empty panel and says
+// nothing about why.
+
+// Turn the flat list — each entry a title, a page and a level — into a tree.
+// A level-2 entry becomes a child of the level-1 entry above it. An entry that
+// is deeper than the one before allows is pulled up rather than dropped, so a
+// stray sub-bookmark with no parent still appears.
+function nestEntries(entries) {
+  const root = { children: [] }
+  const openAt = [root]  // openAt[n] is the node currently open at depth n
+
+  for (const entry of entries) {
+    const wanted = Math.max(1, Math.min(entry.level ?? 1, 3))
+    const depth = Math.min(wanted, openAt.length)
+
+    openAt.length = depth
+    const node = { title: entry.title, pageIndex: entry.pageIndex, children: [] }
+    openAt[depth - 1].children.push(node)
+    openAt.push(node)
+  }
+
+  return root
+}
+
+const countDescendants = (node) =>
+  node.children.reduce((total, child) => total + 1 + countDescendants(child), 0)
+
+export function buildOutline(output, entries) {
+  const context = output.context
+  const pages = output.getPages()
+
+  // Drop entries with no title, or pointing at a page that is not in this
+  // document — a split piece holds only some of them. Checking the number
+  // rather than calling getPage(), which throws on a bad index.
+  const usable = entries.filter(
+    (e) => e.title?.trim() && Number.isInteger(e.pageIndex) && e.pageIndex >= 0 && e.pageIndex < pages.length,
+  )
+  if (usable.length === 0) return 0
+  const root = nestEntries(usable)
+
+  // Every node needs its own reference before any of them can be written,
+  // because siblings point at each other in both directions.
+  const assignRefs = (node) => {
+    for (const child of node.children) {
+      child.ref = context.nextRef()
+      assignRefs(child)
+    }
+  }
+
+  const rootRef = context.nextRef()
+  assignRefs(root)
+
+  const write = (node, parentRef) => {
+    node.children.forEach((child, i) => {
+      const fields = {
+        Title: PDFHexString.fromText(child.title),
+        Parent: parentRef,
+        // /Fit means "show the whole page", which behaves predictably at any
+        // window size — unlike /XYZ, which pins a zoom level.
+        Dest: [pages[child.pageIndex].ref, PDFName.of('Fit')],
+      }
+
+      if (i > 0) fields.Prev = node.children[i - 1].ref
+      if (i < node.children.length - 1) fields.Next = node.children[i + 1].ref
+
+      if (child.children.length > 0) {
+        fields.First = child.children[0].ref
+        fields.Last = child.children.at(-1).ref
+        // A positive count means the entry starts expanded; negative, collapsed.
+        fields.Count = countDescendants(child)
+      }
+
+      context.assign(child.ref, context.obj(fields))
+      write(child, child.ref)
+    })
+  }
+
+  write(root, rootRef)
+
+  context.assign(rootRef, context.obj({
+    Type: PDFName.of('Outlines'),
+    First: root.children[0].ref,
+    Last: root.children.at(-1).ref,
+    Count: countDescendants(root),
+  }))
+
+  output.catalog.set(PDFName.of('Outlines'), rootRef)
+  return usable.length
 }
 
 // --- splitting -------------------------------------------------------------

@@ -471,7 +471,7 @@ input[type="range"] { width: 100%; }
 
 #app-landing { padding: 2.5rem 1.5rem 4rem; }
 .landing-inner { max-width: 940px; margin: 0 auto; }
-.landing-inner h1 { margin: 0 0 0.5rem; font-size: 1.75rem; }
+.landing-inner h1 { margin: 0 0 0.35rem; font-size: 1.9rem; }
 
 .lede {
   margin: 0 0 2rem;
@@ -553,3 +553,87 @@ input[type="range"] { width: 100%; }
 }
 
 .linkish:hover { color: var(--accent); }
+
+/* --- bookmarks ----------------------------------------------------------- */
+
+#bookmark-list {
+  list-style: none;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.bookmark-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem 0.25rem;
+  border-radius: 4px;
+}
+
+.bookmark-row:hover { background: #f4f4f5; }
+
+/* Indentation is the whole hierarchy — no tree widget needed. */
+.bookmark-row.level-2 { padding-left: 1rem; }
+.bookmark-row.level-3 { padding-left: 2rem; }
+
+.bookmark-jump {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 0.1rem 0;
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-row.level-1 .bookmark-jump { font-weight: 600; }
+.bookmark-jump:hover { color: var(--accent); text-decoration: underline; }
+
+.bookmark-page { flex: 0 0 auto; font-size: 0.68rem; color: var(--muted); }
+
+.bookmark-row > button:not(.bookmark-jump) {
+  flex: 0 0 auto;
+  padding: 0 0.25rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  border-color: transparent;
+  background: none;
+}
+
+.bookmark-row > button:not(.bookmark-jump):hover:not(:disabled) { border-color: var(--border); background: #fff; }
+.bookmark-row > button:disabled { background: none; color: #d4d4d8; }
+
+/* On the thumbnail */
+.bookmark-flag {
+  position: absolute;
+  left: 6px;
+  right: 3px;
+  top: 3px;
+  padding: 1px 3px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  background: #1e3a5f;
+  color: #fff;
+  border-radius: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.bookmark-flag.level-2 { background: #3d6b9e; left: 12px; }
+.bookmark-flag.level-3 { background: #7ba3cc; left: 18px; }
+
+/* The line under the landing heading. */
+.tagline-big {
+  margin: 0 0 1.25rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #18181b;
+}

@@ -54,6 +54,17 @@ function makeTile(page, position) {
 
   addOverlays(frame, page, position)
 
+  // Markers for every bookmark starting on this page, so the structure of the
+  // bundle is readable from the grid without opening the panel.
+  page.bookmarks.forEach((bookmark, i) => {
+    const flag = document.createElement('span')
+    flag.className = `bookmark-flag level-${bookmark.level}`
+    flag.style.top = `${3 + i * 13}px`
+    flag.textContent = bookmark.title
+    flag.title = bookmark.title
+    frame.append(flag)
+  })
+
   const caption = document.createElement('figcaption')
   caption.textContent = `${position + 1}`
 

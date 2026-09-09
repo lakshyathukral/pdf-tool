@@ -38,7 +38,8 @@
          parts you do not need hidden. -->
     <div id="app-landing">
       <div class="landing-inner">
-        <h1>What do you need to do?</h1>
+        <h1>Welcome to TukTuk Pro</h1>
+        <p class="tagline-big">This TukTuk is not AVG</p>
         <p class="lede">
           Every tool below runs entirely inside this browser tab. Your files are
           never uploaded, and nothing is stored anywhere but your own computer.
@@ -75,6 +76,25 @@
           <ul id="file-list"></ul>
           <button id="group-by-file" type="button">Group pages by file</button>
           <p class="hint">Puts each file's pages back together, in their original order.</p>
+        </details>
+
+        <details class="panel" id="panel-bookmarks" open>
+          <summary>Bookmarks</summary>
+          <p class="hint">
+            These become the navigation panel in Acrobat. A bookmark belongs to
+            its page, so reordering pages moves its bookmark too.
+          </p>
+          <label class="field">
+            <span>Title for the selected page(s)</span>
+            <input type="text" id="bookmark-title" placeholder="e.g. B1. Witness Statement" />
+          </label>
+          <div class="row actions">
+            <button id="bookmark-add" type="button" class="primary" disabled>Add bookmark</button>
+            <button id="bookmark-add-sub" type="button" disabled>Add sub-bookmark</button>
+          </div>
+          <p class="hint" id="bookmark-hint"></p>
+          <ul id="bookmark-list"></ul>
+          <p class="hint" id="bookmark-empty">No bookmarks yet. Each file you add gets one automatically, named after the file.</p>
         </details>
 
         <details class="panel" id="panel-label">

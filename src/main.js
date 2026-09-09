@@ -20,6 +20,7 @@ import { drawGrid } from './ui/grid.js'
 import { setupDragDrop } from './ui/dragdrop.js'
 import { openRedactor, setupRedactor } from './ui/redact.js'
 import { drawFileList, setupFileList } from './ui/files.js'
+import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
 import * as presets from './presets.js'
 import { TOOLS, ALWAYS_PANELS, getTool, currentToolId, goToTool, goToLanding } from './tools.js'
@@ -54,7 +55,7 @@ const clearError = () => { el('error-banner').hidden = true }
 const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
 const onLanding = () => getTool(currentToolId()) === null
 
-const PANEL_IDS = ['panel-files', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
+const PANEL_IDS = ['panel-files', 'panel-bookmarks', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
 
 // Show only the parts this tool needs. Everything still exists and still works
@@ -106,6 +107,13 @@ function refreshControls() {
   el('delete').disabled = !hasSelection
   el('label-apply').disabled = !hasSelection
   el('label-clear').disabled = !hasSelection
+  el('bookmark-add').disabled = !hasSelection
+  el('bookmark-add-sub').disabled = !hasSelection
+
+  el('bookmark-hint').textContent =
+    !hasSelection ? 'Select a page first — click a thumbnail.'
+    : selected > 1 ? `Will name all ${selected} selected pages. Use {n} in the title to number them.`
+    : ''
   el('primary-action').disabled =
     !hasPages || (activeTool().primary === 'extract' && !hasSelection)
   el('extract').disabled = !hasSelection
@@ -161,6 +169,7 @@ function refreshControls() {
 model.subscribe(() => {
   drawGrid()
   drawFileList()
+  drawBookmarks()
   refreshViewer()
   refreshControls()
 })
@@ -517,7 +526,7 @@ function exportOptions(pages, firstNumber, totalPages) {
 // finished PDF is re-rendered to page images so nothing in it can be selected
 // or edited. Runs on whatever was just built, so it applies equally to a full
 // save, an extract, or each piece of a split.
-async function finish(bytes) {
+async function finish(bytes, pages) {
   const flatten = model.getFlatten()
   if (!flatten.enabled) return bytes
 
@@ -526,7 +535,12 @@ async function finish(bytes) {
     onProgress: (page, total) => setStatus(`Flattening page ${page} of ${total}...`),
   })
 
-  return buildFlattened(images, model.getMetadata())
+  // Carry the bookmarks across, positioned within this set of pages.
+  const bookmarks = pages.flatMap((page, pageIndex) =>
+    page.bookmarks.map((b) => ({ ...b, pageIndex })),
+  )
+
+  return buildFlattened(images, model.getMetadata(), bookmarks)
 }
 
 // Wraps a save so a failure always reports rather than hanging a disabled button.
@@ -551,7 +565,7 @@ function doSave() {
     const numbering = model.getNumbering()
     const bytes = await finish(await buildPdf(
       exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
-    ))
+    ), pages)
     const name = safeFileName(chosenName())
     downloadBytes(bytes, name)
     setStatus(`Saved ${name}`)
@@ -564,7 +578,7 @@ function doExtract() {
     const numbering = model.getNumbering()
     const bytes = await finish(await buildPdf(
       exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
-    ))
+    ), pages)
     const name = safeFileName(`${chosenName()}-extract`)
     downloadBytes(bytes, name)
     setStatus(`Saved ${name} — ${pages.length} page(s)`)
@@ -596,7 +610,7 @@ function doSplit() {
       // restarting at 1 in every piece.
       const bytes = await finish(await buildPdf(
         exportOptions(chunk, numbering.start + from, numbering.start + all.length - 1),
-      ))
+      ), chunk)
 
       files.push({
         name: safeFileName(`${base}-${String(part + 1).padStart(3, '0')}`),
@@ -630,7 +644,9 @@ setupDragDrop(openViewer)
 setupRedactor()
 setupViewer(openRedactor)
 setupFileList()
+setupBookmarks(openViewer)
 drawFileList()
+drawBookmarks()
 
 // Restore whatever settings were in use last time, then fall back to reading
 // the untouched defaults out of the page.

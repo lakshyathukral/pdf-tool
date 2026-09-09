@@ -53,6 +53,17 @@ export const TOOLS = {
     hint: 'Select the pages to turn, then use Rotate left or Rotate right.',
   },
 
+  bookmarks: {
+    name: 'Bookmark a bundle',
+    blurb: 'Merge documents and add the navigation panel Acrobat shows down the side.',
+    icon: '☰',
+    panels: ['panel-bookmarks'],
+    pageActions: ['select-all', 'select-none', 'delete', 'view'],
+    primary: 'save',
+    primaryLabel: 'Save bookmarked PDF',
+    hint: 'Each file you add is bookmarked automatically. Select a page to add more.',
+  },
+
   watermark: {
     name: 'Add a watermark',
     blurb: 'Put DRAFT, CONFIDENTIAL or your own text across every page.',
@@ -122,7 +133,7 @@ export const TOOLS = {
 
 // The order they appear on the landing page. Pro sits apart from the rest.
 export const SIMPLE_TOOL_IDS = [
-  'merge', 'organise', 'rotate', 'extract', 'split',
+  'merge', 'bookmarks', 'organise', 'rotate', 'extract', 'split',
   'watermark', 'numbering', 'label', 'redact',
 ]
 

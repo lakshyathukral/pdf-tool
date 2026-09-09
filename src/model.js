@@ -10,7 +10,10 @@
 let sources = new Map()
 
 // The document, in order. Each entry describes ONE page of the output:
-//   { id, sourceId, pageIndex, rotation, stamps: [], redactions: [] }
+//   { id, sourceId, pageIndex, rotation, stamps: [], redactions: [], bookmarks }
+// bookmarks is a LIST of { title, level }. A page needs more than one because a
+// section heading and the first document under it usually start on the same
+// page: "A. Pleadings" and "A1. Particulars of Claim" both point at page 1.
 // pageIndex counts from 0 (pdf-lib's convention, which is where it ends up).
 // redactions are rectangles in 0..1 coordinates of the page AS DISPLAYED,
 // measured from the top-left corner.
@@ -84,6 +87,7 @@ function cloneState() {
       ...p,
       stamps: p.stamps.map((s) => ({ ...s })),
       redactions: p.redactions.map((r) => ({ ...r })),
+      bookmarks: p.bookmarks.map((b) => ({ ...b })),
     })),
     // A shallow copy: the entries are copied, the file bytes inside them are
     // shared references, so this stays cheap however large the PDFs are.
@@ -152,6 +156,11 @@ export function reserveSourceId() {
   return `s${nextSourceId++}`
 }
 
+// "2024-03-01 Witness Statement.pdf" -> "2024-03-01 Witness Statement"
+function bookmarkTitleFor(fileName) {
+  return fileName.replace(/\.pdf$/i, '').replace(/[_]+/g, ' ').trim()
+}
+
 export function addSource(id, name, bytes, pageCount) {
   beginChange()
 
@@ -171,6 +180,9 @@ export function addSource(id, name, bytes, pageCount) {
       rotation: 0,
       stamps: [],
       redactions: [],
+      // The first page of each file added gets a bookmark named after it, so
+      // merging a set of exhibits produces a navigable bundle with no work.
+      bookmarks: pageIndex === 0 ? [{ title: bookmarkTitleFor(name), level: 1 }] : [],
     })
   }
 
@@ -316,6 +328,9 @@ export function duplicateSelected() {
       id: `p${nextPageId++}`,
       stamps: page.stamps.map((s) => ({ ...s })),
       redactions: page.redactions.map((r) => ({ ...r })),
+      // A duplicated page must not duplicate its bookmarks: two entries with
+      // the same name pointing at different pages is worse than none.
+      bookmarks: [],
     })
   }
 
@@ -331,6 +346,78 @@ export function setLabelOnSelected(text, position, size) {
   for (const page of pages) {
     if (!selection.has(page.id)) continue
     page.stamps = text ? [{ text, position, size }] : []
+  }
+  notify()
+}
+
+// --- bookmarks -------------------------------------------------------------
+
+// A sub-bookmark nests under whatever comes before it. An entry deeper than
+// the one above allows is pulled up rather than dropped, so a stray
+// sub-bookmark still appears — the same rule the exporter uses when it builds
+// the real outline, so the panel can never show something the file will not.
+function withEffectiveLevels(entries) {
+  let deepestAllowed = 1
+
+  return entries.map((entry) => {
+    const effectiveLevel = Math.min(entry.level, deepestAllowed)
+    deepestAllowed = effectiveLevel + 1
+    return { ...entry, effectiveLevel }
+  })
+}
+
+// Every bookmark in document order, with where it points and how to address it.
+export function getBookmarks() {
+  const flat = []
+
+  pages.forEach((page, position) => {
+    page.bookmarks.forEach((bookmark, index) => {
+      flat.push({ ...bookmark, position, pageId: page.id, index })
+    })
+  })
+
+  return withEffectiveLevels(flat)
+}
+
+export function addBookmark(pageId, title, level) {
+  if (!title.trim()) return
+  beginChange()
+  pages.find((p) => p.id === pageId)?.bookmarks.push({ title: title.trim(), level })
+  notify()
+}
+
+export function renameBookmark(pageId, index, title) {
+  beginChange()
+  const bookmark = pages.find((p) => p.id === pageId)?.bookmarks[index]
+  if (bookmark) bookmark.title = title.trim()
+  notify()
+}
+
+export function removeBookmark(pageId, index) {
+  beginChange()
+  pages.find((p) => p.id === pageId)?.bookmarks.splice(index, 1)
+  notify()
+}
+
+// Indent or outdent one entry, clamped to levels 1-3.
+export function nudgeBookmarkLevel(pageId, index, delta) {
+  beginChange()
+  const bookmark = pages.find((p) => p.id === pageId)?.bookmarks[index]
+  if (bookmark) bookmark.level = Math.max(1, Math.min(3, bookmark.level + delta))
+  notify()
+}
+
+// Name every selected page at once. {n} in the title is replaced by a counter,
+// so "Exhibit {n}" gives Exhibit 1, Exhibit 2, and so on in page order.
+export function bookmarkSelected(pattern, level, startAt = 1) {
+  if (selection.size === 0 || !pattern.trim()) return
+  beginChange()
+
+  let n = startAt
+  for (const page of pages) {
+    if (!selection.has(page.id)) continue
+    page.bookmarks.push({ title: pattern.replace(/\{n\}/g, String(n)), level })
+    n++
   }
   notify()
 }
