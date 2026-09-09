@@ -20,7 +20,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Nothing is published until the tests pass, so a broken change cannot reach
+  # the live site. WebKit is the one that matters most here: it is what Safari
+  # runs, and Safari is where this has broken before.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit firefox
+
+      - name: Browser tests
+        run: npx playwright test
+
+      - name: Keep the report when something fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
