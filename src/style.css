@@ -72,22 +72,24 @@ body {
 
 .mark { width: 21px; height: 21px; flex: 0 0 auto; color: var(--accent); }
 
-/* One sans across the whole name, tracked tight so it reads as a single word.
-   The serif belonged to a formal name; this one is not that. */
+/* The wordmark is drawn as outlines, not set in a font. Optima is a Mac font,
+   and a logo that changes shape depending on the visitor's computer is not a
+   logo. Outlines also cost no network request — which a webfont would, on a
+   page that promises not to make any.
+   
+   Both dimensions are set: given only a height, the SVG is squeezed as a flex
+   item and clips its own content. */
 .wordmark {
-  font-family: var(--font-sans);
-  font-size: 1.05rem;
-  font-weight: 650;
-  letter-spacing: -0.028em;
-  color: var(--ink);
+  height: 1.15rem;
+  width: calc(1.15rem * 6.63);
+  flex: 0 0 auto;
+  display: block;
 }
 
-/* Colour alone separates PDFs — no size or weight change, so the name stays
-   one continuous word rather than two stuck together. */
-.wordmark-accent {
-  font-weight: 650;
-  color: var(--brass);
-}
+.wordmark-ink { fill: var(--ink); }
+.wordmark-brass { fill: var(--brass); }
+
+
 
 /* The third word carries the personality, so it gets the brass rather than
    the ink — it reads as part of the mark instead of a trailing label. */
