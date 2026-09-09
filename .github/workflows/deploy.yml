@@ -25,6 +25,16 @@ jobs:
   # runs, and Safari is where this has broken before.
   test:
     runs-on: ubuntu-latest
+
+    # Microsoft's own image, with the browsers and the system libraries they
+    # need already installed. Installing them on a bare runner is the step that
+    # failed, and it is the sort of thing that breaks again whenever a runner
+    # image changes. The tag must match the Playwright version in
+    # package.json — if you upgrade one, upgrade the other.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+
     steps:
       - uses: actions/checkout@v4
 
@@ -37,9 +47,6 @@ jobs:
 
       - name: Unit tests
         run: npm test
-
-      - name: Install browser engines
-        run: npx playwright install --with-deps chromium webkit firefox
 
       - name: Browser tests
         run: npx playwright test

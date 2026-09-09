@@ -609,7 +609,7 @@ html, body { max-width: 100%; }
 
 .tool-card {
   display: grid;
-  grid-template-columns: 2rem 1fr;
+  grid-template-columns: 2.1rem 1fr;
   grid-template-areas: 'icon name' 'icon blurb';
   gap: 0.15rem 0.75rem;
   text-align: left;
@@ -623,11 +623,19 @@ html, body { max-width: 100%; }
 
 .tool-card:hover { border-color: var(--accent); background: var(--accent-wash); }
 
+/* A filled tile rather than a bare glyph — colour is what makes a grid of
+   thirteen tools scannable instead of a wall of text. */
 .tool-card .tool-icon {
   grid-area: icon;
-  font-size: 1.25rem;
-  line-height: 1.2;
-  color: var(--accent);
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  line-height: 1;
+  background: var(--accent);
+  color: #fff;
 }
 
 .tool-card .tool-name { grid-area: name; font-weight: 600; font-size: 0.92rem; }
@@ -636,6 +644,7 @@ html, body { max-width: 100%; }
 /* The full editor is the headline option, so it gets more room. */
 .tool-card.pro {
   width: 100%;
+  grid-template-columns: 2.6rem 1fr;
   padding: 1.25rem 1.4rem;
   background: var(--accent);
   border-color: var(--accent);
@@ -826,7 +835,7 @@ html, body { max-width: 100%; }
 /* A tool that is listed but not ready yet. */
 .tool-card.soon { cursor: default; opacity: 0.6; background: #fafafa; }
 .tool-card.soon:hover { border-color: var(--border); background: #fafafa; }
-.tool-card.soon .tool-icon { color: var(--muted); }
+.tool-card.soon .tool-icon { background: #d6d3d0 !important; color: #fff; }
 
 .soon-tag {
   display: inline-block;
@@ -1070,7 +1079,13 @@ html, body { max-width: 100%; }
     var(--accent-hover);
 }
 
-.tool-card.pro .tool-icon { color: var(--brass); }
+.tool-card.pro .tool-icon {
+  width: 2.6rem;
+  height: 2.6rem;
+  font-size: 1.35rem;
+  background: rgb(255 255 255 / 0.12);
+  color: var(--brass);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .tool-card, .tool-card:hover:not(.soon) { transition: none; transform: none; }

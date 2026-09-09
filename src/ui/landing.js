@@ -23,6 +23,12 @@ function makeCard(id, tool, big = false) {
   icon.className = 'tool-icon'
   icon.textContent = tool.icon
   icon.setAttribute('aria-hidden', 'true')
+  // Each tool gets its own colour, so the grid can be scanned by colour and
+  // shape rather than by reading every label.
+  if (tool.colour && !big) {
+    icon.style.background = tool.colour
+    icon.style.color = '#fff'
+  }
 
   const name = document.createElement('span')
   name.className = 'tool-name'
