@@ -4,11 +4,16 @@
 // ones for export. Knows nothing about the model or the page layout.
 // ---------------------------------------------------------------------------
 
-import * as pdfjsLib from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
+// Must come first: pdf.js uses methods Safari does not have yet.
+import './polyfills.js'
 
-// ?url makes Vite emit the worker as a standalone asset and hand back the
-// correct URL in both dev and production.
+import * as pdfjsLib from 'pdfjs-dist'
+
+// Our own wrapper round the pdf.js worker, so the polyfills reach that thread
+// too. ?worker&url makes Vite bundle it and hand back the correct URL in both
+// development and production.
+import workerUrl from './pdf-worker.js?worker&url'
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
 const THUMBNAIL_WIDTH = 150

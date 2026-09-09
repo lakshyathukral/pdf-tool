@@ -12,4 +12,7 @@ const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1]
 
 export default defineConfig({
   base: repoName ? `/${repoName}/` : '/',
+
+  // pdf.js starts its worker as a module, so ours has to be one too.
+  worker: { format: 'es' },
 })
