@@ -476,6 +476,29 @@ export function downloadBytes(bytes, filename, type = 'application/pdf') {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+// Can this device hand a file to another app — the iOS and Android share sheet?
+export function canShareFiles() {
+  if (!navigator.canShare) return false
+  try {
+    const probe = new File([new Uint8Array([1])], 'probe.pdf', { type: 'application/pdf' })
+    return navigator.canShare({ files: [probe] })
+  } catch {
+    return false
+  }
+}
+
+// Hand the finished PDF straight to the share sheet.
+//
+// Saving works by minting a blob URL — an address that exists only inside this
+// tab. Sharing from the browser's own download list attaches that address,
+// which is meaningless anywhere else, so the recipient gets a dead link. This
+// passes the actual file instead, and says what the accompanying text should
+// be rather than leaving the browser to invent one.
+export async function shareBytes(bytes, filename, text) {
+  const file = new File([bytes], filename, { type: 'application/pdf' })
+  await navigator.share({ files: [file], title: filename, text })
+}
+
 // Several files at once. Browsers block or prompt on repeated downloads, so a
 // set of files goes out as one zip instead.
 export function downloadMany(files, zipName) {

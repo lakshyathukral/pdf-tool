@@ -13,6 +13,8 @@ import {
   safeFileName,
   downloadBytes,
   downloadMany,
+  canShareFiles,
+  shareBytes,
   formatPageNumber,
   splitStarts,
 } from './export.js'
@@ -151,6 +153,11 @@ function refreshControls() {
     : ''
   el('primary-action').disabled =
     !hasPages || (activeTool().primary === 'extract' && !hasSelection)
+
+  // Only where the device can actually hand a file to another app — phones and
+  // tablets, mostly. On a desktop the button would do nothing useful.
+  el('share-action').hidden = !canShareFiles()
+  el('share-action').disabled = !hasPages
   el('extract').disabled = !hasSelection
   el('split').disabled = !hasPages
 
@@ -878,6 +885,25 @@ const RUN = { save: doSave, extract: doExtract, split: doSplit }
 el('extract').addEventListener('click', doExtract)
 el('split').addEventListener('click', doSplit)
 el('primary-action').addEventListener('click', () => RUN[activeTool().primary]())
+
+el('share-action').addEventListener('click', () => {
+  runSave(el('share-action'), 'Preparing to share', async () => {
+    const pages = model.getPages()
+    const numbering = model.getNumbering()
+    const bytes = await finish(await buildPdf(
+      exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
+    ), pages)
+
+    try {
+      await shareBytes(bytes, safeFileName(chosenName()), 'Try FresherPDFs.com')
+      setStatus('Shared.')
+    } catch (error) {
+      // Dismissing the share sheet counts as an error; that is not a failure.
+      if (error.name === 'AbortError') return setStatus('Sharing cancelled.')
+      throw error
+    }
+  })
+})
 
 // Double-clicking a page opens the viewer; redaction is reached from there or
 // from the toolbar.
