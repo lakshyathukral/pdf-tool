@@ -490,6 +490,23 @@ input[type="range"] { width: 100%; }
   }
 
   body { padding: 0; }
+
+  /* On a phone, Share is what you want: sending straight to someone is the
+     usual intent, and saving then sharing from the download list attaches a
+     blob address that resolves to nothing. So Share takes the emphasis here
+     and Save steps back — both still present. */
+  #share-action:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  #primary-action:not(:disabled) {
+    background: var(--paper);
+    border-color: var(--border);
+    color: var(--ink);
+  }
 }
 
 /* Nothing on the page may be wider than the page. A single element that
