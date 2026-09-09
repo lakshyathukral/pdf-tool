@@ -45,6 +45,7 @@
       </div>
 
       <div class="top-actions">
+        <button id="files-chip" type="button" class="files-chip" hidden></button>
         <button id="secure-chip" type="button" class="secure-chip" title="How this works">
           <span aria-hidden="true">●</span> Nothing uploaded
         </button>
@@ -207,6 +208,32 @@
               <input type="number" id="label-size" value="12" min="6" max="72" />
             </label>
           </div>
+          <details class="sub">
+            <summary>Advanced placement</summary>
+            <label class="field">
+              <span>Distance from the edge (mm)</span>
+              <input type="number" id="label-margin" value="12.7" min="0" max="100" step="0.5" />
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="label-exact" />
+              <span>Place at an exact point instead</span>
+            </label>
+            <div class="row" id="label-exact-fields" hidden>
+              <label class="field grow">
+                <span>Across (% from left)</span>
+                <input type="number" id="label-x" value="50" min="0" max="100" step="0.5" />
+              </label>
+              <label class="field grow">
+                <span>Down (% from top)</span>
+                <input type="number" id="label-y" value="50" min="0" max="100" step="0.5" />
+              </label>
+            </div>
+            <p class="hint">
+              Percentages rather than millimetres, so a label lands in the same
+              visual place whatever size the page is.
+            </p>
+          </details>
+
           <div class="row actions">
             <button id="label-apply" type="button" class="primary" disabled>Add label</button>
             <button id="label-clear" type="button" disabled>Remove</button>
@@ -260,6 +287,10 @@
               <input type="number" id="numbering-size" value="10" min="6" max="24" />
             </label>
           </div>
+          <label class="field">
+            <span>Distance from the edge (mm)</span>
+            <input type="number" id="numbering-margin" value="12.7" min="0" max="100" step="0.5" />
+          </label>
           <p class="preview" id="numbering-preview"></p>
         </details>
 

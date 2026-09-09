@@ -388,12 +388,16 @@ export function duplicateSelected() {
   notify()
 }
 
-export function setLabelOnSelected(text, position, size) {
+// A stamp is placed either in one of the nine standard spots, inset from the
+// edge by `margin` millimetres, or at an exact point given as a fraction of the
+// page. Fractions rather than millimetres for the exact case, so a label lands
+// in the same visual place whatever size the page is.
+export function setLabelOnSelected(text, placement) {
   if (selection.size === 0) return
   beginChange()
   for (const page of pages) {
     if (!selection.has(page.id)) continue
-    page.stamps = text ? [{ text, position, size }] : []
+    page.stamps = text ? [{ text, ...placement }] : []
   }
   notify()
 }

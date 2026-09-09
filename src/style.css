@@ -1067,3 +1067,39 @@ input[type="range"] { width: 100%; }
   .selection-bar { padding: 0.5rem 0.6rem; gap: 0.3rem; }
   #range-input { width: 100%; order: 99; }
 }
+
+/* A nested disclosure inside a panel — advanced options that most people
+   never need to open. */
+.sub {
+  margin-top: 0.7rem;
+  border-top: 1px solid #f0ede9;
+  padding-top: 0.55rem;
+}
+
+.sub > summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  list-style: none;
+}
+
+.sub > summary::-webkit-details-marker { display: none; }
+.sub > summary::before { content: '▸ '; }
+.sub[open] > summary::before { content: '▾ '; }
+.sub[open] > summary { margin-bottom: 0.55rem; }
+
+/* Shows how many PDFs are loaded, and opens the list of them. */
+.files-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.files-chip:hover { border-color: var(--accent); background: var(--accent-wash); }

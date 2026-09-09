@@ -188,9 +188,15 @@ function refreshControls() {
 
   el('output-name').placeholder = hasPages ? defaultOutputName(model.getSources()) : 'combined'
 
+  // A visible count of what is loaded, which opens the file list. The panel
+  // existed from the start and people were not finding it.
+  const fileCount = model.getSources().size
+  el('files-chip').hidden = !hasPages
+  el('files-chip').textContent = fileCount === 1 ? '1 file' : `${fileCount} files`
+
   if (hasPages) {
     const redacted = model.getPages().filter((p) => p.redactions.length > 0).length
-    const parts = [`${pageCount} pages · ${model.getSources().size} file(s)`]
+    const parts = [`${pageCount} pages · ${fileCount} file(s)`]
     if (redacted > 0) parts.push(`${redacted} redacted`)
     setStatus(parts.join(' · '))
   }
@@ -343,15 +349,35 @@ el('delete').addEventListener('click', model.deleteSelected)
 el('redact').addEventListener('click', () => openRedactor(model.getSelectedIds()[0]))
 el('view').addEventListener('click', () => openViewer(model.getSelectedIds()[0]))
 
+function labelPlacement() {
+  const exact = el('label-exact').checked
+  return {
+    position: el('label-position').value,
+    size: Number(el('label-size').value),
+    mode: exact ? 'exact' : 'preset',
+    margin: Number(el('label-margin').value),
+    // Stored as fractions, which is what the exporter and the preview both use.
+    x: Number(el('label-x').value) / 100,
+    y: Number(el('label-y').value) / 100,
+  }
+}
+
 el('label-apply').addEventListener('click', () => {
-  model.setLabelOnSelected(
-    el('label-text').value.trim(),
-    el('label-position').value,
-    Number(el('label-size').value),
-  )
+  model.setLabelOnSelected(el('label-text').value.trim(), labelPlacement())
 })
 
-el('label-clear').addEventListener('click', () => model.setLabelOnSelected('', '', 0))
+el('label-clear').addEventListener('click', () => model.setLabelOnSelected('', labelPlacement()))
+
+// The preset position and its margin mean nothing once an exact point is set.
+for (const name of ['label-exact', 'label-x', 'label-y', 'label-margin']) {
+  el(name).addEventListener('input', () => {
+    const exact = el('label-exact').checked
+    el('label-exact-fields').hidden = !exact
+    el('label-position').disabled = exact
+    el('label-margin').disabled = exact
+    remember()
+  })
+}
 
 // ---------------------------------------------------------------------------
 // Document settings
@@ -368,6 +394,10 @@ function readSettings() {
       text: el('label-text').value,
       position: el('label-position').value,
       size: Number(el('label-size').value),
+      exact: el('label-exact').checked,
+      margin: Number(el('label-margin').value),
+      x: Number(el('label-x').value),
+      y: Number(el('label-y').value),
     },
     metadata: model.getMetadata(),
     flatten: model.getFlatten(),
@@ -387,6 +417,7 @@ function applySettings(settings) {
     el('numbering-padding').value = numbering.padding
     el('numbering-position').value = numbering.position
     el('numbering-size').value = numbering.size
+    el('numbering-margin').value = numbering.margin ?? 12.7
   }
 
   if (watermark) {
@@ -408,6 +439,13 @@ function applySettings(settings) {
     el('label-text').value = label.text ?? ''
     el('label-position').value = label.position ?? 'bottom-right'
     el('label-size').value = label.size ?? 12
+    el('label-exact').checked = Boolean(label.exact)
+    el('label-margin').value = label.margin ?? 12.7
+    el('label-x').value = label.x ?? 50
+    el('label-y').value = label.y ?? 50
+    el('label-exact-fields').hidden = !label.exact
+    el('label-position').disabled = Boolean(label.exact)
+    el('label-margin').disabled = Boolean(label.exact)
   }
 
   if (metadata) {
@@ -435,6 +473,7 @@ function readNumbering() {
     padding: Number(el('numbering-padding').value),
     position: el('numbering-position').value,
     size: Number(el('numbering-size').value),
+    margin: Number(el('numbering-margin').value),
   })
 }
 
@@ -462,7 +501,7 @@ function remember() {
   presets.rememberLastUsed(readSettings())
 }
 
-for (const name of ['enabled', 'style', 'prefix', 'start', 'padding', 'position', 'size']) {
+for (const name of ['enabled', 'style', 'prefix', 'start', 'padding', 'position', 'size', 'margin']) {
   el(`numbering-${name}`).addEventListener('input', () => { readNumbering(); remember() })
 }
 
@@ -772,6 +811,12 @@ el('home-link').addEventListener('click', goToLanding)
 const securityDialog = document.querySelector('#security-dialog')
 el('security-open').addEventListener('click', () => securityDialog.showModal())
 el('secure-chip').addEventListener('click', () => securityDialog.showModal())
+
+el('files-chip').addEventListener('click', () => {
+  const panel = el('panel-files')
+  panel.open = true
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' })
+})
 el('security-close').addEventListener('click', () => securityDialog.close())
 el('open-pro').addEventListener('click', () => goToTool('pro'))
 

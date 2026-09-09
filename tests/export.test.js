@@ -93,6 +93,47 @@ describe('page numbering', () => {
   })
 })
 
+describe('label placement', () => {
+  it('sits in the chosen corner by default', async () => {
+    const out = await build([page('s1', 0, {
+      stamps: [{ text: 'EXHIBIT A', position: 'top-left', size: 14 }],
+    })])
+    expect(await positionOf(out, 1, /EXHIBIT A/)).toEqual({ horizontal: 'left', vertical: 'top' })
+  })
+
+  it('moves further in when the margin is increased', async () => {
+    const near = await build([page('s1', 0, {
+      stamps: [{ text: 'NEAR', position: 'top-left', size: 12, margin: 5 }],
+    })])
+    const far = await build([page('s1', 0, {
+      stamps: [{ text: 'FAR', position: 'top-left', size: 12, margin: 60 }],
+    })])
+    const a = await centreOf(near, 1, /NEAR/)
+    const b = await centreOf(far, 1, /FAR/)
+    expect(b.x).toBeGreaterThan(a.x)
+    expect(b.y).toBeGreaterThan(a.y)   // further down from the top
+  })
+
+  it('lands at an exact fraction of the page when asked', async () => {
+    const out = await build([page('s1', 0, {
+      stamps: [{ text: 'PINNED', position: 'top-left', size: 12, mode: 'exact', x: 0.25, y: 0.75 }],
+    })])
+    const centre = await centreOf(out, 1, /PINNED/)
+    expect(centre.x).toBeGreaterThan(0.25)
+    expect(centre.x).toBeLessThan(0.45)
+    expect(centre.y).toBeCloseTo(0.75, 1)
+  })
+
+  it('keeps an exact placement correct on a rotated page', async () => {
+    const out = await build([page('s1', 0, {
+      rotation: 90,
+      stamps: [{ text: 'PINNED', position: 'top-left', size: 12, mode: 'exact', x: 0.2, y: 0.2 }],
+    })])
+    const centre = await centreOf(out, 1, /PINNED/)
+    expect(centre.y).toBeCloseTo(0.2, 1)
+  })
+})
+
 describe('watermark', () => {
   it('is centred, on rotated pages too', async () => {
     const out = await build([page('s1', 0), page('s1', 1, { rotation: 90 })], {

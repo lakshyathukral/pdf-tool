@@ -70,7 +70,17 @@ export function addOverlays(frame, page, position, { scale = 1 } = {}) {
   }
 
   for (const stamp of page.stamps) {
-    frame.append(makeBadge(stamp.text, stamp.position, 'label'))
+    const badge = makeBadge(stamp.text, stamp.position, 'label')
+
+    // An exact placement is positioned directly rather than by corner class,
+    // so the preview shows where it will really land.
+    if (stamp.mode === 'exact') {
+      badge.className = 'badge label'
+      badge.style.left = `${(stamp.x ?? 0) * 100}%`
+      badge.style.top = `${(stamp.y ?? 0) * 100}%`
+    }
+
+    frame.append(badge)
   }
 
   const numbering = model.getNumbering()

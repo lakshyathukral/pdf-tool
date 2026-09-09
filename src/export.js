@@ -9,7 +9,8 @@
 import { PDFDocument, StandardFonts, degrees, rgb, PDFName, PDFHexString } from 'pdf-lib'
 import { zipSync } from 'fflate'
 
-const MARGIN = 36  // half an inch, in PDF points (72 per inch)
+const DEFAULT_MARGIN_MM = 12.7   // half an inch
+const POINTS_PER_MM = 72 / 25.4
 
 // --- geometry --------------------------------------------------------------
 
@@ -26,24 +27,36 @@ function visualToPage(vx, vy, w, h, rotation) {
   return [vx, vy]
 }
 
-function drawStamp(page, { text, position, size }, font, rotation) {
+function drawStamp(page, stamp, font, rotation) {
+  const { text, position, size } = stamp
   const { width: w, height: h } = page.getSize()
   const [visualWidth, visualHeight] = rotation === 90 || rotation === 270 ? [h, w] : [w, h]
 
   const textWidth = font.widthOfTextAtSize(text, size)
   const textHeight = font.heightAtSize(size)
 
-  const [vertical, horizontal] = position.split('-')
+  let vx
+  let vy
 
-  const vx =
-    horizontal === 'left' ? MARGIN
-    : horizontal === 'center' ? (visualWidth - textWidth) / 2
-    : visualWidth - MARGIN - textWidth
+  if (stamp.mode === 'exact') {
+    // x and y are fractions of the visible page, measured from the top-left —
+    // the same convention as redaction boxes. PDF counts up from the bottom.
+    vx = (stamp.x ?? 0) * visualWidth
+    vy = (1 - (stamp.y ?? 0)) * visualHeight - textHeight
+  } else {
+    const margin = (stamp.margin ?? DEFAULT_MARGIN_MM) * POINTS_PER_MM
+    const [vertical, horizontal] = position.split('-')
 
-  const vy =
-    vertical === 'bottom' ? MARGIN
-    : vertical === 'middle' ? (visualHeight - textHeight) / 2
-    : visualHeight - MARGIN - textHeight
+    vx =
+      horizontal === 'left' ? margin
+      : horizontal === 'center' ? (visualWidth - textWidth) / 2
+      : visualWidth - margin - textWidth
+
+    vy =
+      vertical === 'bottom' ? margin
+      : vertical === 'middle' ? (visualHeight - textHeight) / 2
+      : visualHeight - margin - textHeight
+  }
 
   const [x, y] = visualToPage(vx, vy, w, h, rotation)
 
@@ -291,6 +304,7 @@ export async function buildPdf({
           text: formatPageNumber(numbering, number, totalPages),
           position: numbering.position,
           size: numbering.size,
+          margin: numbering.margin,
         },
         font,
         rotation,
