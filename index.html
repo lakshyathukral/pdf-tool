@@ -88,12 +88,12 @@
         <div class="assurance">
           <span class="assurance-mark" aria-hidden="true">●</span>
           <div>
-            <p class="assurance-line">Your files never leave this device.</p>
+            <p class="assurance-line">Your documents never leave this device.</p>
             <p class="assurance-detail">
-              There is no server to upload to. Every document is opened, edited
-              and saved by code running inside this browser tab, on your own
-              computer. Nothing is transmitted, stored or logged anywhere —
-              not by us, not by anyone.
+              There is no server to upload to. Every file is opened, edited and
+              saved by code running inside this browser tab, on your own
+              computer. No page of a document is ever transmitted, stored or
+              logged — not by us, not by anyone.
             </p>
             <button id="security-open" type="button" class="linky">
               How this works, in technical terms →
@@ -438,14 +438,19 @@
           document sits on someone else's computer, at least briefly, and you
           are trusting their retention policy, their staff and their security.
         </p>
-        <p><strong>This tool has no server component at all.</strong></p>
+        <p>
+          <strong>This tool has no server component at all.</strong> Your
+          documents are never sent anywhere. Like any website, we do count
+          visits — see <em>What we know about you</em> below, which is a
+          deliberately short list.
+        </p>
 
         <h3>What actually happens when you open a file</h3>
         <ol>
           <li>
             Your browser downloads the application once — some HTML, JavaScript
-            and CSS. That is the only network request involved in the whole
-            process.
+            and CSS. After that, nothing further is fetched in order to work on
+            a document.
           </li>
           <li>
             Choosing a file hands the page a reference to it through the
@@ -483,8 +488,9 @@
           </li>
           <li>
             <strong>Open your browser's developer tools and watch the Network
-            tab.</strong> Load a PDF, edit it, save it. You will see no requests
-            beyond the initial page load.
+            tab.</strong> Load a PDF, edit it, save it. You will see the page
+            itself load, and a small analytics ping counting the visit. You will
+            not see a request carrying your document, because none is made.
           </li>
           <li>
             <strong>Read the source.</strong> The whole thing is public at
@@ -492,12 +498,26 @@
           </li>
         </ul>
 
-        <h3>What is stored</h3>
+        <h3>What is stored on your device</h3>
         <p>
           Only your settings — watermark text, numbering format, saved presets —
-          kept in this browser's local storage on this device. No document, no
-          page, no filename. Clearing your browser data removes it. There are no
-          analytics, no tracking, no cookies and no error reporting.
+          kept in this browser's local storage. No document, no page, no
+          filename. Clearing your browser data removes it.
+        </p>
+
+        <h3>What we know about you</h3>
+        <p>
+          The same things any website's logs record: that a visit happened,
+          roughly which country it came from, which page was opened, and which
+          site linked here. Enough to know whether anyone is using this. This is
+          measured by Cloudflare Web Analytics, which sets no cookies, stores no
+          identifier on your device, and cannot follow you to other sites.
+        </p>
+        <p>
+          What we cannot know, because it never reaches us: which documents you
+          opened, their names, their contents, their length, or what you did to
+          them. That is not a policy we could change our minds about — the
+          information does not leave your browser in the first place.
         </p>
 
         <h3>What this does not protect against</h3>
@@ -591,5 +611,13 @@
     </dialog>
 
     <script type="module" src="/src/main.js"></script>
+
+    <!-- Counts visits. No cookies, no identifier stored on the device, and no
+         document ever passes through it — see the security panel. -->
+    <script
+      type="module"
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "e730808fdcf3464cbe219305ba17ac11"}'
+    ></script>
   </body>
 </html>
