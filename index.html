@@ -59,6 +59,10 @@
           Add PDFs
           <input type="file" id="file-input" accept="application/pdf" multiple hidden />
         </label>
+        <label class="file-button subtle" title="Photograph documents, or add pictures">
+          Add photos
+          <input type="file" id="photo-input" accept="image/*" multiple hidden />
+        </label>
         <button id="open-pro" type="button" hidden>Open in full editor</button>
         <button id="undo" type="button" disabled title="Undo (Cmd+Z)">Undo</button>
         <button id="redo" type="button" disabled title="Redo (Cmd+Shift+Z)">Redo</button>
@@ -123,6 +127,10 @@
           Choose files
           <input type="file" id="file-input-empty" accept="application/pdf" multiple hidden />
         </label>
+        <label class="file-button subtle" id="photo-empty-button">
+          Take photos
+          <input type="file" id="photo-input-empty" accept="image/*" multiple hidden />
+        </label>
         <p class="hint" id="dropzone-hint"></p>
         <p class="hint">
           Nothing leaves your computer — files are read in this browser tab and
@@ -139,6 +147,24 @@
           <ul id="file-list"></ul>
           <button id="group-by-file" type="button">Group pages by file</button>
           <p class="hint">Puts each file's pages back together, in their original order.</p>
+        </details>
+
+        <details class="panel" id="panel-photos">
+          <summary>Photos</summary>
+          <p class="hint">
+            Each picture becomes a page. Turned the right way up using the
+            camera's own orientation, and shrunk to a sensible size so a dozen
+            photographs do not make a file nobody can email.
+          </p>
+          <label class="field">
+            <span>Page size</span>
+            <select id="photo-page-size">
+              <option value="a4" selected>A4</option>
+              <option value="letter">Letter</option>
+              <option value="match">Match the photo</option>
+            </select>
+          </label>
+          <p class="hint">On a phone, "Add photos" offers the camera directly.</p>
         </details>
 
         <details class="panel" id="panel-bookmarks" open>

@@ -20,6 +20,17 @@ export const TOOLS = {
     primaryLabel: 'Save PDF',
   },
 
+  photos: {
+    name: 'Photos to PDF',
+    blurb: 'Photograph documents with your phone and turn them into a PDF.',
+    icon: '⛶',
+    panels: ['panel-photos'],
+    pageActions: ['select-all', 'select-none', 'delete', 'view'],
+    primary: 'save',
+    primaryLabel: 'Save PDF',
+    hint: 'Add photos — on a phone this offers the camera. Drag pages to reorder.',
+  },
+
   merge: {
     name: 'Merge PDFs',
     blurb: 'Combine several files into one. Drag the pages to change the order.',
@@ -147,7 +158,7 @@ export const TOOLS = {
 
 // The order they appear on the landing page. Pro sits apart from the rest.
 export const SIMPLE_TOOL_IDS = [
-  'merge', 'bookmarks', 'sign', 'organise', 'rotate', 'extract', 'split',
+  'merge', 'photos', 'bookmarks', 'sign', 'organise', 'rotate', 'extract', 'split',
   'watermark', 'numbering', 'label', 'redact',
 ]
 

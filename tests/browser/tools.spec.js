@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 
 const FIVE_PAGES = fileURLToPath(new URL('../fixtures/five-pages.pdf', import.meta.url))
 const THREE_PAGES = fileURLToPath(new URL('../fixtures/three-pages.pdf', import.meta.url))
+const PHOTO_LANDSCAPE = fileURLToPath(new URL('../fixtures/photo-landscape.png', import.meta.url))
+const PHOTO_PORTRAIT = fileURLToPath(new URL('../fixtures/photo-portrait.png', import.meta.url))
 
 // Loading a PDF is the first thing every test needs, and the step that failed
 // outright in Safari for a whole day.
@@ -43,6 +45,46 @@ test.describe('loading', () => {
     await page.goto('/#pro')
     await expect(page.locator('#dropzone')).toBeVisible()
     await expect(page.locator('#app-workspace')).toBeHidden()
+  })
+})
+
+test.describe('photos to PDF', () => {
+  test('turns pictures into pages', async ({ page }) => {
+    await page.goto('/#photos')
+    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
+    await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
+    await expect(page.locator('.tile img').first()).toBeVisible()
+  })
+
+  test('turns the page sideways for a landscape photo', async ({ page }) => {
+    await page.goto('/#photos')
+    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE])
+    await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
+    // Wait for the real thumbnail: the loading placeholder is portrait, so
+    // measuring too early tests the placeholder rather than the page.
+    await expect(page.locator('.tile img').first()).toBeVisible({ timeout: 30_000 })
+
+    // A wide picture should produce a wide page, not a tall one with the
+    // photograph shrunk into the middle of it.
+    const frame = await page.locator('.tile .frame').first().boundingBox()
+    expect(frame.width).toBeGreaterThan(frame.height)
+  })
+
+  test('mixes photos and PDFs in one document', async ({ page }) => {
+    await load(page)
+    await page.locator('#photo-input').setInputFiles([PHOTO_PORTRAIT])
+    await expect(page.locator('.tile')).toHaveCount(6, { timeout: 30_000 })
+    await expect(page.locator('.file-row')).toHaveCount(2)
+  })
+
+  test('saves a PDF made only of photos', async ({ page }) => {
+    await page.goto('/#photos')
+    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
+    await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
+
+    const download = page.waitForEvent('download', { timeout: 60_000 })
+    await page.locator('#primary-action').click()
+    expect((await download).suggestedFilename()).toMatch(/\.pdf$/)
   })
 })
 
@@ -247,6 +289,41 @@ test.describe('saving', () => {
     await page.locator('#extract').click()
     const file = await download
     expect(file.suggestedFilename()).toContain('extract')
+  })
+})
+
+test.describe('fitting the screen', () => {
+  // The bug this guards: the top bar could not fit its buttons at phone width,
+  // so it forced the document wider than the viewport and every line of text
+  // on every screen was cut off on the right.
+  const noSidewaysScroll = async (page) => {
+    const overflow = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }))
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1)
+  }
+
+  test('the landing page does not scroll sideways', async ({ page }) => {
+    await page.goto('/')
+    await noSidewaysScroll(page)
+  })
+
+  test('the drop screen does not scroll sideways', async ({ page }) => {
+    await page.goto('/#pro')
+    await noSidewaysScroll(page)
+  })
+
+  test('the workspace does not scroll sideways', async ({ page }) => {
+    await load(page)
+    await noSidewaysScroll(page)
+  })
+
+  test('the security explainer does not scroll sideways', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('#security-open').click()
+    await expect(page.locator('#security-dialog')).toBeVisible()
+    await noSidewaysScroll(page)
   })
 })
 

@@ -458,6 +458,45 @@ input[type="range"] { width: 100%; }
   #status { display: none; }
 }
 
+@media (max-width: 700px) {
+  /* The top bar cannot fit its buttons on a phone. Left as one non-wrapping
+     row it forces the whole document wider than the screen, and every line of
+     text on the page gets cut off on the right — which looks like a layout
+     bug everywhere rather than a bug in the bar.
+     
+     So it wraps instead. It also stops being sticky, because a wrapped bar has
+     no fixed height and the sticky offsets below it are worked out from one. */
+  .topbar {
+    position: static;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.5rem 0.7rem;
+  }
+
+  .top-actions {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  /* The bar is gone once you scroll, so the page controls take the top spot. */
+  .selection-bar { top: 0; }
+
+  button, .file-button {
+    font-size: 0.78rem;
+    padding: 0.32rem 0.6rem;
+  }
+
+  body { padding: 0; }
+}
+
+/* Nothing on the page may be wider than the page. A single element that
+   refuses to shrink drags the whole document sideways. */
+html, body { max-width: 100%; }
+.topbar, .panels, .sidebar, .canvas, #app-landing, #app-empty { min-width: 0; }
+
 /* --- full-size viewer ---------------------------------------------------- */
 
 #viewer-dialog {
@@ -1163,3 +1202,14 @@ input[type="range"] { width: 100%; }
 }
 
 .place-chip:active { cursor: grabbing; }
+
+/* A secondary file button — same shape, less shouty than the primary one. */
+.file-button.subtle {
+  background: var(--paper);
+  border-color: var(--border);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.file-button.subtle:hover { background: var(--accent-wash); border-color: var(--accent); }
+.dropzone .file-button.subtle { margin-left: 0.4rem; }

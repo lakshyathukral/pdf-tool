@@ -27,6 +27,7 @@ import { openSigner, setupSigner } from './ui/sign.js'
 import { openPlacer, setupPlacer } from './ui/place.js'
 import * as presets from './presets.js'
 import * as signatures from './signatures.js'
+import { pdfFromImages, PAGE_SIZES } from './images.js'
 import { TOOLS, ALWAYS_PANELS, getTool, isComingSoon, currentToolId, goToTool, goToLanding } from './tools.js'
 import { drawLanding } from './ui/landing.js'
 
@@ -62,7 +63,7 @@ const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
 // landing page rather than a half-working screen.
 const onLanding = () => getTool(currentToolId()) === null || isComingSoon(currentToolId())
 
-const PANEL_IDS = ['panel-files', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
+const PANEL_IDS = ['panel-files', 'panel-photos', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
 
 // Show only the parts this tool needs. Everything still exists and still works
@@ -301,6 +302,54 @@ for (const input of [fileInput, el('file-input-empty')]) {
   })
 }
 
+// --- photographs -----------------------------------------------------------
+
+// Pictures are turned into a PDF straight away and handed to the same code
+// path as any other file, so everything downstream — thumbnails, reordering,
+// bookmarks, redaction, export — works without knowing about photographs.
+async function loadPhotos(files) {
+  const images = files.filter((f) => f.type.startsWith('image/'))
+  if (images.length === 0) return
+
+  clearError()
+  setStatus(`Reading ${images.length} photo(s)...`)
+
+  try {
+    const chosen = el('photo-page-size').value
+    const bytes = await pdfFromImages(images, {
+      pageSize: chosen === 'match' ? null : PAGE_SIZES[chosen],
+      onProgress: (done, total) => setStatus(`Converting photo ${done} of ${total}...`),
+    })
+
+    const id = model.reserveSourceId()
+    const pageCount = await openSource(id, bytes)
+    const name = images.length === 1 ? images[0].name.replace(/\.[^.]+$/, '') : `Photos (${images.length})`
+    model.addSource(id, `${name}.pdf`, bytes, pageCount)
+
+    for (const page of model.getPages()) {
+      if (page.sourceId !== id) continue
+      await renderThumbnail(page.sourceId, page.pageIndex)
+      drawGrid()
+    }
+
+    setStatus(`Added ${pageCount} page(s) from photos`)
+  } catch (error) {
+    setStatus('Could not read those photos.')
+    showError(error.message)
+    console.error(error)
+  }
+
+  refreshControls()
+}
+
+for (const input of [el('photo-input'), el('photo-input-empty')]) {
+  input.addEventListener('change', async () => {
+    const files = [...input.files]
+    input.value = ''
+    await loadPhotos(files)
+  })
+}
+
 // --- dragging files in from the desktop ------------------------------------
 // The page grid also uses drag events to reorder tiles, so we only act when
 // the thing being dragged is actually files from outside the browser.
@@ -322,7 +371,10 @@ window.addEventListener('drop', async (event) => {
   if (!isFileDrag(event)) return
   event.preventDefault()
   dropzone.classList.remove('over')
-  await loadFiles([...event.dataTransfer.files])
+
+  const dropped = [...event.dataTransfer.files]
+  await loadFiles(dropped.filter((f) => f.type === 'application/pdf'))
+  await loadPhotos(dropped.filter((f) => f.type.startsWith('image/')))
 })
 
 // ---------------------------------------------------------------------------
