@@ -9,6 +9,15 @@
 // Sidebar panels every tool gets: the file list, and the save controls.
 export const ALWAYS_PANELS = ['panel-files', 'panel-saving']
 
+// How the tools are grouped on the front page. A category is a shelf in the
+// workshop, not a taxonomy: four of them, named for what you came to do.
+export const CATEGORIES = [
+  { id: 'arrange', name: 'Arrange', note: 'Order, split, pull apart' },
+  { id: 'add', name: 'Add', note: 'Marks, numbers, tabs' },
+  { id: 'create', name: 'Create', note: 'Make a PDF from something else' },
+  { id: 'protect', name: 'Protect', note: 'Remove it, or lock it' },
+]
+
 export const TOOLS = {
   pro: {
     name: 'Full editor',
@@ -22,6 +31,9 @@ export const TOOLS = {
 
   'photo-watermark': {
     name: 'Add a watermark',
+    phrase: 'Make your mark',
+    category: 'add',
+    featured: true,
     blurb: 'Stamp DRAFT, CONFIDENTIAL or your own wording across a legal document, a contract, or a photographed PAN or Aadhaar.',
     icon: '▧',
     colour: '#7c3aed',
@@ -50,6 +62,9 @@ export const TOOLS = {
 
   photos: {
     name: 'Photos to PDF',
+    phrase: 'Turn snaps into documents',
+    category: 'create',
+    featured: true,
     blurb: 'Photograph documents with your phone and turn them into a PDF.',
     icon: '⛶',
     colour: '#b45309',
@@ -63,6 +78,9 @@ export const TOOLS = {
 
   merge: {
     name: 'Merge PDFs',
+    phrase: 'Make one tidy file',
+    category: 'arrange',
+    featured: true,
     blurb: 'Combine several files into one. Drag the pages to change the order.',
     icon: '⊕',
     colour: '#2563eb',
@@ -75,6 +93,9 @@ export const TOOLS = {
 
   organise: {
     name: 'Reorder & delete pages',
+    phrase: 'Put pages in line',
+    category: 'arrange',
+    featured: true,
     blurb: 'Drag pages into the order you want. Remove the ones you do not need.',
     icon: '⇅',
     colour: '#4f46e5',
@@ -87,6 +108,8 @@ export const TOOLS = {
 
   rotate: {
     name: 'Rotate pages',
+    phrase: 'The right way up',
+    category: 'arrange',
     blurb: 'Turn sideways or upside-down pages the right way up.',
     icon: '↻',
     colour: '#0d9488',
@@ -99,6 +122,8 @@ export const TOOLS = {
 
   bookmarks: {
     name: 'Bookmark a bundle',
+    phrase: 'Tabs down the side',
+    category: 'add',
     blurb: 'Merge documents and add the navigation panel Acrobat shows down the side.',
     icon: '☰',
     colour: '#c2410c',
@@ -111,6 +136,8 @@ export const TOOLS = {
 
   sign: {
     name: 'Sign a document',
+    phrase: 'Your name, on the page',
+    category: 'add',
     blurb: 'Drop a picture of your signature onto a page — or onto every page.',
     icon: '✍',
     colour: '#65a30d',
@@ -126,6 +153,8 @@ export const TOOLS = {
 
   numbering: {
     name: 'Number the pages',
+    phrase: 'Every page accounted for',
+    category: 'add',
     blurb: 'Bates numbering, "Page 1 of 10", or plain numbers.',
     icon: '№',
     colour: '#0369a1',
@@ -138,6 +167,8 @@ export const TOOLS = {
 
   label: {
     name: 'Label pages',
+    phrase: 'Stamp it and send it',
+    category: 'add',
     blurb: 'Stamp exhibit numbers or a confidentiality notice onto chosen pages.',
     icon: '🏷',
     colour: '#be123c',
@@ -150,6 +181,8 @@ export const TOOLS = {
 
   extract: {
     name: 'Extract pages',
+    phrase: 'Take just what you need',
+    category: 'arrange',
     blurb: 'Pull out just the pages you need as a new file.',
     icon: '⇥',
     colour: '#db2777',
@@ -162,6 +195,8 @@ export const TOOLS = {
 
   split: {
     name: 'Split a PDF',
+    phrase: 'One file becomes many',
+    category: 'arrange',
     blurb: 'Break one document into several files.',
     icon: '✂',
     colour: '#9333ea',
@@ -174,6 +209,9 @@ export const TOOLS = {
 
   password: {
     name: 'Add or remove a password',
+    phrase: 'Lock it, or unlock it',
+    category: 'protect',
+    featured: true,
     blurb: 'Lock a PDF with a password, or take one off a file whose password you have.',
     icon: '⚿',
     colour: '#475569',
@@ -186,6 +224,9 @@ export const TOOLS = {
 
   redact: {
     name: 'Redact',
+    phrase: 'Gone, not just hidden',
+    category: 'protect',
+    featured: true,
     blurb: 'Black out text so it is destroyed, not just covered over. Search for a name or number to find every mention.',
     icon: '█',
     colour: '#334155',
@@ -224,6 +265,12 @@ export const SIMPLE_TOOL_IDS = [
 ]
 
 export const getTool = (id) => TOOLS[id] ?? null
+
+// The handful given a large card at the top of the page.
+export const FEATURED_TOOL_IDS = SIMPLE_TOOL_IDS.filter((id) => TOOLS[id].featured)
+
+export const toolsInCategory = (category) =>
+  SIMPLE_TOOL_IDS.filter((id) => TOOLS[id].category === category)
 
 // A tool that is listed but not ready. Its card shows, greyed, so people can
 // see it is on the way rather than wondering whether it exists.
