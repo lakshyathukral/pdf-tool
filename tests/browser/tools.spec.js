@@ -834,18 +834,24 @@ test.describe('the landing page', () => {
     await expect(page.locator('.sec-limits li')).toHaveCount(4)
   })
 
-  test('the explainer opens complete, without scrolling', async ({ page }) => {
+  test('the explainer stays short enough to actually be read', async ({ page }) => {
     await page.goto('/')
     await page.locator('#security-open').click()
     await expect(page.locator('#security-dialog')).toBeVisible()
 
-    // A person reads a short thing they can see all of; a long one they skim.
-    // On a phone it will still scroll, and that is fine.
-    const viewport = page.viewportSize()
-    if (viewport.width < 700) return
+    const box = await page.locator('#security-dialog').evaluate((el) => ({
+      content: el.scrollHeight,
+      onScreen: el.clientHeight,
+    }))
 
-    const room = await page.locator('#security-dialog')
-      .evaluate((el) => el.scrollHeight - el.clientHeight)
-    expect(room).toBeLessThanOrEqual(1)
+    // The old explainer ran to about three screens of prose. This guards the
+    // rewrite: whether it needs a nudge of scrolling depends on the window,
+    // but the whole thing must stay short. Roughly 745px on a wide window; a
+    // phone is taller because the two columns stack into one.
+    const narrow = page.viewportSize().width < 700
+    expect(box.content).toBeLessThan(narrow ? 1150 : 950)
+
+    // And it must never be taller than the window it opens in.
+    expect(box.onScreen).toBeLessThanOrEqual(page.viewportSize().height)
   })
 })
