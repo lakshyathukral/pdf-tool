@@ -544,39 +544,23 @@
         </p>
 
         <h3>What actually happens when you open a file</h3>
-        <ol>
-          <li>
-            Your browser downloads the application once — some HTML, JavaScript
-            and CSS. After that, nothing further is fetched in order to work on
-            a document.
-          </li>
-          <li>
-            Choosing a file hands the page a reference to it through the
-            browser's own file-picker. The bytes are read into memory with the
-            standard <code>File.arrayBuffer()</code> call — the same mechanism
-            an image viewer uses.
-          </li>
-          <li>
-            <strong>pdf.js</strong> parses the document. It runs on a Web
-            Worker, a second thread inside your browser, so a large file does
-            not freeze the interface. Pages are drawn onto a
-            <code>&lt;canvas&gt;</code> element to produce what you see.
-          </li>
-          <li>
-            Edits change a plain data structure in memory — which page goes
-            where, what is written on it. Your original file is never modified.
-          </li>
-          <li>
-            <strong>pdf-lib</strong> assembles a new PDF as raw bytes, still in
-            memory.
-          </li>
-          <li>
-            Saving wraps those bytes in a <code>Blob</code> and hands them to
-            the browser's download mechanism via an
-            <code>object URL</code> — an address that exists only inside this
-            tab and is meaningless anywhere else. No request is made.
-          </li>
-        </ol>
+        <p>
+          Your browser downloads this application once, the way it downloads any
+          web page. After that it needs nothing further from us in order to work
+          on a document.
+        </p>
+        <p>
+          When you choose a file, the browser's own file-picker hands the page a
+          reference to it. The document is read into memory inside this tab,
+          displayed, and edited there. Your original file on disk is never
+          modified. When you save, a new document is assembled in memory and
+          handed straight to the browser's download mechanism.
+        </p>
+        <p>
+          At no point in that sequence is there a request carrying your
+          document, because there is nowhere for it to go: no server of ours
+          takes part in any of it.
+        </p>
 
         <h3>How you can check this yourself</h3>
         <ul>
@@ -589,12 +573,6 @@
             tab.</strong> Load a PDF, edit it, save it. You will see the page
             itself load, and a small analytics ping counting the visit. You will
             not see a request carrying your document, because none is made.
-          </li>
-          <li>
-            <strong>Read the code that is running.</strong> Everything this page
-            does is in the JavaScript your browser has already downloaded. Open
-            the Sources tab in developer tools and you can read it, or save it
-            and search it, without taking our word for anything.
           </li>
         </ul>
 
