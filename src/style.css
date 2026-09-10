@@ -1390,47 +1390,85 @@ html, body { max-width: 100%; }
 .file-chip button:hover { background: #fde2e2; color: var(--danger); border-color: transparent; }
 
 
-/* --- the security explainer, set to be read rather than skimmed ---------- */
+/* --- the security explainer: a picture first, words second --------------- */
 
-.sec { max-width: 54ch; }
-.sec-headline { font-size: 1.5rem; font-weight: 700; line-height: 1.25; margin: 0.3rem 0 0.3rem; }
-.sec-sub { font-size: 1rem; color: var(--muted); margin: 0 0 1.6rem; }
+.sec { max-width: 52ch; }
+.sec-headline { font-size: 1.42rem; font-weight: 700; line-height: 1.25; margin: 0.3rem 0 1.1rem; }
 
 .sec-h {
-  font-size: 0.74rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--accent); margin: 2rem 0 0.7rem;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); margin: 1.8rem 0 0.7rem;
 }
 
-.sec-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.9rem; }
-.sec-steps li {
-  display: grid; grid-template-columns: 1.7rem 1fr; grid-template-areas: 'n t' '. d';
-  gap: 0.1rem 0.7rem; align-items: baseline;
-}
-.sec-step-n {
-  grid-area: n; display: grid; place-items: center; width: 1.7rem; height: 1.7rem;
-  border-radius: 50%; background: var(--accent); color: #fff; font-size: 0.8rem; font-weight: 700;
-}
-.sec-step-t { grid-area: t; font-size: 1rem; font-weight: 650; }
-.sec-step-d { grid-area: d; font-size: 0.88rem; color: var(--muted); }
+/* The diagram carries the claim, so the text under it can be short. */
+.sec-diagram { display: grid; gap: 0.6rem; }
 
-.sec-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
-.sec-card { border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem 0.9rem; }
-.sec-card-t { margin: 0 0 0.25rem; font-size: 0.92rem; font-weight: 650; }
-.sec-card-d { margin: 0; font-size: 0.84rem; color: var(--muted); line-height: 1.45; }
+.sec-device {
+  position: relative;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  padding: 1.35rem 0.9rem 1.1rem;
+  background: var(--accent-wash, #f2f6fb);
+}
+.sec-device-tag {
+  position: absolute; top: -0.65rem; left: 0.9rem;
+  background: var(--accent); color: #fff;
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 0.15rem 0.5rem; border-radius: 999px;
+}
 
-.sec-split { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
-.sec-col { border-radius: 8px; padding: 0.85rem 0.95rem; }
+.sec-flow { display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
+.sec-node {
+  display: grid; justify-items: center; gap: 0.3rem;
+  font-size: 0.76rem; font-weight: 600; color: var(--ink); text-align: center; min-width: 5.2rem;
+}
+.sec-node svg { width: 2rem; height: 2rem; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linejoin: round; }
+.sec-node.accent svg { stroke: var(--accent); fill: rgb(26 45 74 / 0.07); }
+.sec-node svg .fold { fill: none; }
+.sec-arrow { color: var(--muted); font-size: 1.1rem; }
+
+.sec-nowhere {
+  display: flex; align-items: center; gap: 0.6rem; justify-content: center;
+  font-size: 1rem; font-weight: 700; color: var(--ink);
+}
+.sec-cloud { width: 2.4rem; height: 1.8rem; fill: none; stroke: var(--muted); stroke-width: 1.7; stroke-linejoin: round; }
+.sec-cloud .slash { stroke: #dc2626; stroke-width: 2.2; stroke-linecap: round; }
+.sec-chip .slash { stroke: #dc2626; stroke-width: 1.8; }
+
+.sec-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.sec-chip {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  border: 1px solid var(--border); border-radius: 999px; padding: 0.45rem 0.85rem;
+  font-size: 0.84rem; font-weight: 600;
+}
+.sec-chip svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; }
+.sec-chip svg .fill { fill: var(--muted); stroke: none; }
+
+.sec-split { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.sec-col { border-radius: 10px; padding: 0.85rem 0.95rem; }
 .sec-col.can { background: #f4f4f5; border: 1px solid var(--border); }
 .sec-col.cannot { background: #ecfdf5; border: 1px solid #a7f3d0; }
-.sec-col-t { margin: 0 0 0.5rem; font-size: 0.92rem; font-weight: 700; }
+.sec-col-t { margin: 0 0 0.55rem; font-size: 0.88rem; font-weight: 700; }
 .sec-col.cannot .sec-col-t { color: #047857; }
-.sec-col ul { margin: 0; padding-left: 1.05rem; }
-.sec-col li { font-size: 0.88rem; line-height: 1.75; }
-.sec-col-f { margin: 0.6rem 0 0; font-size: 0.78rem; color: var(--muted); }
+.sec-col ul { margin: 0; padding: 0; list-style: none; }
+.sec-col li { display: flex; gap: 0.45rem; font-size: 0.86rem; line-height: 1.9; }
+.sec-col .mark { flex: none; width: 0.9rem; text-align: center; font-weight: 700; }
+.sec-col .mark.x { color: #059669; }
+.sec-col .mark.dot { color: var(--muted); }
+.sec-col-f { margin: 0.55rem 0 0; font-size: 0.76rem; color: var(--muted); }
 
-.sec-limits { margin: 0; padding-left: 1.1rem; }
-.sec-limits li { font-size: 0.88rem; line-height: 1.7; color: var(--muted); }
+.sec-limits { margin: 0; padding: 0; list-style: none; }
+.sec-limits li {
+  display: flex; gap: 0.55rem; align-items: baseline;
+  font-size: 0.85rem; line-height: 1.75; color: var(--muted);
+}
+.sec-limits .warn {
+  flex: none; display: grid; place-items: center;
+  width: 1.05rem; height: 1.05rem; border-radius: 50%;
+  background: #fef3c7; color: #92400e; font-size: 0.7rem; font-weight: 700;
+  transform: translateY(0.12rem);
+}
 
 @media (max-width: 640px) {
-  .sec-cards, .sec-split { grid-template-columns: 1fr; }
+  .sec-split { grid-template-columns: 1fr; }
 }

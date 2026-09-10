@@ -570,66 +570,80 @@
 
       <div class="sec">
         <p class="sec-headline">Your documents never leave this device.</p>
-        <p class="sec-sub">There is no server to upload them to.</p>
 
-        <ol class="sec-steps">
-          <li>
-            <span class="sec-step-n">1</span>
-            <span class="sec-step-t">The page loads once</span>
-            <span class="sec-step-d">Like any website.</span>
-          </li>
-          <li>
-            <span class="sec-step-n">2</span>
-            <span class="sec-step-t">Your file opens in this tab</span>
-            <span class="sec-step-d">Read and edited here. The original is never touched.</span>
-          </li>
-          <li>
-            <span class="sec-step-n">3</span>
-            <span class="sec-step-t">Saving hands it back to you</span>
-            <span class="sec-step-d">No request carries your document. There is nowhere for it to go.</span>
-          </li>
-        </ol>
-
-        <p class="sec-h">Don't take our word for it</p>
-        <div class="sec-cards">
-          <div class="sec-card">
-            <p class="sec-card-t">Turn off your internet</p>
-            <p class="sec-card-d">Every feature keeps working. Nothing that needed a server could.</p>
+        <!-- The whole claim as one picture: everything happens inside the
+             device, and the road to a server is not merely unused, it is
+             absent. -->
+        <div class="sec-diagram">
+          <div class="sec-device">
+            <span class="sec-device-tag">Your device</span>
+            <div class="sec-flow">
+              <span class="sec-node">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6z"/><path class="fold" d="M14 2v4h4"/></svg>
+                Your PDF
+              </span>
+              <span class="sec-arrow" aria-hidden="true">→</span>
+              <span class="sec-node accent">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v7c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5z"/></svg>
+                Edited here
+              </span>
+              <span class="sec-arrow" aria-hidden="true">→</span>
+              <span class="sec-node">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6z"/><path class="fold" d="M14 2v4h4"/></svg>
+                Saved PDF
+              </span>
+            </div>
           </div>
-          <div class="sec-card">
-            <p class="sec-card-t">Watch the Network tab</p>
-            <p class="sec-card-d">Edit and save a PDF. No request carries it.</p>
+
+          <div class="sec-nowhere">
+            <svg viewBox="0 0 32 24" aria-hidden="true" class="sec-cloud">
+              <path d="M9 20h13a5 5 0 0 0 .6-9.9A7.5 7.5 0 0 0 8.3 8.4 4.8 4.8 0 0 0 9 20z"/>
+              <line x1="4" y1="22" x2="28" y2="2" class="slash" />
+            </svg>
+            <span>No server. Nothing uploaded.</span>
           </div>
         </div>
 
-        <p class="sec-h">What we can and cannot see</p>
+        <p class="sec-h">Check it yourself</p>
+        <div class="sec-chips">
+          <span class="sec-chip">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8.5 15.5a6 6 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1.2" class="fill"/><line x1="3" y1="21" x2="21" y2="3" class="slash"/></svg>
+            Works with the internet off
+          </span>
+          <span class="sec-chip">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            Network tab stays empty
+          </span>
+        </div>
+
+        <p class="sec-h">What we see</p>
         <div class="sec-split">
           <div class="sec-col can">
-            <p class="sec-col-t">We can see</p>
+            <p class="sec-col-t">We see</p>
             <ul>
-              <li>That a visit happened</li>
-              <li>Roughly which country</li>
-              <li>Which page was opened</li>
+              <li><span class="mark dot">•</span> A visit happened</li>
+              <li><span class="mark dot">•</span> Roughly the country</li>
+              <li><span class="mark dot">•</span> Which page</li>
             </ul>
-            <p class="sec-col-f">No cookies. Nothing stored on your device.</p>
+            <p class="sec-col-f">No cookies.</p>
           </div>
           <div class="sec-col cannot">
-            <p class="sec-col-t">We cannot see</p>
+            <p class="sec-col-t">We never see</p>
             <ul>
-              <li>Your documents</li>
-              <li>Their names or contents</li>
-              <li>Anything you did to them</li>
+              <li><span class="mark x">✕</span> Your files</li>
+              <li><span class="mark x">✕</span> Their names</li>
+              <li><span class="mark x">✕</span> What you did</li>
             </ul>
-            <p class="sec-col-f">Not policy. It never reaches us.</p>
+            <p class="sec-col-f">It never reaches us.</p>
           </div>
         </div>
 
         <p class="sec-h">Where this stops</p>
         <ul class="sec-limits">
-          <li>A compromised computer or a bad browser extension sees what you see.</li>
-          <li>Once you save a file, where it goes next is up to you.</li>
-          <li>Redaction destroys text, but check important ones before sending.</li>
-          <li>A signature image is a picture, not a cryptographic signature.</li>
+          <li><span class="warn">!</span> A hacked computer sees what you see.</li>
+          <li><span class="warn">!</span> After you save, the file is yours to guard.</li>
+          <li><span class="warn">!</span> Check important redactions before sending.</li>
+          <li><span class="warn">!</span> A signature image is a picture, not a legal signature.</li>
         </ul>
       </div>
     </dialog>
