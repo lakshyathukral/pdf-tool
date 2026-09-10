@@ -825,6 +825,27 @@ test.describe('the landing page', () => {
     await page.goto('/')
     await page.locator('#security-open').click()
     await expect(page.locator('#security-dialog')).toBeVisible()
-    await expect(page.locator('#security-dialog')).toContainText('What we know about you')
+
+    // The claim, the picture that carries it, and the honest limits.
+    await expect(page.locator('#security-dialog')).toContainText('never leave this device')
+    await expect(page.locator('.sec-diagram')).toBeVisible()
+    await expect(page.locator('#security-dialog')).toContainText('No server. Nothing uploaded.')
+    await expect(page.locator('.sec-col.cannot')).toContainText('Your files')
+    await expect(page.locator('.sec-limits li')).toHaveCount(4)
+  })
+
+  test('the explainer opens complete, without scrolling', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('#security-open').click()
+    await expect(page.locator('#security-dialog')).toBeVisible()
+
+    // A person reads a short thing they can see all of; a long one they skim.
+    // On a phone it will still scroll, and that is fine.
+    const viewport = page.viewportSize()
+    if (viewport.width < 700) return
+
+    const room = await page.locator('#security-dialog')
+      .evaluate((el) => el.scrollHeight - el.clientHeight)
+    expect(room).toBeLessThanOrEqual(1)
   })
 })
