@@ -716,7 +716,22 @@
         rather than covered up. Redacted pages stop being searchable.
       </p>
       <p class="caption" id="redact-caption"></p>
-      <div id="redact-stage"></div>
+
+      <div class="row" id="redact-zoom-row">
+        <span class="field-label">Zoom</span>
+        <button id="redact-zoom-out" type="button" aria-label="Zoom out">&minus;</button>
+        <span id="redact-zoom-level">Fit</span>
+        <button id="redact-zoom-in" type="button" aria-label="Zoom in">+</button>
+        <button id="redact-zoom-fit" type="button">Fit page</button>
+        <button id="redact-pan" type="button" aria-pressed="false" hidden>Move the page</button>
+        <span class="inline-hint" id="redact-zoom-hint">
+          Zoomed in, drag with the right mouse button to move around, or press
+          "Move the page" and drag normally.
+        </span>
+      </div>
+
+      <!-- The page scrolls inside this once it is bigger than the dialog. -->
+      <div id="redact-viewport"><div id="redact-stage"></div></div>
       <div class="row" id="redact-colour-row">
         <span class="field-label">Box colour</span>
         <label class="radio">

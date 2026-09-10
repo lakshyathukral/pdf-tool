@@ -498,6 +498,112 @@ test.describe('redaction', () => {
     await expect(page.locator('#tool-note')).toBeHidden()
   })
 
+  test('zooms in, keeps the page sharp, and draws accurately while zoomed', async ({ page }) => {
+    await load(page)
+    await tiles(page).first().click()
+    await page.locator('#redact').click()
+    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#redact-zoom-level')).toHaveText('Fit')
+
+    const fitWidth = await page.locator('#redact-stage img').evaluate((i) => i.naturalWidth)
+
+    // One step at a time: each click starts a render, and the label only
+    // changes once that render has replaced the image.
+    await page.locator('#redact-zoom-in').click()
+    await expect(page.locator('#redact-zoom-level')).toHaveText('150%')
+    await page.locator('#redact-zoom-in').click()
+    await expect(page.locator('#redact-zoom-level')).toHaveText('200%')
+
+    // Re-rendered at twice the size rather than stretched, so text stays sharp.
+    await expect
+      .poll(() => page.locator('#redact-stage img').evaluate((i) => i.naturalWidth), { timeout: 30_000 })
+      .toBe(fitWidth * 2)
+
+    // The page is now bigger than its viewport, which is what makes it scroll.
+    const room = await page.locator('#redact-viewport').evaluate((v) => v.scrollWidth - v.clientWidth)
+    expect(room).toBeGreaterThan(0)
+
+    // A box drawn while zoomed is stored in page coordinates, not screen ones.
+    await page.locator('#redact-viewport').evaluate((v) => { v.scrollLeft = 0; v.scrollTop = 0 })
+    const vp = await page.locator('#redact-viewport').boundingBox()
+    await page.mouse.move(vp.x + 30, vp.y + 30)
+    await page.mouse.down()
+    await page.mouse.move(vp.x + 330, vp.y + 62, { steps: 12 })
+    await page.mouse.up()
+    await expect(page.locator('#redact-count')).toHaveText(/1 box/)
+
+    const width = await page.locator('.redact-box').evaluate((b) => parseFloat(b.style.width))
+    expect(width).toBeGreaterThan(15)
+    expect(width).toBeLessThan(30)
+
+    // Going back to Fit keeps the box.
+    await page.locator('#redact-zoom-fit').click()
+    await expect(page.locator('#redact-zoom-level')).toHaveText('Fit')
+    await expect(page.locator('.redact-box')).toHaveCount(1)
+  })
+
+  test('Move mode pans instead of drawing, on any device', async ({ page }) => {
+    await load(page)
+    await tiles(page).first().click()
+    await page.locator('#redact').click()
+    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
+
+    // The toggle only exists once there is something to move.
+    await expect(page.locator('#redact-pan')).toBeHidden()
+    await page.locator('#redact-zoom-in').click()
+    await expect(page.locator('#redact-zoom-level')).toHaveText('150%')
+    await page.locator('#redact-zoom-in').click()
+    await expect(page.locator('#redact-zoom-level')).toHaveText('200%')
+    await expect(page.locator('#redact-pan')).toBeVisible()
+
+    await page.locator('#redact-viewport').evaluate((v) => { v.scrollLeft = 0 })
+    await page.locator('#redact-pan').click()
+
+    // Proportional, because a phone's viewport is a few hundred pixels wide.
+    const vp = await page.locator('#redact-viewport').boundingBox()
+    const y = vp.y + vp.height * 0.4
+    await page.mouse.move(vp.x + vp.width * 0.8, y)
+    await page.mouse.down()
+    await page.mouse.move(vp.x + vp.width * 0.2, y, { steps: 8 })
+    await page.mouse.up()
+
+    await expect
+      .poll(() => page.locator('#redact-viewport').evaluate((v) => v.scrollLeft))
+      .toBeGreaterThan(0)
+    await expect(page.locator('.redact-box')).toHaveCount(0)
+
+    // Returning to Fit takes the toggle away and puts drawing back.
+    await page.locator('#redact-zoom-fit').click()
+    await expect(page.locator('#redact-pan')).toBeHidden()
+  })
+
+  test('the right mouse button pans instead of drawing', async ({ page }, testInfo) => {
+    // A phone has no right button; Move mode is its way in, covered above.
+    test.skip(testInfo.project.name === 'iphone', 'no right mouse button on a phone')
+    await load(page)
+    await tiles(page).first().click()
+    await page.locator('#redact').click()
+    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#redact-zoom-in').click()
+    await expect(page.locator('#redact-zoom-level')).toHaveText('150%')
+    await page.locator('#redact-zoom-in').click()
+    await expect(page.locator('#redact-zoom-level')).toHaveText('200%')
+    await page.locator('#redact-viewport').evaluate((v) => { v.scrollLeft = 0 })
+
+    const vp = await page.locator('#redact-viewport').boundingBox()
+    const y = vp.y + vp.height * 0.4
+    await page.mouse.move(vp.x + vp.width * 0.8, y)
+    await page.mouse.down({ button: 'right' })
+    await page.mouse.move(vp.x + vp.width * 0.2, y, { steps: 8 })
+    await page.mouse.up({ button: 'right' })
+
+    await expect
+      .poll(() => page.locator('#redact-viewport').evaluate((v) => v.scrollLeft))
+      .toBeGreaterThan(0)
+    await expect(page.locator('.redact-box')).toHaveCount(0)
+  })
+
   test('draws a white box when white is chosen', async ({ page }) => {
     await load(page)
     await tiles(page).first().click()

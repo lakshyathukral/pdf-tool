@@ -443,6 +443,27 @@ input[type="range"] { width: 100%; }
 #redact-dialog .hint { max-width: 62ch; }
 #redact-dialog .caption { margin: 0.75rem 0 0.5rem; font-size: 0.82rem; font-weight: 600; }
 
+#redact-viewport {
+  max-height: min(62vh, 720px);
+  overflow: auto;
+  margin: 0 auto;
+  /* A zoomed page is dragged with the right button; without this the browser
+     tries to select and drag the image itself. */
+  overscroll-behavior: contain;
+}
+
+#redact-viewport.zoomed { border: 1px solid var(--border); background: #e4e4e7; }
+#redact-viewport.zoomed #redact-stage { margin: 0 auto; }
+
+#redact-zoom-row { align-items: center; gap: 0.5rem; margin: 0.5rem 0 0.6rem; flex-wrap: wrap; }
+#redact-zoom-row .field-label { font-size: 0.85rem; font-weight: 600; }
+#redact-zoom-row button { padding: 0.3rem 0.6rem; font-size: 0.85rem; min-width: 2rem; }
+#redact-zoom-level { font-size: 0.85rem; font-weight: 600; min-width: 3.2rem; text-align: center; }
+#redact-zoom-hint { flex: 1 1 14rem; }
+#redact-pan.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+#redact-stage.panning { cursor: grab; }
+#redact-stage.panning:active { cursor: grabbing; }
+
 #redact-stage {
   position: relative;
   margin: 0 auto;
