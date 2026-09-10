@@ -460,6 +460,26 @@ input[type="range"] { width: 100%; }
 #redact-zoom-row button { padding: 0.3rem 0.6rem; font-size: 0.85rem; min-width: 2rem; }
 #redact-zoom-level { font-size: 0.85rem; font-weight: 600; min-width: 3.2rem; text-align: center; }
 #redact-zoom-hint { flex: 1 1 14rem; }
+/* --- the find-and-redact result list ------------------------------------- */
+
+#search-results { list-style: none; margin: 0.5rem 0; padding: 0; max-height: 16rem; overflow-y: auto; }
+
+.search-hit { border-bottom: 1px solid var(--border); }
+.search-hit:last-child { border-bottom: 0; }
+.search-hit label { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.45rem 0.1rem; cursor: pointer; }
+.search-hit input { width: auto; margin-top: 0.15rem; flex: none; }
+.search-hit-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.search-hit-where { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.search-hit-context { font-size: 0.8rem; line-height: 1.35; word-break: break-word; }
+.search-hit-context mark { background: #fde68a; font-weight: 700; padding: 0 0.1rem; }
+
+#search-warning:not(:empty) {
+  background: #fef3c7;
+  border-left: 3px solid #d97706;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0 4px 4px 0;
+}
+
 #redact-pan.active { background: var(--ink); border-color: var(--ink); color: #fff; }
 #redact-stage.panning { cursor: grab; }
 #redact-stage.panning:active { cursor: grabbing; }

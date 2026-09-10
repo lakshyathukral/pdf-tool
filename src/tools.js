@@ -186,10 +186,10 @@ export const TOOLS = {
 
   redact: {
     name: 'Redact',
-    blurb: 'Black out text so it is destroyed, not just covered over.',
+    blurb: 'Black out text so it is destroyed, not just covered over. Search for a name or number to find every mention.',
     icon: '█',
     colour: '#334155',
-    panels: [],
+    panels: ['panel-search'],
     pageActions: ['select-none', 'view', 'redact'],
     // Redaction opens one page at a time, so the controls that select many
     // pages at once are hidden here — offering them only invites the mistake.
@@ -197,7 +197,7 @@ export const TOOLS = {
     primary: 'save',
     primaryLabel: 'Save redacted PDF',
     hint: 'Click one page, then drag boxes over the parts that must go.',
-    note: 'Redaction works one page at a time. Click a single page, then mark the parts of it you want removed.',
+    note: 'Drawing boxes by hand works one page at a time: click a single page, then mark the parts of it you want removed. To remove the same words wherever they appear, use "Find text to redact" on the left.',
   },
 
   ocr: {

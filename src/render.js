@@ -8,6 +8,7 @@
 import './polyfills.js'
 
 import * as pdfjsLib from 'pdfjs-dist'
+import { findMatches } from './find.js'
 
 // Our own wrapper round the pdf.js worker, so the polyfills reach that thread
 // too. ?worker&url makes Vite bundle it and hand back the correct URL in both
@@ -141,6 +142,34 @@ export async function rasterizeRedacted(sourceId, pageIndex, rotation, redaction
     width: (canvas.width * 72) / REDACT_DPI,
     height: (canvas.height * 72) / REDACT_DPI,
   }
+}
+
+// Find a phrase on one page of a source document.
+//
+// Returns rectangles in the same 0..1 top-left coordinates as a hand-drawn
+// redaction box, so a match can simply become one. A page with no text layer —
+// a scan, or a photograph — has nothing to search and returns nothing, which is
+// the honest answer rather than an error.
+export async function findOnPage(sourceId, pageIndex, needle, options) {
+  const pdf = documents.get(sourceId)
+  if (!pdf) return []
+
+  const page = await pdf.getPage(pageIndex + 1)
+  const viewport = page.getViewport({ scale: 1 })
+  const { items } = await page.getTextContent()
+
+  return findMatches(items, viewport.width, viewport.height, needle, options)
+}
+
+// Whether a page has any text at all. Used to tell "nothing matched" apart from
+// "this document is a scan, so searching cannot work here".
+export async function pageHasText(sourceId, pageIndex) {
+  const pdf = documents.get(sourceId)
+  if (!pdf) return false
+
+  const page = await pdf.getPage(pageIndex + 1)
+  const { items } = await page.getTextContent()
+  return items.some((item) => (item.str ?? '').trim() !== '')
 }
 
 // Render every page of a finished PDF to an image.

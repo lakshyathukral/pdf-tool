@@ -28,6 +28,7 @@ import {
 import { drawGrid } from './ui/grid.js'
 import { setupDragDrop } from './ui/dragdrop.js'
 import { openRedactor, setupRedactor } from './ui/redact.js'
+import { setupSearch } from './ui/search.js'
 import { drawFileList, drawFileStrip, setupFileList } from './ui/files.js'
 import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
 import { parsePageRanges, formatPageRanges } from './ranges.js'
@@ -72,7 +73,7 @@ const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
 // landing page rather than a half-working screen.
 const onLanding = () => getTool(currentToolId()) === null || isComingSoon(currentToolId())
 
-const PANEL_IDS = ['panel-files', 'panel-photos', 'panel-password', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
+const PANEL_IDS = ['panel-files', 'panel-photos', 'panel-password', 'panel-search', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
 // Controls that select more than one page at a time.
 const MULTI_SELECT_IDS = ['select-all', 'select-odd', 'select-even', 'select-invert', 'range-input', 'range-select']
@@ -1132,6 +1133,7 @@ window.addEventListener('hashchange', applyRoute)
 
 setupDragDrop(openViewer)
 setupRedactor()
+setupSearch()
 setupViewer(openRedactor)
 setupSigner()
 setupPlacer()

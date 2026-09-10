@@ -558,6 +558,27 @@ export const pagesUsingSignature = (signatureId) =>
 export const signaturePlacementCount = () =>
   pages.reduce((n, p) => n + p.signatures.length, 0)
 
+// Add boxes to several pages at once, as a single undoable change. Search
+// results arrive this way: one Undo should take back the whole search, not one
+// rectangle of it.
+export function addRedactions(entries) {
+  const useful = entries.filter((e) => e.rects.length > 0)
+  if (useful.length === 0) return 0
+
+  beginChange()
+  let added = 0
+  for (const entry of useful) {
+    const page = pages.find((p) => p.id === entry.pageId)
+    if (!page) continue
+    for (const rect of entry.rects) {
+      page.redactions.push({ ...rect })
+      added += 1
+    }
+  }
+  notify()
+  return added
+}
+
 export function setRedactions(pageId, rects) {
   beginChange()
   const page = pages.find((p) => p.id === pageId)

@@ -172,6 +172,42 @@
           <p class="hint">On a phone, "Add photos" offers the camera directly.</p>
         </details>
 
+        <details class="panel" id="panel-search" open>
+          <summary>Find text to redact</summary>
+          <p class="hint">
+            Search every page for a name, a number or a phrase, then choose
+            which of the results to black out. Only works on documents that
+            hold real text — a scan or a photograph has none to find.
+          </p>
+          <label class="field">
+            <span>Text to find</span>
+            <input type="text" id="search-text" placeholder="e.g. a name, an account number" />
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="search-match-case" />
+            Match upper and lower case exactly
+          </label>
+          <div class="row actions">
+            <button id="search-run" type="button" class="primary">Find in all pages</button>
+            <button id="search-clear" type="button" disabled>Clear results</button>
+          </div>
+          <p class="hint" id="search-status"></p>
+
+          <div id="search-results-block" hidden>
+            <div class="row actions">
+              <button id="search-select-all" type="button">Tick all</button>
+              <button id="search-select-none" type="button">Untick all</button>
+            </div>
+            <ul id="search-results"></ul>
+            <p class="hint" id="search-warning"></p>
+            <div class="row actions">
+              <button id="search-apply" type="button" class="primary" disabled>
+                Redact the ticked results
+              </button>
+            </div>
+          </div>
+        </details>
+
         <details class="panel" id="panel-bookmarks" open>
           <summary>Bookmarks</summary>
           <p class="hint">

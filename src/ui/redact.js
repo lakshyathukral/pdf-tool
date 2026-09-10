@@ -199,18 +199,22 @@ async function drawPageAtZoom({ keepCentre = true } = {}) {
   stage.replaceChildren(img)
   paint()
 
-  viewport.classList.toggle('zoomed', factor !== 1)
-  const panButton = document.querySelector('#redact-pan')
-  panButton.hidden = factor === 1
-  if (factor === 1) setPanMode(false)
-  zoomLevelEl.textContent = factor === 1 ? 'Fit' : `${Math.round(factor * 100)}%`
-  document.querySelector('#redact-zoom-out').disabled = zoomIndex === 0
-  document.querySelector('#redact-zoom-in').disabled = zoomIndex === ZOOM_STEPS.length - 1
-
   if (keepCentre) {
     viewport.scrollLeft = before.x * viewport.scrollWidth - viewport.clientWidth / 2
     viewport.scrollTop = before.y * viewport.scrollHeight - viewport.clientHeight / 2
   }
+}
+
+function syncZoomChrome() {
+  const factor = zoomFactor()
+  viewport.classList.toggle('zoomed', factor !== 1)
+  zoomLevelEl.textContent = factor === 1 ? 'Fit' : `${Math.round(factor * 100)}%`
+  document.querySelector('#redact-zoom-out').disabled = zoomIndex === 0
+  document.querySelector('#redact-zoom-in').disabled = zoomIndex === ZOOM_STEPS.length - 1
+
+  const panButton = document.querySelector('#redact-pan')
+  panButton.hidden = factor === 1
+  if (factor === 1) setPanMode(false)
 }
 
 function setPanMode(on) {
@@ -225,6 +229,7 @@ function setZoom(index) {
   const next = Math.min(ZOOM_STEPS.length - 1, Math.max(0, index))
   if (next === zoomIndex) return
   zoomIndex = next
+  syncZoomChrome()
   drawPageAtZoom()
 }
 
@@ -250,6 +255,7 @@ export async function openRedactor(pageId) {
   stage.classList.add('loading')
   placeholderStage(stage, STAGE_WIDTH)
   zoomIndex = 0
+  syncZoomChrome()
   dialog.showModal()
   paint()
 

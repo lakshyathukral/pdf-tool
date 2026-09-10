@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
+import { readFile } from 'node:fs/promises'
+import { textOfEachPage } from '../helpers/read-pdf.js'
 
 const FIVE_PAGES = fileURLToPath(new URL('../fixtures/five-pages.pdf', import.meta.url))
 const THREE_PAGES = fileURLToPath(new URL('../fixtures/three-pages.pdf', import.meta.url))
@@ -643,6 +645,106 @@ test.describe('redaction', () => {
 
     await expect(page.locator('.redact-box')).toHaveCount(2)
     await expect(page.locator('.redact-box.white')).toHaveCount(1)
+  })
+})
+
+test.describe('finding text to redact', () => {
+  const search = async (page, needle) => {
+    await page.goto('/#redact')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+    await page.locator('#search-text').fill(needle)
+    await page.locator('#search-run').click()
+  }
+
+  test('finds a phrase on every page it appears on', async ({ page }) => {
+    await search(page, 'Exhibit')
+
+    await expect(page.locator('.search-hit')).toHaveCount(2)
+    await expect(page.locator('#search-status')).toContainText('2 results on 2 pages')
+
+    // Each result says which page it is on and shows the words around it.
+    await expect(page.locator('.search-hit').first()).toContainText('Page 2')
+    await expect(page.locator('.search-hit').first().locator('mark')).toHaveText('Exhibit')
+  })
+
+  test('says plainly how many pages will become images', async ({ page }) => {
+    await search(page, 'Exhibit')
+    await expect(page.locator('#search-warning')).toContainText('2 pages to an image')
+    await expect(page.locator('#search-apply')).toHaveText(/Redact 2 results/)
+  })
+
+  test('redacts only the results left ticked', async ({ page }) => {
+    await search(page, 'Exhibit')
+    await expect(page.locator('.search-hit')).toHaveCount(2)
+
+    // Untick the second: one box should be added, not two.
+    await page.locator('.search-hit input').nth(1).uncheck()
+    await expect(page.locator('#search-apply')).toHaveText(/Redact 1 result/)
+    await page.locator('#search-apply').click()
+
+    await expect(page.locator('.redact-mark')).toHaveCount(1)
+  })
+
+  test('one Undo takes the whole search back', async ({ page }) => {
+    await search(page, 'Exhibit')
+    await page.locator('#search-apply').click()
+    await expect(page.locator('.redact-mark')).toHaveCount(2)
+
+    await page.locator('#undo').click()
+    await expect(page.locator('.redact-mark')).toHaveCount(0)
+  })
+
+  test('reports honestly when there is no match', async ({ page }) => {
+    await search(page, 'Rumpelstiltskin')
+    await expect(page.locator('#search-status')).toContainText('No match')
+    await expect(page.locator('.search-hit')).toHaveCount(0)
+  })
+
+  test('respects Match case', async ({ page }) => {
+    await page.goto('/#redact')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#search-text').fill('exhibit')
+    await page.locator('#search-run').click()
+    await expect(page.locator('.search-hit')).toHaveCount(2)
+
+    await page.locator('#search-match-case').check()
+    await page.locator('#search-run').click()
+    await expect(page.locator('#search-status')).toContainText('No match')
+  })
+
+  test('drops results when the document changes underneath them', async ({ page }) => {
+    await search(page, 'Exhibit')
+    await expect(page.locator('.search-hit')).toHaveCount(2)
+
+    await page.locator('.file-chip .chip-remove, .file-chip button').first().click()
+    await expect(page.locator('.search-hit')).toHaveCount(0)
+  })
+
+  // The one that matters: the words must be gone from the SAVED file, not just
+  // covered on screen.
+  test('destroys the found text in the saved PDF', async ({ page }) => {
+    await search(page, 'Exhibit')
+    await page.locator('#search-apply').click()
+    await expect(page.locator('.redact-mark')).toHaveCount(2)
+
+    const download = page.waitForEvent('download', { timeout: 90_000 })
+    await page.locator('#primary-action').click()
+    const file = await download
+    const bytes = await readFile(await file.path())
+
+    const pages = await textOfEachPage(bytes)
+    expect(pages).toHaveLength(5)
+
+    // Pages 2 and 3 held "Exhibit"; they are images now, so they hold no text.
+    expect(pages[1]).not.toContain('Exhibit')
+    expect(pages[2]).not.toContain('Exhibit')
+
+    // Pages that were not touched keep their text and stay searchable.
+    expect(pages[0]).toContain('Page One')
+    expect(pages[4]).toContain('Page Five')
   })
 })
 
