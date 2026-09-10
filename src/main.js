@@ -74,6 +74,8 @@ const onLanding = () => getTool(currentToolId()) === null || isComingSoon(curren
 
 const PANEL_IDS = ['panel-files', 'panel-photos', 'panel-password', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
+// Controls that select more than one page at a time.
+const MULTI_SELECT_IDS = ['select-all', 'select-odd', 'select-even', 'select-invert', 'range-input', 'range-select']
 
 // Show only the parts this tool needs. Everything still exists and still works
 // — a simple tool is the full editor with pieces hidden, not a separate app.
@@ -104,6 +106,16 @@ function applyTool() {
   for (const id of PAGE_ACTION_IDS) {
     el(id).hidden = !(tool.pageActions === 'all' || tool.pageActions.includes(id))
   }
+
+  // A tool that acts on exactly one page hides the controls that select many,
+  // and gives its own action the weight of a primary button so it is not the
+  // last grey thing on the right of a long row.
+  for (const id of MULTI_SELECT_IDS) el(id).hidden = Boolean(tool.singlePage)
+  el('redact').classList.toggle('action-primary', Boolean(tool.singlePage))
+
+  const note = tool.note ?? ''
+  el('tool-note').textContent = note
+  el('tool-note').hidden = note === '' || onLanding()
 
   // Signatures are not ready; keep the panel out of the full editor too.
   el('panel-signatures').hidden = true
@@ -250,8 +262,9 @@ function refreshControls() {
   el('app-empty').hidden = landing || hasPages
   el('app-workspace').hidden = landing || !hasPages
 
+  const singlePage = Boolean(activeTool().singlePage)
   el('selection-summary').textContent =
-    selected === 0 ? 'Click a page to select it'
+    selected === 0 ? (singlePage ? 'Click one page' : 'Click a page to select it')
     : selected === 1 ? '1 page selected'
     : `${selected} pages selected`
 

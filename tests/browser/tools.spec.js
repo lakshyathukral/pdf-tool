@@ -470,6 +470,74 @@ test.describe('redaction', () => {
     await page.locator('#redact-apply').click()
     await expect(page.locator('.redact-mark').first()).toBeVisible()
   })
+
+  test('gives the redact tool a prominent action and a one-page instruction', async ({ page }) => {
+    await page.goto('/#redact')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+
+    await expect(page.locator('#tool-note')).toContainText('one page at a time')
+    await expect(page.locator('#redact')).toHaveClass(/action-primary/)
+    // The button that opens the editor comes before the rest of the row.
+    await expect(page.locator('#redact')).toBeVisible()
+
+    // Controls that select many pages would contradict the instruction.
+    for (const id of ['#select-all', '#select-odd', '#select-even', '#select-invert', '#range-select']) {
+      await expect(page.locator(id)).toBeHidden()
+    }
+
+    await page.locator('.tile').first().click()
+    await expect(page.locator('#redact')).toBeEnabled()
+  })
+
+  test('leaves the full editor row untouched', async ({ page }) => {
+    await load(page)
+    await expect(page.locator('#select-all')).toBeVisible()
+    await expect(page.locator('#select-odd')).toBeVisible()
+    await expect(page.locator('#redact')).not.toHaveClass(/action-primary/)
+    await expect(page.locator('#tool-note')).toBeHidden()
+  })
+
+  test('draws a white box when white is chosen', async ({ page }) => {
+    await load(page)
+    await tiles(page).first().click()
+    await page.locator('#redact').click()
+    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('input[name="redact-colour"][value="white"]').check()
+
+    const stage = await page.locator('#redact-stage img').boundingBox()
+    await page.mouse.move(stage.x + stage.width * 0.2, stage.y + stage.height * 0.4)
+    await page.mouse.down()
+    await page.mouse.move(stage.x + stage.width * 0.7, stage.y + stage.height * 0.5, { steps: 10 })
+    await page.mouse.up()
+
+    await expect(page.locator('.redact-box.white')).toHaveCount(1)
+    await page.locator('#redact-apply').click()
+    await expect(page.locator('.redact-mark.white').first()).toBeVisible()
+  })
+
+  test('black stays the default and can be mixed with white on one page', async ({ page }) => {
+    await load(page)
+    await tiles(page).first().click()
+    await page.locator('#redact').click()
+    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
+
+    const stage = await page.locator('#redact-stage img').boundingBox()
+    const drag = async (y0, y1) => {
+      await page.mouse.move(stage.x + stage.width * 0.2, stage.y + stage.height * y0)
+      await page.mouse.down()
+      await page.mouse.move(stage.x + stage.width * 0.7, stage.y + stage.height * y1, { steps: 10 })
+      await page.mouse.up()
+    }
+
+    await drag(0.2, 0.28)                                                   // black by default
+    await page.locator('input[name="redact-colour"][value="white"]').check()
+    await drag(0.5, 0.58)                                                   // white
+
+    await expect(page.locator('.redact-box')).toHaveCount(2)
+    await expect(page.locator('.redact-box.white')).toHaveCount(1)
+  })
 })
 
 test.describe('saving', () => {

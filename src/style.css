@@ -395,7 +395,27 @@ input[type="range"] { width: 100%; }
 
 /* --- redaction ----------------------------------------------------------- */
 
+/* A tool's one-line explanation, above its controls. */
+.tool-note { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--muted); }
+
+/* The action a tool exists for, so it does not read as one more grey button.
+   `order` puts it first without moving it in the markup. */
+.selection-bar .action-primary {
+  order: -1;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+  font-weight: 700;
+  padding: 0.5rem 1.05rem;
+}
+.selection-bar .action-primary:hover:not(:disabled) { filter: brightness(1.15); }
+.selection-bar .action-primary:disabled { background: var(--border); border-color: var(--border); color: var(--muted); }
+
 .redact-mark { position: absolute; background: #000; pointer-events: none; }
+
+/* A white box on a white page is invisible, so the previews outline it. The
+   outline exists only on screen — the saved file has a plain white rectangle. */
+.redact-mark.white { background: #fff; outline: 1px dashed #a1a1aa; }
 
 .watermark-preview {
   position: absolute;
@@ -448,6 +468,12 @@ input[type="range"] { width: 100%; }
 }
 
 .redact-box { position: absolute; background: rgb(0 0 0 / 0.85); outline: 1px solid #ef4444; pointer-events: none; }
+.redact-box.white { background: #fff; outline: 1px dashed #ef4444; }
+
+#redact-colour-row { align-items: center; gap: 0.9rem; margin-top: 0.75rem; }
+#redact-colour-row .field-label { font-size: 0.85rem; font-weight: 600; }
+#redact-colour-row .radio { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
+#redact-colour-hint { margin: 0.4rem 0 0; }
 
 [hidden] { display: none !important; }
 

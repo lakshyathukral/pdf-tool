@@ -500,6 +500,9 @@
              got open". -->
         <div id="file-strip" hidden></div>
 
+        <!-- A tool that needs explaining says so here, above its controls. -->
+        <p id="tool-note" class="tool-note" hidden></p>
+
         <!-- Actions on pages, directly above the pages they act on. -->
         <div class="selection-bar">
           <span id="selection-summary">Click a page to select it</span>
@@ -516,7 +519,7 @@
           <button id="duplicate" type="button" disabled>Duplicate</button>
           <button id="delete" type="button" disabled>Delete</button>
           <button id="view" type="button" disabled>View full size</button>
-          <button id="redact" type="button" disabled>Redact&hellip;</button>
+          <button id="redact" type="button" disabled>Mark what to redact&hellip;</button>
         </div>
 
         <div id="thumbnails" class="empty"></div>
@@ -714,6 +717,23 @@
       </p>
       <p class="caption" id="redact-caption"></p>
       <div id="redact-stage"></div>
+      <div class="row" id="redact-colour-row">
+        <span class="field-label">Box colour</span>
+        <label class="radio">
+          <input type="radio" name="redact-colour" value="black" checked />
+          Black
+        </label>
+        <label class="radio">
+          <input type="radio" name="redact-colour" value="white" />
+          White
+        </label>
+      </div>
+      <p class="hint" id="redact-colour-hint">
+        White boxes read as a blank space rather than a blacked-out one, which
+        looks less severe on a letter or an agreement. The text underneath is
+        destroyed either way. Because a white box can be hard to see, the
+        preview outlines it — the outline is not in the saved file.
+      </p>
       <p class="inline-hint" id="redact-count"></p>
       <div class="row actions">
         <button id="redact-apply" type="button" class="primary">Apply redactions</button>

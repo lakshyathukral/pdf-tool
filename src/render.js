@@ -124,8 +124,11 @@ export async function rasterizeRedacted(sourceId, pageIndex, rotation, redaction
   const canvas = await drawPage(sourceId, pageIndex, { rotation, scale: REDACT_DPI / 72 })
 
   const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#000'
   for (const r of redactions) {
+    // White is the same removal, painted in a colour that reads as a blank
+    // space rather than a blacked-out one. Anything without a colour is a box
+    // drawn before the choice existed, and those were all black.
+    ctx.fillStyle = r.colour === 'white' ? '#fff' : '#000'
     // Rectangles are stored 0..1 from the top-left, so they survive any zoom.
     ctx.fillRect(r.x * canvas.width, r.y * canvas.height, r.w * canvas.width, r.h * canvas.height)
   }

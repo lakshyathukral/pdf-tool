@@ -191,9 +191,13 @@ export const TOOLS = {
     colour: '#334155',
     panels: [],
     pageActions: ['select-none', 'view', 'redact'],
+    // Redaction opens one page at a time, so the controls that select many
+    // pages at once are hidden here — offering them only invites the mistake.
+    singlePage: true,
     primary: 'save',
     primaryLabel: 'Save redacted PDF',
-    hint: 'Click one page, press Redact, then drag boxes over what must go.',
+    hint: 'Click one page, then drag boxes over the parts that must go.',
+    note: 'Redaction works one page at a time. Click a single page, then mark the parts of it you want removed.',
   },
 
   ocr: {

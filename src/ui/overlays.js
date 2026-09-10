@@ -25,7 +25,7 @@ export function addOverlays(frame, page, position, { scale = 1 } = {}) {
   // straight onto the frame, which is also the page as displayed.
   for (const r of page.redactions) {
     const box = document.createElement('div')
-    box.className = 'redact-mark'
+    box.className = r.colour === 'white' ? 'redact-mark white' : 'redact-mark'
     box.style.left = `${r.x * 100}%`
     box.style.top = `${r.y * 100}%`
     box.style.width = `${r.w * 100}%`

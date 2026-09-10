@@ -16,6 +16,7 @@ const dialog = document.querySelector('#redact-dialog')
 const stage = document.querySelector('#redact-stage')
 const caption = document.querySelector('#redact-caption')
 const countEl = document.querySelector('#redact-count')
+const colourInputs = document.querySelectorAll('input[name="redact-colour"]')
 
 let currentPageId = null
 let rects = []
@@ -28,6 +29,14 @@ function clamp01(v) {
   return Math.min(1, Math.max(0, v))
 }
 
+// Which colour new boxes are drawn in. Each box remembers its own, so one page
+// can mix the two: a white box over a name in the body, a black one over a
+// signature block.
+function chosenColour() {
+  for (const input of colourInputs) if (input.checked) return input.value
+  return 'black'
+}
+
 function toRect(d) {
   const x = clamp01(Math.min(d.x0, d.x1 ?? d.x0))
   const y = clamp01(Math.min(d.y0, d.y1 ?? d.y0))
@@ -36,6 +45,8 @@ function toRect(d) {
     y,
     w: clamp01(Math.max(d.x0, d.x1 ?? d.x0)) - x,
     h: clamp01(Math.max(d.y0, d.y1 ?? d.y0)) - y,
+    // Older saved boxes have no colour; everything treats that as black.
+    colour: d.colour ?? chosenColour(),
   }
 }
 
@@ -45,7 +56,7 @@ function paint() {
   const all = drawing ? [...rects, toRect(drawing)] : rects
   for (const r of all) {
     const box = document.createElement('div')
-    box.className = 'redact-box'
+    box.className = r.colour === 'white' ? 'redact-box white' : 'redact-box'
     box.style.left = `${r.x * 100}%`
     box.style.top = `${r.y * 100}%`
     box.style.width = `${r.w * 100}%`
@@ -71,7 +82,7 @@ function pointToFraction(event) {
 stage.addEventListener('pointerdown', (event) => {
   if (!imageUrl) return
   const { x, y } = pointToFraction(event)
-  drawing = { x0: x, y0: y }
+  drawing = { x0: x, y0: y, colour: chosenColour() }
   stage.setPointerCapture(event.pointerId)
   event.preventDefault()
 })
