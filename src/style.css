@@ -1472,3 +1472,608 @@ html, body { max-width: 100%; }
 @media (max-width: 640px) {
   .sec-split { grid-template-columns: 1fr; }
 }
+
+
+/* ==========================================================================
+   The front pages: home, all tools, legal.
+   Paper-toned ground, navy editorial headings, one cobalt action colour, and
+   small accents of rust, sage and brass. No gradients anywhere by intent.
+   ========================================================================== */
+
+#app-landing {
+  --paper: #fbf8f2;
+  --paper-2: #f4efe5;
+  --navy: #16233a;
+  --navy-2: #24344f;
+  --cobalt: #2a5db0;
+  --cobalt-dark: #1f4a92;
+  --rust: #b5482f;
+  --sage: #5c7a56;
+  --brass: #a8802f;
+  --ink: #241f1a;
+  --ink-soft: #5d564d;
+  --edge: #e2d9c9;
+
+  --art-paper: #fffdf8;
+  --art-accent: var(--cobalt);
+
+  background: var(--paper);
+  color: var(--ink);
+  /* A faint woven tone rather than a photograph of paper. */
+  background-image:
+    radial-gradient(circle at 1px 1px, rgb(36 31 26 / 0.035) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+#app-landing .page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2.4rem 1.25rem 4rem;
+  display: grid;
+  gap: 3.2rem;
+}
+
+/* --- type ---------------------------------------------------------------- */
+
+#app-landing .eyebrow {
+  margin: 0 0 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--brass);
+}
+
+#app-landing .hero-title {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 4.6vw, 3.1rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--navy);
+  margin: 0 0 0.75rem;
+  max-width: 15ch;
+}
+
+#app-landing .hero-sub {
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 0 0 1.4rem;
+  max-width: 42ch;
+}
+
+#app-landing .band-title {
+  font-family: var(--font-serif);
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+  color: var(--navy);
+  margin: 0 0 0.4rem;
+}
+
+#app-landing .band-note {
+  margin: 0 0 1.4rem;
+  color: var(--ink-soft);
+  max-width: 52ch;
+  font-size: 0.95rem;
+}
+
+/* --- hero ---------------------------------------------------------------- */
+
+#app-landing .hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 2.5rem;
+  align-items: center;
+}
+#app-landing .hero.narrow { grid-template-columns: minmax(0, 1fr); }
+
+#app-landing .hero-scene svg { width: 100%; height: auto; color: var(--navy); }
+
+#app-landing .hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+
+#app-landing .btn {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.72rem 1.35rem;
+  font-size: 0.98rem;
+  font-weight: 650;
+  cursor: pointer;
+  font-family: inherit;
+}
+#app-landing .btn.primary { background: var(--cobalt); color: #fff; }
+#app-landing .btn.primary:hover { background: #24509a; }
+#app-landing .btn.ghost { background: transparent; color: #fff; border-color: rgb(255 255 255 / 0.45); }
+#app-landing .btn.ghost:hover { background: rgb(255 255 255 / 0.1); }
+
+#app-landing .linky {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--cobalt);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* The three claims under the call to action. */
+#app-landing .proof {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+#app-landing .proof li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+#app-landing .proof-tick { color: var(--sage); font-weight: 700; }
+
+#app-landing .privacy-note {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+}
+#app-landing .privacy-note .dot {
+  width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  background: var(--sage); flex: none;
+}
+
+/* --- tool cards ---------------------------------------------------------- */
+
+#app-landing .tgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.9rem;
+}
+#app-landing .tgrid.large { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+
+#app-landing .tcard {
+  display: grid;
+  justify-items: start;
+  gap: 0.15rem;
+  text-align: left;
+  background: #fffdf8;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  padding: 1rem 1.05rem 1.1rem;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+  min-height: 132px;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+#app-landing .tcard.large { min-height: 176px; padding: 1.2rem 1.25rem 1.35rem; }
+
+#app-landing .tcard:hover:not(:disabled) {
+  border-color: var(--art-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgb(22 35 58 / 0.09);
+}
+#app-landing .tcard:focus-visible {
+  outline: 3px solid var(--cobalt);
+  outline-offset: 2px;
+}
+
+#app-landing .tcard-art { display: block; color: var(--navy); margin-bottom: 0.55rem; }
+#app-landing .tcard-art .art { width: 46px; height: 46px; display: block; }
+#app-landing .tcard.large .tcard-art .art { width: 60px; height: 60px; }
+
+#app-landing .tcard-name { font-weight: 650; font-size: 0.98rem; color: var(--navy); }
+#app-landing .tcard-phrase { font-size: 0.84rem; color: var(--ink-soft); line-height: 1.4; }
+
+#app-landing .tcard.soon { opacity: 0.7; cursor: default; position: relative; }
+#app-landing .tcard-soon {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em;
+  background: var(--paper-2); color: var(--ink-soft);
+  border: 1px solid var(--edge);
+  border-radius: 999px; padding: 0.12rem 0.5rem; white-space: nowrap;
+}
+
+/* Small movements on hover, each one a thing paper actually does. */
+@media (prefers-reduced-motion: no-preference) {
+  #app-landing .art g, #app-landing .art rect, #app-landing .art path { transition: transform 0.3s ease; }
+  #app-landing .tcard:hover .art-back { transform: translate(-2px, -2px) rotate(-3deg); }
+  #app-landing .tcard:hover .art-lift { transform: translateY(-3px); }
+  #app-landing .tcard:hover .art-spin { transform: rotate(-8deg); transform-origin: 32px 34px; }
+  #app-landing .tcard:hover .art-stamp { transform: rotate(3deg) scale(1.04); transform-origin: 32px 41px; }
+  #app-landing .tcard:hover .art-swing { transform: rotate(6deg); transform-origin: 34px 40px; }
+  #app-landing .tcard:hover .art-tab:nth-child(1) { transform: translateX(3px); }
+  #app-landing .tcard:hover .art-tab:nth-child(2) { transform: translateX(5px); }
+  #app-landing .tcard:hover .art-tab:nth-child(3) { transform: translateX(2px); }
+  #app-landing .tcard:hover .art-shackle { transform: translateY(3px); }
+  #app-landing .tcard:hover .art-card { transform: translate(-3px, 2px) rotate(-3deg); }
+  #app-landing .tcard:hover .art-scan { transform: scale(1.06); transform-origin: 32px 32px; }
+}
+
+/* --- bands --------------------------------------------------------------- */
+
+#app-landing .band.dark {
+  background: var(--navy);
+  color: #f3efe7;
+  border-radius: 16px;
+  padding: 2.2rem 2rem 2.4rem;
+  --art-paper: #f3efe7;
+  --art-accent: var(--brass);
+}
+#app-landing .band.dark .band-title { color: #fff; }
+#app-landing .band.dark .band-note { color: #c7cedb; }
+
+#app-landing .band-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: center;
+}
+
+#app-landing .legal-list { list-style: none; margin: 0 0 1.4rem; padding: 0; display: grid; gap: 0.5rem; }
+#app-landing .legal-link {
+  background: none; border: 0; padding: 0.15rem 0;
+  font: inherit; font-size: 1rem; font-weight: 600;
+  color: #fff; cursor: pointer; text-align: left;
+  border-bottom: 1px solid rgb(255 255 255 / 0.25);
+}
+#app-landing .legal-link:hover { border-bottom-color: var(--brass); color: #ffd9a1; }
+
+#app-landing .bundle-art svg { width: 100%; height: auto; color: #cbd4e2; }
+#app-landing .flow-art svg { width: 100%; height: auto; color: var(--navy); margin-bottom: 1.4rem; }
+
+/* --- steps --------------------------------------------------------------- */
+
+#app-landing .steps {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;
+}
+#app-landing .steps li { display: flex; align-items: center; gap: 0.7rem; }
+#app-landing .step-n {
+  flex: none; display: grid; place-items: center;
+  width: 2rem; height: 2rem; border-radius: 50%;
+  background: var(--paper-2); border: 1px solid var(--edge);
+  font-weight: 700; font-size: 0.9rem; color: var(--navy);
+}
+#app-landing .step-t { font-size: 0.98rem; font-weight: 600; color: var(--navy); }
+
+/* --- finder -------------------------------------------------------------- */
+
+#app-landing .finder { display: grid; gap: 0.85rem; margin-top: -1.6rem; }
+
+#app-landing .search {
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: #fffdf8;
+  color: var(--ink);
+}
+#app-landing .search:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 1px; border-color: var(--cobalt); }
+
+#app-landing .filters { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+#app-landing .chip {
+  font: inherit; font-size: 0.88rem; font-weight: 600;
+  padding: 0.45rem 0.95rem; border-radius: 999px;
+  border: 1px solid var(--edge); background: #fffdf8; color: var(--ink-soft);
+  cursor: pointer;
+}
+#app-landing .chip:hover { border-color: var(--cobalt); color: var(--cobalt); }
+#app-landing .chip.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+#app-landing .chip:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 2px; }
+
+#app-landing .listing { display: grid; gap: 2.2rem; }
+#app-landing .group-title {
+  font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--brass); margin: 0 0 0.8rem;
+}
+#app-landing .soon-group .group-title { color: var(--ink-soft); }
+#app-landing .finder-empty { color: var(--ink-soft); font-size: 0.95rem; }
+
+/* --- callout ------------------------------------------------------------- */
+
+#app-landing .callout {
+  border: 1px solid var(--edge);
+  border-left: 4px solid var(--rust);
+  border-radius: 12px;
+  background: #fffdf8;
+  padding: 1.5rem 1.6rem;
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+#app-landing .callout-title { font-family: var(--font-serif); font-size: 1.25rem; color: var(--navy); margin: 0; }
+#app-landing .callout-note { margin: 0 0 0.8rem; color: var(--ink-soft); font-size: 0.95rem; }
+
+/* --- header navigation --------------------------------------------------- */
+
+.site-nav { display: flex; align-items: center; gap: 1.1rem; margin-left: 1.1rem; }
+.site-nav .nav-link {
+  background: none; border: 0; padding: 0.2rem 0;
+  font: inherit; font-size: 0.88rem; font-weight: 600;
+  color: var(--muted); cursor: pointer; text-decoration: none;
+}
+.site-nav .nav-link:hover { color: var(--ink); }
+.site-nav .nav-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* --- narrow screens ------------------------------------------------------ */
+
+@media (max-width: 860px) {
+  #app-landing .hero { grid-template-columns: minmax(0, 1fr); gap: 1.6rem; }
+  #app-landing .band-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 620px) {
+  #app-landing .page { padding: 1.6rem 0.9rem 3rem; gap: 2.4rem; }
+
+  /* Two columns of cards, each still a large tap target. */
+  #app-landing .tgrid,
+  #app-landing .tgrid.large { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+  #app-landing .tcard,
+  #app-landing .tcard.large { min-height: 128px; padding: 0.85rem 0.8rem 0.95rem; }
+  #app-landing .tcard-art .art,
+  #app-landing .tcard.large .tcard-art .art { width: 38px; height: 38px; }
+  #app-landing .tcard-name { font-size: 0.9rem; }
+  #app-landing .tcard-phrase { font-size: 0.78rem; }
+
+  /* Decoration steps back on a phone; the words and the tools matter more. */
+  #app-landing .hero-scene { display: none; }
+  #app-landing .band.dark { padding: 1.5rem 1.1rem 1.7rem; border-radius: 12px; }
+  #app-landing .btn { width: 100%; text-align: center; }
+  #app-landing .hero-actions { gap: 0.8rem; }
+
+  .site-nav { gap: 0.85rem; margin-left: 0.6rem; }
+  .site-nav .nav-link { font-size: 0.82rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-landing .tcard { transition: none; }
+  #app-landing .tcard:hover:not(:disabled) { transform: none; }
+}
+
+
+/* The header on a landing page: brand, navigation, and where the work happens.
+   The editing controls only appear once there is something to edit. */
+.hide-on-landing { display: none !important; }
+.top-actions.landing .file-button { display: none; }
+
+
+/* The menu button only exists on narrow screens. */
+.nav-toggle { display: none; }
+
+@media (max-width: 700px) {
+  .nav-toggle {
+    display: grid;
+    gap: 3px;
+    align-content: center;
+    background: none;
+    border: 0;
+    padding: 0.45rem;
+    margin-left: 0.4rem;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .nav-toggle span { display: block; width: 18px; height: 2px; background: var(--ink); border-radius: 2px; }
+  .nav-toggle:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .site-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin: 0;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 8px 20px rgb(0 0 0 / 0.08);
+    z-index: 40;
+  }
+  .site-nav.open { display: flex; }
+  .site-nav .nav-link {
+    padding: 0.9rem 1.1rem;
+    font-size: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar { position: relative; }
+}
+
+/* A long tool name must wrap inside its card rather than run past the edge. */
+#app-landing .tcard-name,
+#app-landing .tcard-phrase { overflow-wrap: anywhere; }
+
+@media (max-width: 620px) {
+  #app-landing .tcard-name { font-size: 0.86rem; line-height: 1.25; }
+  #app-landing .tcard-phrase { font-size: 0.75rem; }
+}
+
+
+/* --- PDF Control Room: the workspace, offered as its own kind of thing ---- */
+
+#app-landing .croom-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1.4rem;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.9rem;
+  padding: 1.5rem 1.7rem;
+  border-radius: 14px;
+  border: 1px solid var(--navy);
+  background: var(--navy);
+  color: #f3efe7;
+  cursor: pointer;
+  font-family: inherit;
+  --art-paper: #f3efe7;
+  --art-accent: var(--brass);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+#app-landing .croom-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgb(22 35 58 / 0.22); }
+#app-landing .croom-card:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
+
+#app-landing .croom-art .art { width: 78px; height: 78px; display: block; color: #cbd4e2; }
+#app-landing .croom-words { display: grid; gap: 0.25rem; }
+#app-landing .croom-name { font-family: var(--font-serif); font-size: 1.5rem; color: #fff; line-height: 1.15; }
+#app-landing .croom-phrase { font-size: 0.95rem; color: #c7cedb; }
+#app-landing .croom-cta {
+  justify-self: start;
+  margin-top: 0.55rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--brass);
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+}
+
+/* The callout above the tool list, and the block on the legal page. */
+#app-landing .croom-feature,
+#app-landing .croom-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  gap: 2rem;
+  align-items: center;
+  padding: 1.7rem 1.8rem;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: #fffdf8;
+}
+#app-landing .croom-block { background: var(--navy); border-color: var(--navy); --art-paper: #f3efe7; --art-accent: var(--brass); }
+#app-landing .croom-block .croom-feature-title { color: #fff; }
+#app-landing .croom-block .croom-feature-note { color: #c7cedb; }
+#app-landing .croom-block .eyebrow { color: var(--brass); }
+
+#app-landing .croom-feature-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--navy);
+  margin: 0 0 0.4rem;
+}
+#app-landing .croom-feature-note { margin: 0 0 1rem; color: var(--ink-soft); font-size: 0.95rem; max-width: 46ch; }
+
+#app-landing .croom-features {
+  list-style: none;
+  margin: 0 0 1.2rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.35rem 1rem;
+}
+#app-landing .croom-features li {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.88rem; color: var(--ink-soft);
+}
+
+#app-landing .croom-feature-art .art { width: 100%; max-width: 170px; height: auto; color: var(--navy); }
+#app-landing .croom-block .croom-feature-art .art { color: #cbd4e2; }
+
+@media (max-width: 760px) {
+  #app-landing .croom-feature,
+  #app-landing .croom-block { grid-template-columns: minmax(0, 1fr); gap: 1.2rem; }
+  #app-landing .croom-feature-art { display: none; }
+}
+
+@media (max-width: 620px) {
+  #app-landing .croom-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.7rem;
+    padding: 1.2rem 1.1rem 1.3rem;
+  }
+  #app-landing .croom-art .art { width: 56px; height: 56px; }
+  #app-landing .croom-name { font-size: 1.25rem; }
+  #app-landing .croom-features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+
+/* --- the workspace header and its trust reminder ------------------------- */
+
+#tool-subtitle { font-size: 0.82rem; color: var(--muted); margin-left: 0.55rem; }
+
+.trust-note {
+  margin: 1rem 0 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 34ch;
+}
+.trust-note .trust-strong { display: block; font-weight: 700; color: var(--ink); }
+
+@media (max-width: 700px) {
+  /* The subtitle is the first thing to go when the header runs out of room. */
+  #tool-subtitle { display: none; }
+}
+
+
+/* --- the phone's action bar ---------------------------------------------- */
+
+#mobile-bar { display: none; }
+
+@media (max-width: 700px) {
+  #mobile-bar:not([hidden]) {
+    display: flex;
+    gap: 0.5rem;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    padding: 0.6rem 0.75rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+    background: rgb(255 255 255 / 0.97);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgb(0 0 0 / 0.07);
+  }
+
+  /* Large enough to hit without looking. */
+  #mobile-bar button {
+    flex: 1;
+    min-height: 46px;
+    font-size: 0.95rem;
+    font-weight: 650;
+  }
+  #mobile-bar #undo,
+  #mobile-bar #redo { flex: 0 0 3.6rem; }
+  #mobile-bar #primary-action { flex: 2; }
+
+  /* Room so the bar never sits on top of the last row of pages. */
+  body.has-mobile-bar #app-workspace { padding-bottom: 5.5rem; }
+}
+
+
+/* The header belongs to the document once one is open. */
+.hide-in-workspace { display: none !important; }
+
+
+/* A grid child defaults to min-width:auto, which lets a long word push the
+   whole column past the screen. These are the places that happened. */
+#app-landing .croom-card,
+#app-landing .croom-words,
+#app-landing .tcard { min-width: 0; }
+#app-landing .croom-words > * { min-width: 0; overflow-wrap: anywhere; }
+#app-landing .tcard > * { min-width: 0; max-width: 100%; }
+
+
+/* Buttons inherit nowrap from the app's control styles, which is right for a
+   toolbar and wrong for a card with a sentence in it. */
+#app-landing .tcard,
+#app-landing .tcard *,
+#app-landing .croom-card,
+#app-landing .croom-card * { white-space: normal; }

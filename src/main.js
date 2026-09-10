@@ -38,8 +38,8 @@ import { openPlacer, setupPlacer } from './ui/place.js'
 import * as presets from './presets.js'
 import * as signatures from './signatures.js'
 import { pdfFromImages, PAGE_SIZES } from './images.js'
-import { TOOLS, ALWAYS_PANELS, getTool, isComingSoon, currentToolId, goToTool, goToLanding } from './tools.js'
-import { drawLanding } from './ui/landing.js'
+import { TOOLS, ALWAYS_PANELS, getTool, isComingSoon, isPage, currentToolId, goToTool, goToLanding } from './tools.js'
+import { drawLanding, setupLanding } from './ui/landing.js'
 
 const el = (id) => document.querySelector(`#${id}`)
 
@@ -71,7 +71,8 @@ const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
 
 // An unfinished tool behaves like no tool at all, so its address shows the
 // landing page rather than a half-working screen.
-const onLanding = () => getTool(currentToolId()) === null || isComingSoon(currentToolId())
+const onLanding = () =>
+  getTool(currentToolId()) === null || isComingSoon(currentToolId()) || isPage(currentToolId())
 
 const PANEL_IDS = ['panel-files', 'panel-photos', 'panel-password', 'panel-search', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
@@ -138,6 +139,9 @@ function applyTool() {
   el('extract').hidden = !(isPro || tool.primary === 'extract')
 
   el('tool-name').textContent = onLanding() ? '' : tool.name
+  // The workspace carries a one-line reminder of what it is for; a quick tool
+  // does not need one, and the header stays quiet without it.
+  el('tool-subtitle').textContent = onLanding() ? '' : (tool.subtitle ?? '')
 
   el('primary-action').textContent = tool.primaryLabel
   el('open-pro').hidden = onLanding() || isPro
@@ -156,6 +160,10 @@ let lastToolId = null
 
 function applyRoute() {
   clearError()
+
+  // Each of the three non-tool pages is drawn from the address bar, so the
+  // back button and a bookmarked #legal both land in the right place.
+  drawLanding()
 
   const id = currentToolId()
   if (id !== lastToolId) {
@@ -260,8 +268,22 @@ function refreshControls() {
   // Three exclusive views: pick a tool, add files, work on them.
   const landing = onLanding()
   el('app-landing').hidden = !landing
+
+  // On a page where nothing is loaded and no tool is chosen, the working
+  // controls are noise. The header keeps the brand, the navigation and the
+  // badge saying where the work happens.
+  for (const id of ['status', 'undo', 'redo', 'primary-action', 'open-pro']) {
+    el(id).classList.toggle('hide-on-landing', landing)
+  }
+  document.querySelector('.top-actions').classList.toggle('landing', landing)
+
+  // Site navigation belongs on the pages where you are choosing something. In
+  // a workspace the header is for the document, and the logo still goes home.
+  document.querySelector('#site-nav').classList.toggle('hide-in-workspace', !landing)
+  document.querySelector('#nav-toggle').classList.toggle('hide-in-workspace', !landing)
   el('app-empty').hidden = landing || hasPages
   el('app-workspace').hidden = landing || !hasPages
+  placeMobileBar()
 
   const singlePage = Boolean(activeTool().singlePage)
   el('selection-summary').textContent =
@@ -1037,10 +1059,15 @@ function doSplit() {
     const starts = splitStarts(all, mode, model.isSelected, topLevel)
 
     if (starts.length < 2) {
-      setStatus(
+      // This has to go in the banner, not the status line: refreshControls
+      // rewrites the status with the document summary the moment the save
+      // finishes, so the explanation vanished and pressing Split appeared to
+      // do nothing at all.
+      showError(
         mode === 'bookmarks'
-          ? 'Nothing to split — this document has fewer than two top-level bookmarks.'
-          : 'Nothing to split — select the pages where a new file should start.',
+          ? 'Nothing to split. This document has fewer than two top-level bookmarks, '
+            + 'so there is nowhere to cut it. Add bookmarks, or split one file per page.'
+          : 'Nothing to split. Select the pages where a new file should start.',
       )
       return
     }
@@ -1116,8 +1143,10 @@ el('home-link').addEventListener('click', goToLanding)
 // The security explainer, reachable from the landing page and from the chip
 // in the top bar while you are working.
 const securityDialog = document.querySelector('#security-dialog')
-el('security-open').addEventListener('click', () => securityDialog.showModal())
 el('secure-chip').addEventListener('click', () => securityDialog.showModal())
+
+// The front pages draw their own "How local processing works" links and open
+// the dialog themselves, so there is no fixed button to bind here.
 
 el('files-chip').addEventListener('click', () => {
   const panel = el('panel-files')
@@ -1145,6 +1174,50 @@ drawBookmarks()
 
 // Restore whatever settings were in use last time, then fall back to reading
 // the untouched defaults out of the page.
+// --- the phone's action bar -------------------------------------------------
+//
+// Narrow screens put the actions that matter within thumb reach. The existing
+// buttons are MOVED into the bar and moved back, rather than copied, so there
+// is exactly one of each and every listener on them survives untouched.
+
+const MOBILE_BAR_IDS = ['undo', 'redo', 'share-action', 'primary-action']
+
+// Each button leaves a marker behind in the header, so it can always be put
+// back exactly where it was. Remembering a neighbouring BUTTON instead was the
+// bug: the neighbours move too, so insertBefore threw and took the rest of
+// refreshControls down with it — leaving a stale status line behind.
+const mobileAnchors = new Map()
+
+function placeMobileBar() {
+  const bar = el('mobile-bar')
+  const narrow = window.matchMedia('(max-width: 700px)').matches
+  const working = !el('app-workspace').hidden
+  const toBar = narrow && working
+
+  for (const id of MOBILE_BAR_IDS) {
+    const button = el(id)
+
+    if (!mobileAnchors.has(id)) {
+      const marker = document.createComment(`home of ${id}`)
+      button.parentElement.insertBefore(marker, button)
+      mobileAnchors.set(id, marker)
+    }
+
+    if (toBar) {
+      if (button.parentElement !== bar) bar.append(button)
+    } else if (button.parentElement === bar) {
+      const marker = mobileAnchors.get(id)
+      marker.parentElement.insertBefore(button, marker.nextSibling)
+    }
+  }
+
+  bar.hidden = !toBar
+  document.body.classList.toggle('has-mobile-bar', toBar)
+}
+
+window.addEventListener('resize', placeMobileBar)
+
+setupLanding()
 drawLanding()
 applySettings(presets.recallLastUsed(), { restoreEnabled: false })
 readNumbering()

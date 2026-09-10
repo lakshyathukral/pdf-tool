@@ -46,6 +46,20 @@
           </svg>
         </button>
         <span id="tool-name"></span>
+        <span id="tool-subtitle"></span>
+
+        <button id="nav-toggle" type="button" class="nav-toggle"
+                aria-expanded="false" aria-controls="site-nav" aria-label="Menu">
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </button>
+
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+          <a href="#tools" class="nav-link">All tools</a>
+          <a href="#legal" class="nav-link">Legal tools</a>
+          <button type="button" class="nav-link" id="nav-privacy">Privacy</button>
+        </nav>
       </div>
 
       <div class="top-actions">
@@ -67,7 +81,7 @@
           Add photos
           <input type="file" id="photo-input" accept="image/*" multiple hidden />
         </label>
-        <button id="open-pro" type="button" hidden>Open in full editor</button>
+        <button id="open-pro" type="button" hidden>Open Control Room</button>
         <button id="undo" type="button" disabled title="Undo (Cmd+Z)">Undo</button>
         <button id="redo" type="button" disabled title="Redo (Cmd+Shift+Z)">Redo</button>
         <button id="share-action" type="button" hidden disabled>Share</button>
@@ -83,50 +97,17 @@
 
     <!-- The front page: pick a job. Each tool is this same editor with the
          parts you do not need hidden. -->
-    <div id="app-landing">
-      <div class="landing-inner">
-        <div class="hero">
-          <svg class="hero-mark" viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M16 2 4 6.4v9.7C4 23.4 8.9 28.2 16 30c7.1-1.8 12-6.6 12-13.9V6.4L16 2Z" fill="#16233a"/>
-            <rect x="10" y="10.6" width="12" height="1.9" rx=".95" fill="#faf8f5"/>
-            <rect x="10" y="14.8" width="12" height="1.9" rx=".95" fill="#faf8f5"/>
-            <rect x="10" y="19" width="7.2" height="1.9" rx=".95" fill="#b8894a"/>
-          </svg>
-          <p class="eyebrow-rule">Document tools for legal work</p>
-          <h1 class="hero-title">Everything happens on your device.</h1>
-          <p class="hero-sub">
-            Merge, reorder, redact, number, bookmark and split — without a single
-            page of a client document ever crossing the network.
-          </p>
-        </div>
+    <div id="app-landing"></div>
 
-        <div class="assurance">
-          <span class="assurance-mark" aria-hidden="true">●</span>
-          <div>
-            <p class="assurance-line">Your documents never leave this device.</p>
-            <p class="assurance-detail">
-              There is no server to upload to. Every file is opened, edited and
-              saved by code running inside this browser tab, on your own
-              computer. No page of a document is ever transmitted, stored or
-              logged — not by us, not by anyone.
-            </p>
-            <button id="security-open" type="button" class="linky">
-              How this works, in technical terms →
-            </button>
-          </div>
-        </div>
-
-        <div id="pro-card"></div>
-        <h2 class="section-title">One job at a time</h2>
-        <div id="tool-grid"></div>
-      </div>
-    </div>
+    <!-- On a phone the main actions sit within thumb reach. The buttons are
+         MOVED here, not copied, so every handler stays exactly as it was. -->
+    <div id="mobile-bar" hidden aria-label="Document actions"></div>
 
     <!-- Shown only when nothing is loaded. One instruction, one action. -->
     <div id="app-empty">
       <div class="dropzone" id="dropzone">
         <p class="eyebrow" id="dropzone-tool"></p>
-        <h2 id="dropzone-heading">Drop PDFs here</h2>
+        <h2 id="dropzone-heading">Drop a file here</h2>
         <p>or</p>
         <label class="file-button">
           Choose files
@@ -137,9 +118,9 @@
           <input type="file" id="photo-input-empty" accept="image/*" multiple hidden />
         </label>
         <p class="hint" id="dropzone-hint"></p>
-        <p class="hint">
-          Nothing leaves your computer — files are read in this browser tab and
-          never uploaded.
+        <p class="trust-note">
+          <span class="trust-strong">Your files never leave your device.</span>
+          Processed locally in your browser.
         </p>
       </div>
     </div>

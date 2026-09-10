@@ -162,8 +162,29 @@ const ART = {
       <circle cx="42" cy="48" r="2.6" fill="var(--art-paper)"/>
     </g>`),
 
-  // The full editor: the whole workbench.
+  // The full workspace, drawn as one: thumbnails in a row with the marks the
+  // room can put on them — a tab, a number badge, a bookmark, and the handle
+  // that reorders them.
   pro: () => svg(`
+    <rect x="3" y="9" width="58" height="46" rx="5" fill="none" stroke="currentColor"
+          stroke-width="2.2" opacity="0.35"/>
+    ${sheet(8, 16, { w: 14, h: 20, fold: 5 })}
+    ${sheet(25, 16, { w: 14, h: 20, fold: 5 })}
+    ${sheet(42, 16, { w: 14, h: 20, fold: 5 })}
+    <rect class="art-tab" x="36" y="18" width="8" height="5" rx="1.5" fill="var(--art-accent)"/>
+    <g class="art-mark">
+      <circle cx="18" cy="34" r="4.6" fill="var(--art-accent)"/>
+      <text x="18" y="36" text-anchor="middle" font-size="6" font-weight="700"
+            fill="var(--art-paper)" font-family="ui-sans-serif, system-ui, sans-serif">1</text>
+    </g>
+    <g class="art-lift">
+      <path d="M20 45h24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity="0.4"/>
+      <path d="M38 41l5 4-5 4" fill="none" stroke="var(--art-accent)" stroke-width="2.4"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </g>`),
+
+  // Kept for the small square used beside the old workbench idea.
+  'pro-plain': () => svg(`
     ${sheet(4, 14, { w: 22, h: 30, rotate: -6, fold: 7 })}
     ${sheet(22, 10, { w: 22, h: 30, fold: 7 })}
     ${sheet(40, 14, { w: 22, h: 30, rotate: 6, fold: 7 })}

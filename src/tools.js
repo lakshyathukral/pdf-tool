@@ -12,21 +12,45 @@ export const ALWAYS_PANELS = ['panel-files', 'panel-saving']
 // How the tools are grouped on the front page. A category is a shelf in the
 // workshop, not a taxonomy: four of them, named for what you came to do.
 export const CATEGORIES = [
-  { id: 'arrange', name: 'Arrange', note: 'Order, split, pull apart' },
-  { id: 'add', name: 'Add', note: 'Marks, numbers, tabs' },
-  { id: 'create', name: 'Create', note: 'Make a PDF from something else' },
-  { id: 'protect', name: 'Protect', note: 'Remove it, or lock it' },
+  { id: 'arrange', name: 'Organise' },
+  { id: 'add', name: 'Add and edit' },
+  { id: 'protect', name: 'Convert and protect' },
 ]
 
+// The pages that are not tools. Kept apart from TOOLS so a route can never
+// resolve to a workspace that does not exist.
+export const PAGES = ['tools', 'legal']
+export const isPage = (id) => PAGES.includes(id)
+
+// Tools worth putting in front of someone preparing a filing bundle. Every one
+// of these exists and works today; nothing here is aspirational.
+export const LEGAL_TOOL_IDS = ['merge', 'bookmarks', 'numbering', 'label', 'redact', 'password']
+
 export const TOOLS = {
+  // The full workspace. Named in full where there is room, and "Control Room"
+  // where there is not. Nothing about how it works changed with the name.
   pro: {
-    name: 'Full editor',
-    blurb: 'Everything at once — merge, reorder, rotate, label, number, watermark, redact and split in one pass.',
+    name: 'PDF Control Room',
+    shortName: 'Control Room',
+    subtitle: 'Prepare your document in one place.',
+    description: 'Your all-in-one workspace for preparing, organising and finishing PDFs.',
+    blurb: 'Reorder pages, add labels, apply page numbers, watermark documents, create bookmarks and download the finished PDF.',
+    phrase: 'Everything you need to prepare a document in one place.',
     icon: '⌘',
     panels: 'all',
     pageActions: 'all',
     primary: 'save',
     primaryLabel: 'Save PDF',
+    // Every one of these exists today; nothing here is aspirational.
+    features: [
+      'Reorder pages',
+      'Rotate and delete pages',
+      'Add labels',
+      'Add page numbers',
+      'Watermark pages',
+      'Extract and split pages',
+      'Add bookmarks',
+    ],
   },
 
   'photo-watermark': {
@@ -63,7 +87,7 @@ export const TOOLS = {
   photos: {
     name: 'Photos to PDF',
     phrase: 'Turn snaps into documents',
-    category: 'create',
+    category: 'protect',
     featured: true,
     blurb: 'Photograph documents with your phone and turn them into a PDF.',
     icon: '⛶',

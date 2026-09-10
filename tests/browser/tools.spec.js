@@ -785,6 +785,13 @@ test.describe('fitting the screen', () => {
     await noSidewaysScroll(page)
   })
 
+  test('neither do the tools and legal pages', async ({ page }) => {
+    for (const hash of ['#tools', '#legal']) {
+      await page.goto('/' + hash)
+      await noSidewaysScroll(page)
+    }
+  })
+
   test('the drop screen does not scroll sideways', async ({ page }) => {
     await page.goto('/#pro')
     await noSidewaysScroll(page)
@@ -797,33 +804,68 @@ test.describe('fitting the screen', () => {
 
   test('the security explainer does not scroll sideways', async ({ page }) => {
     await page.goto('/')
-    await page.locator('#security-open').click()
+    await page.locator('.hero-actions .linky').click()
     await expect(page.locator('#security-dialog')).toBeVisible()
     await noSidewaysScroll(page)
   })
 })
 
 test.describe('the landing page', () => {
-  test('lists the tools and opens one', async ({ page }) => {
+  test('lists the popular tools and opens one', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('.tool-card')).not.toHaveCount(0)
-    await page.locator('.tool-card', { hasText: 'Add a watermark' }).click()
+    await expect(page.locator('.tcard')).not.toHaveCount(0)
+    await page.locator('.tcard', { hasText: 'Add a watermark' }).click()
     await expect(page).toHaveURL(/#photo-watermark/)
     await expect(page.locator('#tool-name')).toHaveText('Add a watermark')
   })
 
-  test('a tool marked coming soon is not clickable', async ({ page }) => {
+  test('leads with the workspace, and opens it', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('.tool-card.soon').first()).toBeDisabled()
-    // Scan and OCR is listed as coming soon, and last.
-    const ocr = page.locator('.tool-card', { hasText: 'PDF scan and OCR' })
-    await expect(ocr).toBeDisabled()
-    await expect(page.locator('.tool-card').last()).toHaveText(/PDF scan and OCR/)
+    const room = page.locator('.croom-card')
+    await expect(room).toContainText('PDF Control Room')
+    await expect(room).toContainText('Open Control Room')
+    await room.click()
+    await expect(page).toHaveURL(/#pro/)
+    await expect(page.locator('#tool-name')).toHaveText('PDF Control Room')
+    await expect(page.locator('#tool-subtitle')).toHaveText('Prepare your document in one place.')
+  })
+
+  test('every tool page is reachable from All tools, and search narrows them', async ({ page }) => {
+    await page.goto('/#tools')
+    const cards = page.locator('.tcard')
+    const total = await cards.count()
+    expect(total).toBeGreaterThan(10)
+
+    await page.locator('#tool-search').fill('watermark')
+    await expect(page.locator('.tcard:visible')).toHaveCount(1)
+
+    await page.locator('#tool-search').fill('')
+    await page.locator('.chip', { hasText: 'Organise' }).click()
+    const organise = await page.locator('.tcard:visible').count()
+    expect(organise).toBeGreaterThan(0)
+    expect(organise).toBeLessThan(total)
+  })
+
+  test('a tool marked coming soon is not clickable', async ({ page }) => {
+    await page.goto('/#tools')
+    await expect(page.locator('.tcard.soon').first()).toBeDisabled()
+    await expect(page.locator('.tcard', { hasText: 'PDF scan and OCR' })).toBeDisabled()
+  })
+
+  test('the legal page offers only tools that exist', async ({ page }) => {
+    await page.goto('/#legal')
+    await expect(page.locator('.hero-title')).toHaveText(/Prepare legal documents/)
+    await expect(page.locator('.croom-block')).toContainText('Prepare the whole bundle')
+
+    // Every card on the page must lead somewhere real.
+    for (const card of await page.locator('.tcard').all()) {
+      await expect(card).toBeEnabled()
+    }
   })
 
   test('explains the privacy claim', async ({ page }) => {
     await page.goto('/')
-    await page.locator('#security-open').click()
+    await page.locator('.hero-actions .linky').click()
     await expect(page.locator('#security-dialog')).toBeVisible()
 
     // The claim, the picture that carries it, and the honest limits.
@@ -836,7 +878,7 @@ test.describe('the landing page', () => {
 
   test('the explainer stays short enough to actually be read', async ({ page }) => {
     await page.goto('/')
-    await page.locator('#security-open').click()
+    await page.locator('.hero-actions .linky').click()
     await expect(page.locator('#security-dialog')).toBeVisible()
 
     const box = await page.locator('#security-dialog').evaluate((el) => ({
