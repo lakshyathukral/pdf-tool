@@ -564,104 +564,72 @@
 
     <dialog id="security-dialog">
       <div class="dialog-head">
-        <p class="caption">How this tool handles your documents</p>
+        <p class="caption">How this handles your documents</p>
         <button id="security-close" type="button">Close</button>
       </div>
 
-      <div class="prose">
-        <p>
-          Web tools that edit PDFs almost always work by uploading your file to
-          a server, processing it there and sending it back. That means your
-          document sits on someone else's computer, at least briefly, and you
-          are trusting their retention policy, their staff and their security.
-        </p>
-        <p>
-          <strong>This tool has no server component at all.</strong> Your
-          documents are never sent anywhere. Like any website, we do count
-          visits — see <em>What we know about you</em> below, which is a
-          deliberately short list.
-        </p>
+      <div class="sec">
+        <p class="sec-headline">Your documents never leave this device.</p>
+        <p class="sec-sub">There is no server to upload them to.</p>
 
-        <h3>What actually happens when you open a file</h3>
-        <p>
-          Your browser downloads this application once, the way it downloads any
-          web page. After that it needs nothing further from us in order to work
-          on a document.
-        </p>
-        <p>
-          When you choose a file, the browser's own file-picker hands the page a
-          reference to it. The document is read into memory inside this tab,
-          displayed, and edited there. Your original file on disk is never
-          modified. When you save, a new document is assembled in memory and
-          handed straight to the browser's download mechanism.
-        </p>
-        <p>
-          At no point in that sequence is there a request carrying your
-          document, because there is nowhere for it to go: no server of ours
-          takes part in any of it.
-        </p>
+        <ol class="sec-steps">
+          <li>
+            <span class="sec-step-n">1</span>
+            <span class="sec-step-t">The page loads once</span>
+            <span class="sec-step-d">Like any website.</span>
+          </li>
+          <li>
+            <span class="sec-step-n">2</span>
+            <span class="sec-step-t">Your file opens in this tab</span>
+            <span class="sec-step-d">Read and edited here. The original is never touched.</span>
+          </li>
+          <li>
+            <span class="sec-step-n">3</span>
+            <span class="sec-step-t">Saving hands it back to you</span>
+            <span class="sec-step-d">No request carries your document. There is nowhere for it to go.</span>
+          </li>
+        </ol>
 
-        <h3>How you can check this yourself</h3>
-        <ul>
-          <li>
-            <strong>Turn off your internet after the page loads.</strong> Every
-            feature keeps working. Nothing that talks to a server could.
-          </li>
-          <li>
-            <strong>Open your browser's developer tools and watch the Network
-            tab.</strong> Load a PDF, edit it, save it. You will see the page
-            itself load, and a small analytics ping counting the visit. You will
-            not see a request carrying your document, because none is made.
-          </li>
-        </ul>
+        <p class="sec-h">Don't take our word for it</p>
+        <div class="sec-cards">
+          <div class="sec-card">
+            <p class="sec-card-t">Turn off your internet</p>
+            <p class="sec-card-d">Every feature keeps working. Nothing that needed a server could.</p>
+          </div>
+          <div class="sec-card">
+            <p class="sec-card-t">Watch the Network tab</p>
+            <p class="sec-card-d">Edit and save a PDF. No request carries it.</p>
+          </div>
+        </div>
 
-        <h3>What is stored on your device</h3>
-        <p>
-          Only your settings — watermark text, numbering format, saved presets —
-          kept in this browser's local storage. No document, no page, no
-          filename. Clearing your browser data removes it.
-        </p>
+        <p class="sec-h">What we can and cannot see</p>
+        <div class="sec-split">
+          <div class="sec-col can">
+            <p class="sec-col-t">We can see</p>
+            <ul>
+              <li>That a visit happened</li>
+              <li>Roughly which country</li>
+              <li>Which page was opened</li>
+            </ul>
+            <p class="sec-col-f">No cookies. Nothing stored on your device.</p>
+          </div>
+          <div class="sec-col cannot">
+            <p class="sec-col-t">We cannot see</p>
+            <ul>
+              <li>Your documents</li>
+              <li>Their names or contents</li>
+              <li>Anything you did to them</li>
+            </ul>
+            <p class="sec-col-f">Not policy. It never reaches us.</p>
+          </div>
+        </div>
 
-        <h3>What we know about you</h3>
-        <p>
-          The same things any website's logs record: that a visit happened,
-          roughly which country it came from, which page was opened, and which
-          site linked here. Enough to know whether anyone is using this. This is
-          measured by Cloudflare Web Analytics, which sets no cookies, stores no
-          identifier on your device, and cannot follow you to other sites.
-        </p>
-        <p>
-          What we cannot know, because it never reaches us: which documents you
-          opened, their names, their contents, their length, or what you did to
-          them. That is not a policy we could change our minds about — the
-          information does not leave your browser in the first place.
-        </p>
-
-        <h3>What this does not protect against</h3>
-        <p>
-          Being honest about the limits, because a security claim that overstates
-          itself is worse than none:
-        </p>
-        <ul>
-          <li>
-            It does not protect against a compromised computer, a malicious
-            browser extension, or someone with access to your screen. Anything
-            running on your device can see what your browser is doing.
-          </li>
-          <li>
-            Once you save a file, ordinary care applies — this tool has no say
-            in where it goes next.
-          </li>
-          <li>
-            Redaction removes text by rendering the page to an image, which is
-            genuinely irreversible, but it does not remove attachments or every
-            trace of document structure. Check important redactions before
-            sending.
-          </li>
-          <li>
-            A signature image or a watermark is a picture. Neither is a
-            cryptographic signature, and neither makes a document tamper-proof.
-          </li>
+        <p class="sec-h">Where this stops</p>
+        <ul class="sec-limits">
+          <li>A compromised computer or a bad browser extension sees what you see.</li>
+          <li>Once you save a file, where it goes next is up to you.</li>
+          <li>Redaction destroys text, but check important ones before sending.</li>
+          <li>A signature image is a picture, not a cryptographic signature.</li>
         </ul>
       </div>
     </dialog>
