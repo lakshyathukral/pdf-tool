@@ -193,6 +193,34 @@ const ART = {
       <path d="M24 52.5h16" stroke="var(--art-paper)" stroke-width="2.6" stroke-linecap="round"/>
     </g>`),
 
+  // Squeezed: the same page, pressed between two rules, arrow going down.
+  compress: () => svg(`
+    ${sheet(17, 14, { w: 30, h: 32, fold: 8 })}
+    ${lines(23, 26, [16, 12])}
+    <g class="art-squeeze">
+      <path d="M12 8h40M12 54h40" stroke="currentColor" stroke-width="2.6"
+            stroke-linecap="round" opacity="0.45"/>
+      <path d="M32 46v8M28 50l4 4 4-4" fill="none" stroke="var(--art-accent)"
+            stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>`),
+
+  // A page becoming pictures: the sheet steps aside and photo cards come out.
+  'to-images': () => svg(`
+    ${sheet(4, 14, { w: 24, h: 34, fold: 7 })}
+    ${lines(10, 26, [12, 12])}
+    <g class="art-card">
+      <rect x="30" y="12" width="24" height="20" rx="3" fill="var(--art-paper)"
+            stroke="currentColor" stroke-width="2.4"/>
+      <circle cx="36" cy="19" r="2.4" fill="var(--art-accent)"/>
+      <path d="M32 29l6-7 5 5 3-3 6 5" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="36" y="34" width="24" height="20" rx="3" fill="var(--art-paper)"
+            stroke="currentColor" stroke-width="2.4"/>
+      <circle cx="42" cy="41" r="2.4" fill="var(--art-accent)"/>
+      <path d="M38 51l6-7 5 5 3-3 6 5" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </g>`),
+
   // Not a tool: the note about scanned pages.
   ocr: () => svg(`
     ${sheet(10, 10, { w: 34, h: 44 })}

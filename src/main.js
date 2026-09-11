@@ -28,8 +28,7 @@ import {
 import { drawGrid } from './ui/grid.js'
 import { setupDragDrop } from './ui/dragdrop.js'
 import { openRedactor, setupRedactor } from './ui/redact.js'
-import { setupSearch } from './ui/search.js'
-import { drawFileList, drawFileStrip, setupFileList } from './ui/files.js'
+import { drawFileStrip, setupFileList } from './ui/files.js'
 import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
 import { parsePageRanges, formatPageRanges } from './ranges.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
@@ -74,7 +73,7 @@ const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
 const onLanding = () =>
   getTool(currentToolId()) === null || isComingSoon(currentToolId()) || isPage(currentToolId())
 
-const PANEL_IDS = ['panel-files', 'panel-photos', 'panel-password', 'panel-search', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
+const PANEL_IDS = ['panel-photos', 'panel-password', 'panel-compress', 'panel-images', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
 // Controls that select more than one page at a time.
 const MULTI_SELECT_IDS = ['select-all', 'select-odd', 'select-even', 'select-invert', 'range-input', 'range-select']
@@ -98,7 +97,6 @@ function applyTool() {
     el('panel-saving').open = true
   } else {
     for (const id of PANEL_IDS) {
-      if (id === 'panel-files') continue
       el(id).open = tool.panels.includes(id)
     }
     // Except where the tool's own controls live inside Saving.
@@ -109,11 +107,16 @@ function applyTool() {
     el(id).hidden = !(tool.pageActions === 'all' || tool.pageActions.includes(id))
   }
 
-  // A tool that acts on exactly one page hides the controls that select many,
-  // and gives its own action the weight of a primary button so it is not the
-  // last grey thing on the right of a long row.
-  for (const id of MULTI_SELECT_IDS) el(id).hidden = Boolean(tool.singlePage)
-  el('redact').classList.toggle('action-primary', Boolean(tool.singlePage))
+  // A tool where choosing pages first does nothing hides the controls that
+  // select them, and gives its own action the weight of a primary button so it
+  // is not the last grey thing on the right of a long row.
+  for (const id of MULTI_SELECT_IDS) el(id).hidden = Boolean(tool.hidesSelection)
+  el('redact').classList.toggle('action-primary', Boolean(tool.hidesSelection))
+
+  // Deleting sits on each page as well as in the toolbar, wherever the tool
+  // allows deleting at all.
+  document.body.classList.toggle('pages-deletable',
+    tool.pageActions === 'all' || tool.pageActions.includes('delete'))
 
   const note = tool.note ?? ''
   el('tool-note').textContent = note
@@ -143,7 +146,12 @@ function applyTool() {
   // does not need one, and the header stays quiet without it.
   el('tool-subtitle').textContent = onLanding() ? '' : (tool.subtitle ?? '')
 
-  el('primary-action').textContent = tool.primaryLabel
+  // A single PDF can be shared; a zip of images or split files downloads.
+  const shares = sharesInsteadOfSaving() && ['save', 'compress'].includes(tool.primary)
+  el('primary-action').textContent = shares
+    ? tool.primaryLabel.replace(/^Save/, 'Share')
+    : tool.primaryLabel
+  document.body.classList.toggle('share-first', sharesInsteadOfSaving())
   el('open-pro').hidden = onLanding() || isPro
   el('dropzone-tool').textContent = onLanding() ? '' : tool.name
   el('dropzone-hint').textContent = tool.hint ?? ''
@@ -180,7 +188,9 @@ function applyRoute() {
 function applyToolDefaults(tool) {
   if (!tool?.defaults) return
 
-  const { watermark, photoPageSize } = tool.defaults
+  const { watermark, photoPageSize, compress } = tool.defaults
+
+  if (compress) applyCompressLevel(el('compress-level').value || compress)
 
   if (watermark) {
     // Switching it on is this tool's whole point, and the panel is open so it
@@ -226,6 +236,9 @@ function refreshControls() {
   el('rotate-right').disabled = !hasSelection
   el('duplicate').disabled = !hasSelection
   el('delete').disabled = !hasSelection
+  // Says how many will go, so pressing it is never a surprise.
+  const selectedCount = model.getSelectedIds().length
+  el('delete').textContent = selectedCount > 1 ? `Delete ${selectedCount} pages` : 'Delete page'
   el('label-apply').disabled = !hasSelection
   el('label-clear').disabled = !hasSelection
   // Signing needs an image loaded and exactly one page chosen.
@@ -255,14 +268,14 @@ function refreshControls() {
 
   // Only where the device can actually hand a file to another app — phones and
   // tablets, mostly. On a desktop the button would do nothing useful.
-  el('share-action').hidden = !canShareFiles()
+  el('share-action').hidden = !canShareFiles() || sharesInsteadOfSaving()
   el('share-action').disabled = !hasPages
   el('extract').disabled = !hasSelection
   el('split').disabled = !hasPages
 
-  // Both work on one page at a time — a box drawn on one page means nothing
-  // on another, and the viewer shows a single page.
-  el('redact').disabled = selected !== 1
+  // The viewer shows one page. Redaction opens on the whole document, so it
+  // only needs something to open.
+  el('redact').disabled = !hasPages
   el('view').disabled = selected !== 1
 
   // Three exclusive views: pick a tool, add files, work on them.
@@ -272,10 +285,15 @@ function refreshControls() {
   // On a page where nothing is loaded and no tool is chosen, the working
   // controls are noise. The header keeps the brand, the navigation and the
   // badge saying where the work happens.
-  for (const id of ['status', 'undo', 'redo', 'primary-action', 'open-pro']) {
+  for (const id of ['status', 'undo', 'redo', 'share-action', 'primary-action', 'open-pro']) {
     el(id).classList.toggle('hide-on-landing', landing)
   }
   document.querySelector('.top-actions').classList.toggle('landing', landing)
+
+  // Adding files lives with the files, in the strip, once any are loaded. In
+  // the header it sat far from what it acted on and stayed shouting after the
+  // job it was for was done.
+  document.querySelector('.top-actions').classList.toggle('has-files', hasPages)
 
   // Site navigation belongs on the pages where you are choosing something. In
   // a workspace the header is for the document, and the logo still goes home.
@@ -285,9 +303,9 @@ function refreshControls() {
   el('app-workspace').hidden = landing || !hasPages
   placeMobileBar()
 
-  const singlePage = Boolean(activeTool().singlePage)
+  const hidesSelection = Boolean(activeTool().hidesSelection)
   el('selection-summary').textContent =
-    selected === 0 ? (singlePage ? 'Click one page' : 'Click a page to select it')
+    selected === 0 ? (hidesSelection ? 'Covers every page' : 'Click a page to select it')
     : selected === 1 ? '1 page selected'
     : `${selected} pages selected`
 
@@ -325,15 +343,12 @@ function refreshControls() {
 
   el('output-name').placeholder = hasPages ? defaultOutputName(model.getSources()) : 'combined'
 
-  // A visible count of what is loaded, which opens the file list. The panel
-  // existed from the start and people were not finding it.
-  const fileCount = model.getSources().size
-  el('files-chip').hidden = !hasPages
-  el('files-chip').textContent = fileCount === 1 ? '1 file' : `${fileCount} files`
-
   if (hasPages) {
+    // The files are named in the strip above the pages, so repeating a count of
+    // them here said the same thing twice. This counts what the header is for:
+    // the document you are about to save.
     const redacted = model.getPages().filter((p) => p.redactions.length > 0).length
-    const parts = [`${pageCount} pages · ${fileCount} file(s)`]
+    const parts = [`${pageCount} page${pageCount === 1 ? '' : 's'}`]
     if (redacted > 0) parts.push(`${redacted} redacted`)
     setStatus(parts.join(' · '))
   } else {
@@ -351,7 +366,6 @@ function refreshControls() {
 
 model.subscribe(() => {
   drawGrid()
-  drawFileList()
   drawFileStrip()
   drawBookmarks()
   refreshViewer()
@@ -499,7 +513,7 @@ async function loadFiles(files) {
   refreshControls()
 }
 
-for (const input of [fileInput, el('file-input-empty')]) {
+for (const input of [fileInput, el('file-input-empty'), el('file-input-strip')]) {
   input.addEventListener('change', async () => {
     const files = [...input.files]
     input.value = ''  // so picking the same file again still fires "change"
@@ -547,7 +561,7 @@ async function loadPhotos(files) {
   refreshControls()
 }
 
-for (const input of [el('photo-input'), el('photo-input-empty')]) {
+for (const input of [el('photo-input'), el('photo-input-empty'), el('photo-input-strip')]) {
   input.addEventListener('change', async () => {
     const files = [...input.files]
     input.value = ''
@@ -1007,6 +1021,113 @@ async function finish(bytes, pages) {
   return buildFlattened(images, model.getMetadata(), bookmarks, model.getProtection())
 }
 
+// Three plain choices rather than a resolution and an image format, because
+// "how small" is the only question anyone actually has. They write to the same
+// flatten settings the full editor exposes.
+const COMPRESS_LEVELS = {
+  smallest: { dpi: 96, format: 'jpeg' },
+  balanced: { dpi: 150, format: 'jpeg' },
+  sharper: { dpi: 200, format: 'jpeg' },
+}
+
+function applyCompressLevel(level) {
+  const chosen = COMPRESS_LEVELS[level] ?? COMPRESS_LEVELS.balanced
+  model.setFlatten({ enabled: true, dpi: chosen.dpi, format: chosen.format })
+}
+
+// Shrinking a PDF means turning its pages into pictures, and that only helps a
+// file that is heavy because of what is IN it. A short text document is already
+// smaller than any picture of itself, so compressing it makes it BIGGER. A tool
+// called "make this smaller" must not quietly do the opposite, so it builds
+// both, compares them, and saves whichever is actually smaller — saying which.
+function doCompress() {
+  return runSave(el('primary-action'), 'Making it smaller', async () => {
+    const pages = model.getPages()
+    if (pages.length === 0) return
+
+    const numbering = model.getNumbering()
+    const asIs = await buildPdf(
+      exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
+    )
+
+    const flatten = model.getFlatten()
+    const images = await flattenDocument(asIs, {
+      dpi: flatten.dpi,
+      format: flatten.format,
+      onProgress: (page, total) => setStatus(`Rendering page ${page} of ${total}...`),
+    })
+
+    const bookmarks = pages.flatMap((page, pageIndex) =>
+      page.bookmarks.map((b) => ({ ...b, pageIndex })),
+    )
+    const smaller = await buildFlattened(images, model.getMetadata(), bookmarks, model.getProtection())
+
+    const name = safeFileName(chosenName())
+    const worthIt = smaller.length < asIs.length
+
+    const outcome = await deliver(worthIt ? smaller : asIs, name)
+    if (outcome === 'cancelled') {
+      el('compress-result').textContent = ''
+      return setStatus('Sharing cancelled.')
+    }
+    const verb = OUTCOME_VERB[outcome]
+
+    const saved = Math.round((1 - smaller.length / asIs.length) * 100)
+    el('compress-result').textContent = worthIt
+      ? `${verb} ${name} at ${describeSize(smaller.length)}, down from ${describeSize(asIs.length)}. `
+        + `That is ${saved}% smaller. The text in it is now part of the picture, so it `
+        + 'cannot be selected or searched.'
+      : `Not worth it at this setting. The pages would come out at `
+        + `${describeSize(smaller.length)}, bigger than the ${describeSize(asIs.length)} the `
+        + 'file already is, so it was saved unchanged. Try a smaller setting. If that does '
+        + 'not help either, this file is already as small as it usefully gets: compressing '
+        + 'only helps documents that are heavy because of scans or photographs.'
+
+    setStatus(worthIt
+      ? `Saved ${name} — ${describeSize(smaller.length)}, ${saved}% smaller`
+      : `Saved ${name} — ${describeSize(asIs.length)}, unchanged`)
+  })
+}
+
+// Every page as its own image file. Builds the document exactly as saving would,
+// then renders that, so what comes out matches what a saved PDF would look like.
+function doImages() {
+  return runSave(el('primary-action'), 'Rendering pages', async () => {
+    const pages = model.getPages()
+    if (pages.length === 0) return
+
+    const numbering = model.getNumbering()
+    const built = await buildPdf(
+      exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
+    )
+
+    const format = el('images-format').value
+    const images = await flattenDocument(built, {
+      dpi: Number(el('images-dpi').value),
+      format,
+      onProgress: (page, total) => setStatus(`Rendering page ${page} of ${total}...`),
+    })
+
+    const base = safeFileName(chosenName()).replace(/\.pdf$/i, '')
+    const extension = format === 'jpeg' ? 'jpg' : 'png'
+    const width = String(images.length).length
+
+    downloadMany(
+      images.map((image, i) => ({
+        name: `${base}-${String(i + 1).padStart(width, '0')}.${extension}`,
+        bytes: image.bytes,
+      })),
+      `${base}-images.zip`,
+    )
+
+    const count = `${images.length} image${images.length === 1 ? '' : 's'}`
+    el('images-result').textContent = images.length === 1
+      ? `Saved one ${format.toUpperCase()} file.`
+      : `Saved ${count} as a single .zip. Unzip it to get one file per page.`
+    setStatus(`Saved ${count}.`)
+  })
+}
+
 // Wraps a save so a failure always reports rather than hanging a disabled button.
 async function runSave(button, label, work) {
   button.disabled = true
@@ -1023,6 +1144,39 @@ async function runSave(button, label, work) {
   }
 }
 
+// On a phone, "Save" meant a download that lands somewhere hard to find, and the
+// separate Share button was the one people actually needed. So a touch device
+// that can share files gets ONE button that opens the share sheet, which offers
+// Save to Files alongside the apps. A computer keeps an ordinary download.
+// Touch is the test rather than canShare alone, because desktop Safari can share
+// files too, and nobody on a Mac wants a share sheet instead of a download.
+const sharesInsteadOfSaving = () =>
+  canShareFiles() && window.matchMedia('(pointer: coarse)').matches
+
+// Hand a finished PDF over the right way for this device. Returns what actually
+// happened, so the message afterwards can say "Shared" or "Saved" truthfully.
+async function deliver(bytes, name) {
+  if (!sharesInsteadOfSaving()) {
+    downloadBytes(bytes, name)
+    return 'saved'
+  }
+
+  try {
+    await shareBytes(bytes, name, 'Try FresherPDFs.com')
+    return 'shared'
+  } catch (error) {
+    // Closing the share sheet is a choice, not a failure.
+    if (error.name === 'AbortError') return 'cancelled'
+    // A big document can take long enough to build that the browser no longer
+    // counts the tap as the reason for sharing, and refuses. Download instead
+    // rather than leaving the person with nothing.
+    downloadBytes(bytes, name)
+    return 'saved'
+  }
+}
+
+const OUTCOME_VERB = { shared: 'Shared', saved: 'Saved' }
+
 function doSave() {
   return runSave(el('primary-action'), 'Building the PDF', async () => {
     const pages = model.getPages()
@@ -1031,8 +1185,9 @@ function doSave() {
       exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
     ), pages)
     const name = safeFileName(chosenName())
-    downloadBytes(bytes, name)
-    setStatus(`Saved ${name} — ${describeSize(bytes.length)}`)
+    const outcome = await deliver(bytes, name)
+    if (outcome === 'cancelled') return setStatus('Sharing cancelled.')
+    setStatus(`${OUTCOME_VERB[outcome]} ${name} — ${describeSize(bytes.length)}`)
   })
 }
 
@@ -1044,8 +1199,9 @@ function doExtract() {
       exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
     ), pages)
     const name = safeFileName(`${chosenName()}-extract`)
-    downloadBytes(bytes, name)
-    setStatus(`Saved ${name} — ${pages.length} page(s)`)
+    const outcome = await deliver(bytes, name)
+    if (outcome === 'cancelled') return setStatus('Sharing cancelled.')
+    setStatus(`${OUTCOME_VERB[outcome]} ${name} — ${pages.length} page(s)`)
   })
 }
 
@@ -1110,7 +1266,11 @@ function doSplit() {
   })
 }
 
-const RUN = { save: doSave, extract: doExtract, split: doSplit }
+const RUN = { save: doSave, extract: doExtract, split: doSplit, images: doImages, compress: doCompress }
+
+el('compress-level').addEventListener('change', (event) => {
+  applyCompressLevel(event.target.value)
+})
 
 el('extract').addEventListener('click', doExtract)
 el('split').addEventListener('click', doSplit)
@@ -1148,11 +1308,6 @@ el('secure-chip').addEventListener('click', () => securityDialog.showModal())
 // The front pages draw their own "How local processing works" links and open
 // the dialog themselves, so there is no fixed button to bind here.
 
-el('files-chip').addEventListener('click', () => {
-  const panel = el('panel-files')
-  panel.open = true
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' })
-})
 el('security-close').addEventListener('click', () => securityDialog.close())
 el('open-pro').addEventListener('click', () => goToTool('pro'))
 
@@ -1162,13 +1317,11 @@ window.addEventListener('hashchange', applyRoute)
 
 setupDragDrop(openViewer)
 setupRedactor()
-setupSearch()
 setupViewer(openRedactor)
 setupSigner()
 setupPlacer()
 setupFileList()
 setupBookmarks(openViewer)
-drawFileList()
 drawFileStrip()
 drawBookmarks()
 

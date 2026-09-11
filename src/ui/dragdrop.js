@@ -75,12 +75,21 @@ export function setupDragDrop(onOpenPage) {
   // Double-click opens the page for redaction — the same thing the toolbar
   // button does, but where the user is already looking.
   container.addEventListener('dblclick', (event) => {
+    if (event.target.closest('.tile-delete')) return
     const tile = event.target.closest('.tile')
     if (tile) onOpenPage(tile.dataset.pageId)
   })
 
   // --- selection by clicking -------------------------------------------------
   container.addEventListener('click', (event) => {
+    // The × on a page deletes that page alone, without touching the selection.
+    const remove = event.target.closest('.tile-delete')
+    if (remove) {
+      event.stopPropagation()
+      model.deletePages([remove.closest('.tile').dataset.pageId])
+      return
+    }
+
     const tile = event.target.closest('.tile')
     if (!tile) return model.clearSelection()
 

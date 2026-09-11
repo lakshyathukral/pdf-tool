@@ -63,7 +63,6 @@
       </div>
 
       <div class="top-actions">
-        <button id="files-chip" type="button" class="files-chip" hidden></button>
         <!-- "Nothing uploaded" read as a file count showing zero: in a
              document tool, "upload" means "add a file". This says where the
              work happens instead, which cannot be misread that way. -->
@@ -128,12 +127,6 @@
     <!-- Shown once something is loaded: settings left, pages right. -->
     <main id="app-workspace" hidden>
       <aside class="sidebar">
-        <details class="panel" id="panel-files" open>
-          <summary>Files</summary>
-          <ul id="file-list"></ul>
-          <button id="group-by-file" type="button">Group pages by file</button>
-          <p class="hint">Puts each file's pages back together, in their original order.</p>
-        </details>
 
         <details class="panel" id="panel-photos">
           <summary>Photos</summary>
@@ -153,41 +146,48 @@
           <p class="hint">On a phone, "Add photos" offers the camera directly.</p>
         </details>
 
-        <details class="panel" id="panel-search" open>
-          <summary>Find text to redact</summary>
+        <details class="panel" id="panel-compress" open>
+          <summary>Make the file smaller</summary>
           <p class="hint">
-            Search every page for a name, a number or a phrase, then choose
-            which of the results to black out. Only works on documents that
-            hold real text — a scan or a photograph has none to find.
+            Every page is turned into a picture at a lower resolution. The file
+            gets much smaller and still looks right on screen. The trade is that
+            the text stops being selectable or searchable.
           </p>
           <label class="field">
-            <span>Text to find</span>
-            <input type="text" id="search-text" placeholder="e.g. a name, an account number" />
+            <span>How small</span>
+            <select id="compress-level">
+              <option value="smallest">Smallest file, fine for screen</option>
+              <option value="balanced" selected>Balanced</option>
+              <option value="sharper">Sharper, still smaller</option>
+            </select>
           </label>
-          <label class="checkbox">
-            <input type="checkbox" id="search-match-case" />
-            Match upper and lower case exactly
-          </label>
-          <div class="row actions">
-            <button id="search-run" type="button" class="primary">Find in all pages</button>
-            <button id="search-clear" type="button" disabled>Clear results</button>
-          </div>
-          <p class="hint" id="search-status"></p>
-
-          <div id="search-results-block" hidden>
-            <div class="row actions">
-              <button id="search-select-all" type="button">Tick all</button>
-              <button id="search-select-none" type="button">Untick all</button>
-            </div>
-            <ul id="search-results"></ul>
-            <p class="hint" id="search-warning"></p>
-            <div class="row actions">
-              <button id="search-apply" type="button" class="primary" disabled>
-                Redact the ticked results
-              </button>
-            </div>
-          </div>
+          <p class="hint" id="compress-result"></p>
         </details>
+
+        <details class="panel" id="panel-images" open>
+          <summary>Save as pictures</summary>
+          <p class="hint">
+            Each page becomes its own image file. More than one page comes back
+            as a single .zip.
+          </p>
+          <label class="field">
+            <span>Image type</span>
+            <select id="images-format">
+              <option value="png" selected>PNG, sharp text</option>
+              <option value="jpeg">JPEG, smaller files</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Resolution</span>
+            <select id="images-dpi">
+              <option value="96">Screen (96 dpi)</option>
+              <option value="150" selected>Standard (150 dpi)</option>
+              <option value="300">Print quality (300 dpi)</option>
+            </select>
+          </label>
+          <p class="hint" id="images-result"></p>
+        </details>
+
 
         <details class="panel" id="panel-bookmarks" open>
           <summary>Bookmarks</summary>
@@ -515,7 +515,25 @@
              while working: the sidebar panel was there too, but a collapsible
              list in a side column is not where anyone looks for "what have I
              got open". -->
-        <div id="file-strip" hidden></div>
+        <!-- The one place files live: what is loaded, and how to add more,
+             next to the pages they produced. -->
+        <div id="file-strip" hidden>
+          <span class="strip-label">Files</span>
+          <div id="file-chips"></div>
+          <div class="strip-actions">
+            <button id="group-by-file" type="button" class="strip-button" hidden>
+              Group pages by file
+            </button>
+            <label class="strip-button add">
+              <span aria-hidden="true">+</span> Add PDFs
+              <input type="file" id="file-input-strip" accept="application/pdf" multiple hidden />
+            </label>
+            <label class="strip-button add">
+              <span aria-hidden="true">+</span> Add photos
+              <input type="file" id="photo-input-strip" accept="image/*" multiple hidden />
+            </label>
+          </div>
+        </div>
 
         <!-- A tool that needs explaining says so here, above its controls. -->
         <p id="tool-note" class="tool-note" hidden></p>
@@ -707,53 +725,65 @@
       <p class="hint">Use the left and right arrow keys to page through.</p>
     </dialog>
 
-    <dialog id="redact-dialog">
-      <h2>Redact</h2>
-      <p class="hint">
-        Drag a box over anything that must be removed. The page is re-rendered as
-        an image with the boxes burned in, so the text underneath is destroyed
-        rather than covered up. Redacted pages stop being searchable.
-      </p>
-      <p class="caption" id="redact-caption"></p>
+    <dialog id="redact-dialog" aria-label="Redact">
+      <div class="redact-top">
+        <div class="redact-head">
+          <h2>Redact</h2>
+          <p class="hint">
+            Scroll through the document and drag a box over anything that must
+            go. The text underneath is destroyed, not covered.
+          </p>
+        </div>
 
-      <div class="row" id="redact-zoom-row">
-        <span class="field-label">Zoom</span>
-        <button id="redact-zoom-out" type="button" aria-label="Zoom out">&minus;</button>
-        <span id="redact-zoom-level">Fit</span>
-        <button id="redact-zoom-in" type="button" aria-label="Zoom in">+</button>
-        <button id="redact-zoom-fit" type="button">Fit page</button>
-        <button id="redact-pan" type="button" aria-pressed="false" hidden>Move the page</button>
-        <span class="inline-hint" id="redact-zoom-hint">
-          Zoomed in, drag with the right mouse button to move around, or press
-          "Move the page" and drag normally.
-        </span>
+        <div class="redact-search">
+          <input type="search" id="redact-search" placeholder="Find a name, number or phrase"
+                 aria-label="Find text to redact" autocomplete="off" />
+          <button id="redact-find" type="button">Find</button>
+          <label class="checkbox">
+            <input type="checkbox" id="redact-match-case" />
+            Match case
+          </label>
+        </div>
+        <p id="redact-search-status" role="status"></p>
+        <div class="redact-search-results" id="redact-search-results" hidden>
+          <button id="redact-prev" type="button" aria-label="Previous match" title="Previous match">&lsaquo;</button>
+          <button id="redact-next" type="button" aria-label="Next match" title="Next match">&rsaquo;</button>
+          <button id="redact-apply-matches" type="button" class="primary"></button>
+          <button id="redact-clear-matches" type="button">Clear search</button>
+        </div>
+
+        <div class="redact-tools">
+          <div class="redact-colour" role="radiogroup" aria-label="Box colour">
+            <span class="field-label">Box</span>
+            <label class="radio">
+              <input type="radio" name="redact-colour" value="black" checked />
+              Black
+            </label>
+            <label class="radio">
+              <input type="radio" name="redact-colour" value="white" />
+              White
+            </label>
+          </div>
+          <div class="redact-zoom">
+            <span class="field-label">Zoom</span>
+            <button id="redact-zoom-out" type="button" aria-label="Zoom out" title="Zoom out">&minus;</button>
+            <span id="redact-zoom-level">Fit</span>
+            <button id="redact-zoom-in" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+          </div>
+          <button id="redact-draw" type="button" aria-pressed="false" hidden>Draw boxes</button>
+          <button id="redact-undo" type="button" disabled>Undo last box</button>
+        </div>
       </div>
 
-      <!-- The page scrolls inside this once it is bigger than the dialog. -->
-      <div id="redact-viewport"><div id="redact-stage"></div></div>
-      <div class="row" id="redact-colour-row">
-        <span class="field-label">Box colour</span>
-        <label class="radio">
-          <input type="radio" name="redact-colour" value="black" checked />
-          Black
-        </label>
-        <label class="radio">
-          <input type="radio" name="redact-colour" value="white" />
-          White
-        </label>
-      </div>
-      <p class="hint" id="redact-colour-hint">
-        White boxes read as a blank space rather than a blacked-out one, which
-        looks less severe on a letter or an agreement. The text underneath is
-        destroyed either way. Because a white box can be hard to see, the
-        preview outlines it — the outline is not in the saved file.
-      </p>
-      <p class="inline-hint" id="redact-count"></p>
-      <div class="row actions">
-        <button id="redact-apply" type="button" class="primary">Apply redactions</button>
-        <button id="redact-undo" type="button">Remove last box</button>
-        <button id="redact-clear" type="button">Clear all</button>
-        <button id="redact-cancel" type="button">Cancel</button>
+      <!-- Every page of the document, drawn as it scrolls into reach. -->
+      <div id="redact-scroll" class="redact-scroll"></div>
+
+      <div class="redact-bottom">
+        <p class="inline-hint" id="redact-count" role="status"></p>
+        <div class="row actions">
+          <button id="redact-cancel" type="button">Cancel</button>
+          <button id="redact-apply" type="button" class="primary">Apply redactions</button>
+        </div>
       </div>
     </dialog>
 

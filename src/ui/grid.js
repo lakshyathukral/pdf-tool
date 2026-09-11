@@ -74,6 +74,17 @@ function makeTile(page, position) {
     : `${source.name} p.${page.pageIndex + 1}`
   origin.title = `${source.name}, page ${page.pageIndex + 1}`
 
+  // Delete, on the page itself. The toolbar button only woke up once a page was
+  // selected, so a grey "Delete" read as a feature that did not exist. Shown
+  // only where the tool allows deleting (see the pages-deletable body class).
+  const remove = document.createElement('button')
+  remove.type = 'button'
+  remove.className = 'tile-delete'
+  remove.textContent = '×'
+  remove.title = `Delete page ${position + 1}`
+  remove.setAttribute('aria-label', `Delete page ${position + 1}`)
+  frame.append(remove)
+
   figure.append(frame, caption, origin)
   return figure
 }

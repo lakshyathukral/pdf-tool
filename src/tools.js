@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 // Sidebar panels every tool gets: the file list, and the save controls.
-export const ALWAYS_PANELS = ['panel-files', 'panel-saving']
+export const ALWAYS_PANELS = ['panel-saving']
 
 // How the tools are grouped on the front page. A category is a shelf in the
 // workshop, not a taxonomy: four of them, named for what you came to do.
@@ -127,7 +127,7 @@ export const TOOLS = {
     pageActions: ['select-all', 'select-none', 'duplicate', 'delete', 'view'],
     primary: 'save',
     primaryLabel: 'Save PDF',
-    hint: 'Drag pages to reorder. Select any you want to delete.',
+    hint: 'Drag pages to reorder. Press × on a page to delete it, or select several and press Delete.',
   },
 
   rotate: {
@@ -254,15 +254,46 @@ export const TOOLS = {
     blurb: 'Black out text so it is destroyed, not just covered over. Search for a name or number to find every mention.',
     icon: '█',
     colour: '#334155',
-    panels: ['panel-search'],
-    pageActions: ['select-none', 'view', 'redact'],
-    // Redaction opens one page at a time, so the controls that select many
-    // pages at once are hidden here — offering them only invites the mistake.
-    singlePage: true,
+    panels: [],
+    pageActions: ['view', 'redact'],
+    // The redaction view covers the whole document, so choosing pages first
+    // does nothing here, and the selection controls would only get in the way.
+    hidesSelection: true,
     primary: 'save',
     primaryLabel: 'Save redacted PDF',
-    hint: 'Click one page, then drag boxes over the parts that must go.',
-    note: 'Drawing boxes by hand works one page at a time: click a single page, then mark the parts of it you want removed. To remove the same words wherever they appear, use "Find text to redact" on the left.',
+    hint: 'Open the redaction view, scroll, and drag boxes over what must go.',
+    note: 'Redaction works across the whole document. Scroll through every page and drag boxes over anything that must go, or search for a name to find every mention.',
+  },
+
+  compress: {
+    name: 'Make a PDF smaller',
+    phrase: 'Send it without it bouncing',
+    category: 'protect',
+    featured: true,
+    blurb: 'Shrink a heavy file so it fits in an email. Pages become pictures, so the text stops being searchable.',
+    icon: '↓',
+    colour: '#5c7a56',
+    panels: ['panel-compress'],
+    pageActions: ['view'],
+    primary: 'compress',
+    primaryLabel: 'Save smaller PDF',
+    hint: 'Choose how small, then save.',
+    // Shrinking IS flattening, so the tool turns it on and drives it.
+    defaults: { compress: 'balanced' },
+  },
+
+  'to-images': {
+    name: 'PDF to images',
+    phrase: 'Free the pages',
+    category: 'protect',
+    blurb: 'Turn each page into a PNG or JPEG. More than one page comes back as a zip.',
+    icon: '▦',
+    colour: '#7a4a6b',
+    panels: ['panel-images'],
+    pageActions: ['view'],
+    primary: 'images',
+    primaryLabel: 'Save images',
+    hint: 'Pick a format, then save. One file per page.',
   },
 
   ocr: {
@@ -283,7 +314,7 @@ export const TOOLS = {
 // The order they appear on the landing page. Pro sits apart from the rest.
 export const SIMPLE_TOOL_IDS = [
   'merge', 'photo-watermark', 'photos', 'bookmarks', 'organise', 'rotate', 'extract', 'split',
-  'numbering', 'label', 'redact', 'password',
+  'numbering', 'label', 'redact', 'password', 'compress', 'to-images',
   // Not ready yet, so they go last.
   'sign', 'ocr',
 ]

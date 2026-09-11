@@ -1,60 +1,21 @@
 // ---------------------------------------------------------------------------
-// ui/files.js — the list of loaded PDFs: what came from where, and how to
-// select or remove each one.
+// ui/files.js — the strip of loaded PDFs above the pages: what came from
+// where, how to select or remove each one, and how to add more.
+//
+// This used to be told three times over: a count in the header, a strip here,
+// and a full list in the sidebar. One place, next to the pages it describes.
 // ---------------------------------------------------------------------------
 
 import * as model from '../model.js'
 
-const list = document.querySelector('#file-list')
-const panel = document.querySelector('#panel-files')
+const strip = document.querySelector('#file-strip')
+const chips = document.querySelector('#file-chips')
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
-
-function makeRow(source) {
-  const inDocument = model.pagesFromSource(source.id)
-
-  const row = document.createElement('li')
-  row.className = 'file-row'
-  row.dataset.sourceId = source.id
-
-  const swatch = document.createElement('span')
-  swatch.className = 'swatch'
-  swatch.style.background = source.color
-
-  const name = document.createElement('span')
-  name.className = 'file-name'
-  name.textContent = source.name
-  name.title = source.name
-
-  // Say how many of the file's pages are still in the document, and only
-  // mention the original count when the two differ.
-  const meta = document.createElement('span')
-  meta.className = 'file-meta'
-  meta.textContent =
-    inDocument === source.pageCount
-      ? `${inDocument} page${inDocument === 1 ? '' : 's'} · ${formatSize(source.bytes.byteLength)}`
-      : `${inDocument} of ${source.pageCount} pages in use · ${formatSize(source.bytes.byteLength)}`
-
-  const select = document.createElement('button')
-  select.type = 'button'
-  select.dataset.action = 'select'
-  select.textContent = 'Select its pages'
-  select.disabled = inDocument === 0
-
-  const remove = document.createElement('button')
-  remove.type = 'button'
-  remove.dataset.action = 'remove'
-  remove.textContent = 'Remove'
-
-  row.append(swatch, name, meta, select, remove)
-  return row
-}
-
-const strip = document.querySelector('#file-strip')
 
 function makeChip(source) {
   const inDocument = model.pagesFromSource(source.id)
@@ -72,9 +33,15 @@ function makeChip(source) {
   name.className = 'chip-name'
   name.textContent = source.name
 
+  // The page count is the useful number; the original count only matters when
+  // pages have been deleted, and the size only when it is large.
   const meta = document.createElement('span')
   meta.className = 'chip-meta'
-  meta.textContent = `${inDocument} page${inDocument === 1 ? '' : 's'}`
+  meta.textContent =
+    inDocument === source.pageCount
+      ? `${inDocument} page${inDocument === 1 ? '' : 's'}`
+      : `${inDocument} of ${source.pageCount} pages`
+  chip.title = `${source.name} — ${formatSize(source.bytes.byteLength)}. Click to select its pages.`
 
   const remove = document.createElement('button')
   remove.type = 'button'
@@ -90,32 +57,17 @@ function makeChip(source) {
 export function drawFileStrip() {
   const sources = [...model.getSources().values()]
   strip.hidden = sources.length === 0
-  strip.replaceChildren(...sources.map(makeChip))
-}
+  chips.replaceChildren(...sources.map(makeChip))
 
-export function drawFileList() {
-  const sources = [...model.getSources().values()]
-  panel.hidden = sources.length === 0
-  list.replaceChildren(...sources.map(makeRow))
+  // Only worth offering once there is more than one file to group.
+  document.querySelector('#group-by-file').hidden = sources.length < 2
 }
 
 export function setupFileList() {
-  // One listener on the list rather than two per row, since rows are rebuilt
-  // every time anything changes.
-  list.addEventListener('click', (event) => {
-    const button = event.target.closest('button')
-    if (!button) return
-
-    const sourceId = button.closest('.file-row').dataset.sourceId
-
-    if (button.dataset.action === 'select') model.selectSource(sourceId)
-    else if (button.dataset.action === 'remove') model.removeSource(sourceId)
-  })
-
   document.querySelector('#group-by-file').addEventListener('click', model.groupBySource)
 
   // One listener for the whole strip; chips are rebuilt on every change.
-  strip.addEventListener('click', (event) => {
+  chips.addEventListener('click', (event) => {
     const chip = event.target.closest('.file-chip')
     if (!chip) return
     const sourceId = chip.dataset.sourceId

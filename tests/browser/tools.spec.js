@@ -24,6 +24,44 @@ const tiles = (page) => page.locator('.tile')
 const THIRD_PARTY = [/cloudflareinsights/i]
 const ours = (messages) => messages.filter((m) => !THIRD_PARTY.some((r) => r.test(m)))
 
+// On a phone that can share files, saving opens the share sheet instead of
+// downloading (Save to Files lives in there). A test browser has no share sheet
+// to press, so where sharing exists it is swapped for one that just keeps the
+// file, where the test can read it back.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    if (typeof navigator.share !== 'function') return
+    navigator.share = async ({ files } = {}) => {
+      const file = files?.[0]
+      if (!file) return
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      window.__shared = { name: file.name, bytes: Array.from(bytes) }
+    }
+  })
+})
+
+// Press whatever saves, and return the file however it arrived: a download on
+// a computer, the share sheet on a phone. Tests care about the file, not the
+// route it took.
+async function savedFile(page, press) {
+  const sharing = await page.evaluate(() => document.body.classList.contains('share-first'))
+
+  if (!sharing) {
+    const download = page.waitForEvent('download', { timeout: 90_000 })
+    await press()
+    const file = await download
+    return { name: file.suggestedFilename(), bytes: await readFile(await file.path()) }
+  }
+
+  await page.evaluate(() => { window.__shared = null })
+  await press()
+  const handle = await page.waitForFunction(() => window.__shared, null, { timeout: 90_000 })
+  const { name, bytes } = await handle.jsonValue()
+  return { name, bytes: Buffer.from(bytes) }
+}
+
+const pressSave = (page) => () => page.locator('#primary-action').click()
+
 test.describe('loading', () => {
   test('opens a PDF and renders every page', async ({ page }) => {
     const errors = []
@@ -41,7 +79,7 @@ test.describe('loading', () => {
   test('merges several files', async ({ page }) => {
     await load(page, [FIVE_PAGES, THREE_PAGES])
     await expect(tiles(page)).toHaveCount(8)
-    await expect(page.locator('.file-row')).toHaveCount(2)
+    await expect(page.locator('.file-chip')).toHaveCount(2)
   })
 
   test('shows the drop area before anything is loaded', async ({ page }) => {
@@ -77,7 +115,7 @@ test.describe('photos to PDF', () => {
     await load(page)
     await page.locator('#photo-input').setInputFiles([PHOTO_PORTRAIT])
     await expect(page.locator('.tile')).toHaveCount(6, { timeout: 30_000 })
-    await expect(page.locator('.file-row')).toHaveCount(2)
+    await expect(page.locator('.file-chip')).toHaveCount(2)
   })
 
   test('saves a PDF made only of photos', async ({ page }) => {
@@ -85,9 +123,8 @@ test.describe('photos to PDF', () => {
     await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
     await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
 
-    const download = page.waitForEvent('download', { timeout: 60_000 })
-    await page.locator('#primary-action').click()
-    expect((await download).suggestedFilename()).toMatch(/\.pdf$/)
+    const file = await savedFile(page, pressSave(page))
+    expect(file.name).toMatch(/\.pdf$/)
   })
 })
 
@@ -190,9 +227,8 @@ test.describe('password-protected files', () => {
     await page.locator('#panel-saving .sub > summary').click()
     await page.locator('#flatten-enabled').check()
 
-    const download = page.waitForEvent('download', { timeout: 90_000 })
-    await page.locator('#primary-action').click()
-    expect((await download).suggestedFilename()).toMatch(/\.pdf$/)
+    const file = await savedFile(page, pressSave(page))
+    expect(file.name).toMatch(/\.pdf$/)
     await expect(page.locator('#error-banner')).toBeHidden()
   })
 
@@ -203,13 +239,41 @@ test.describe('password-protected files', () => {
     await expect(page.locator('#protect-field')).toBeVisible()
     await page.locator('#protect-password').fill('hunter2')
 
-    const download = page.waitForEvent('download', { timeout: 60_000 })
-    await page.locator('#primary-action').click()
-    expect((await download).suggestedFilename()).toMatch(/\.pdf$/)
+    const file = await savedFile(page, pressSave(page))
+    expect(file.name).toMatch(/\.pdf$/)
   })
 })
 
 test.describe('the file strip', () => {
+  test('is the one place files live, and where you add more', async ({ page }) => {
+    await load(page, [FIVE_PAGES])
+
+    // Named, counted, removable, all in one row above the pages.
+    const chip = page.locator('.file-chip').first()
+    await expect(chip).toContainText('five-pages.pdf')
+    await expect(chip).toContainText('5 pages')
+
+    // Adding sits with the files rather than up in the header.
+    await expect(page.locator('#file-strip .strip-button.add')).toHaveCount(2)
+    await expect(page.locator('.top-actions .file-button').first()).toBeHidden()
+
+    // Grouping only appears once there is more than one file to group.
+    await expect(page.locator('#group-by-file')).toBeHidden()
+    await page.locator('#file-input-strip').setInputFiles([THREE_PAGES])
+    await expect(page.locator('.file-chip')).toHaveCount(2)
+    await expect(page.locator('#group-by-file')).toBeVisible()
+
+    // And the count is told once, not twice.
+    await expect(page.locator('#status')).toHaveText('8 pages')
+  })
+
+  test('adding from the strip loads the file', async ({ page }) => {
+    await load(page, [FIVE_PAGES])
+    await expect(page.locator('.tile')).toHaveCount(5)
+    await page.locator('#file-input-strip').setInputFiles([THREE_PAGES])
+    await expect(page.locator('.tile')).toHaveCount(8)
+  })
+
   test('lists every loaded file above the pages, with a remove button', async ({ page }) => {
     await load(page, [FIVE_PAGES, THREE_PAGES])
     const chips = page.locator('.file-chip')
@@ -448,48 +512,161 @@ test.describe('the page viewer', () => {
   })
 })
 
+// --- the redaction view --------------------------------------------------------
+//
+// Redaction shows every page of the document in one scrolling column, with
+// search at the top. These helpers open it and draw a box near the top of a
+// page, scrolled so the box is on screen whatever the window size.
+
+async function openRedaction(page, files = [FIVE_PAGES]) {
+  await load(page, files)
+  await page.locator('#redact').click()
+  await expect(page.locator('#redact-dialog')).toBeVisible()
+  await expect(page.locator('.redact-stage img').first()).toBeVisible({ timeout: 30_000 })
+}
+
+async function dragBox(page, index = 0, top = 0.1) {
+  await page.locator('#redact-scroll').evaluate((scroller, i) => {
+    const stage = scroller.querySelectorAll('.redact-stage')[i]
+    scroller.scrollTop = stage.offsetTop - 10
+  }, index)
+
+  const img = page.locator('.redact-stage').nth(index).locator('img')
+  await expect(img).toBeVisible({ timeout: 30_000 })
+  const box = await img.boundingBox()
+
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * top)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * (top + 0.06), { steps: 10 })
+  await page.mouse.up()
+}
+
+async function findInRedaction(page, needle, { matchCase = false } = {}) {
+  await page.locator('#redact-search').fill(needle)
+  if (matchCase) await page.locator('#redact-match-case').check()
+  await page.locator('#redact-find').click()
+}
+
 test.describe('redaction', () => {
-  test('opens, accepts a dragged box, and fits the screen', async ({ page }) => {
-    await load(page)
-    await tiles(page).first().click()
-    await page.locator('#redact').click()
-    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
+  test('shows every page of the document in one scrolling view', async ({ page }) => {
+    await openRedaction(page)
+    await expect(page.locator('.redact-page')).toHaveCount(5)
+    await expect(page.locator('#redact-dialog')).toContainText('Page 5')
 
-    const stage = await page.locator('#redact-stage').boundingBox()
-    expect(stage.width).toBeLessThanOrEqual(page.viewportSize().width)
-    // The whole page must be on screen at once: a dialog that has to be
-    // scrolled cannot be boxed in a single drag.
-    expect(stage.y).toBeGreaterThanOrEqual(0)
-    expect(stage.y + stage.height).toBeLessThanOrEqual(page.viewportSize().height)
-
-    // Drag a box across the middle of the page.
-    await page.mouse.move(stage.x + stage.width * 0.2, stage.y + stage.height * 0.4)
-    await page.mouse.down()
-    await page.mouse.move(stage.x + stage.width * 0.7, stage.y + stage.height * 0.5, { steps: 10 })
-    await page.mouse.up()
-
-    await expect(page.locator('#redact-count')).toHaveText(/1 box/)
-    await page.locator('#redact-apply').click()
-    await expect(page.locator('.redact-mark').first()).toBeVisible()
+    const scrolls = await page.locator('#redact-scroll').evaluate((s) => s.scrollHeight > s.clientHeight)
+    expect(scrolls).toBe(true)
   })
 
-  test('gives the redact tool a prominent action and a one-page instruction', async ({ page }) => {
+  test('draws boxes on several pages, then applies them in one go', async ({ page }) => {
+    await openRedaction(page)
+
+    await dragBox(page, 0)
+    await expect(page.locator('#redact-count')).toContainText('1 box on 1 page')
+
+    await dragBox(page, 2)
+    await expect(page.locator('#redact-count')).toContainText('2 boxes on 2 pages')
+
+    await page.locator('#redact-apply').click()
+    await expect(page.locator('#redact-dialog')).toBeHidden()
+    await expect(page.locator('.redact-mark')).toHaveCount(2)
+  })
+
+  test('removes a single box with its ×', async ({ page }) => {
+    await openRedaction(page)
+    await dragBox(page, 0)
+    await expect(page.locator('.redact-box')).toHaveCount(1)
+
+    await page.locator('.redact-remove').first().click()
+    await expect(page.locator('.redact-box')).toHaveCount(0)
+    await expect(page.locator('#redact-count')).toContainText('No boxes yet')
+  })
+
+  test('Undo last box takes back only the latest box', async ({ page }) => {
+    await openRedaction(page)
+    await dragBox(page, 0, 0.1)
+    await dragBox(page, 0, 0.25)
+    await expect(page.locator('.redact-box')).toHaveCount(2)
+
+    await page.locator('#redact-undo').click()
+    await expect(page.locator('.redact-box')).toHaveCount(1)
+  })
+
+  test('Cancel leaves the document exactly as it was', async ({ page }) => {
+    await openRedaction(page)
+    await dragBox(page, 0)
+
+    await page.locator('#redact-cancel').click()
+    await expect(page.locator('#redact-dialog')).toBeHidden()
+    await expect(page.locator('.redact-mark')).toHaveCount(0)
+  })
+
+  test('Escape does not throw away boxes that are not applied yet', async ({ page }) => {
+    await openRedaction(page)
+    await dragBox(page, 0)
+
+    await page.keyboard.press('Escape')
+    await expect(page.locator('#redact-dialog')).toBeVisible()
+    await expect(page.locator('#redact-count')).toContainText('not applied yet')
+  })
+
+  test('keeps white boxes white', async ({ page }) => {
+    await openRedaction(page)
+    await page.locator('input[name="redact-colour"][value="white"]').check()
+    await dragBox(page, 0)
+    await expect(page.locator('.redact-box.white')).toHaveCount(1)
+
+    await page.locator('#redact-apply').click()
+    await expect(page.locator('.redact-mark.white')).toHaveCount(1)
+  })
+
+  test('zooming redraws the pages larger, so text stays sharp', async ({ page }) => {
+    await openRedaction(page)
+    await expect(page.locator('#redact-zoom-level')).toHaveText('Fit')
+    const fitWidth = await page.locator('.redact-stage img').first().evaluate((i) => i.naturalWidth)
+
+    await page.locator('#redact-zoom-in').click()
+    await expect(page.locator('#redact-zoom-level')).toHaveText('150%')
+    await expect
+      .poll(() => page.locator('.redact-stage img').first().evaluate((i) => i.naturalWidth), { timeout: 30_000 })
+      .toBeGreaterThan(fitWidth)
+
+    await page.locator('#redact-zoom-in').click()
+    await expect(page.locator('#redact-zoom-level')).toHaveText('200%')
+    const wider = await page.locator('#redact-scroll').evaluate((s) => s.scrollWidth > s.clientWidth)
+    expect(wider).toBe(true)
+  })
+
+  test('on a touch screen, a finger scrolls until drawing is switched on', async ({ page }) => {
+    await openRedaction(page)
+    const toggle = page.locator('#redact-draw')
+    const touch = await page.evaluate(() => window.matchMedia('(pointer: coarse)').matches)
+
+    // A mouse always draws, so the toggle only exists where fingers do.
+    if (!touch) {
+      await expect(toggle).toBeHidden()
+      return
+    }
+
+    await expect(toggle).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('#redact-scroll')).toHaveClass(/drawing/)
+  })
+
+  test('the Redact tool opens on the whole document without choosing a page', async ({ page }) => {
     await page.goto('/#redact')
     await page.locator('#file-input').setInputFiles([FIVE_PAGES])
     await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
 
-    await expect(page.locator('#tool-note')).toContainText('one page at a time')
+    await expect(page.locator('#tool-note')).toContainText('whole document')
     await expect(page.locator('#redact')).toHaveClass(/action-primary/)
-    // The button that opens the editor comes before the rest of the row.
-    await expect(page.locator('#redact')).toBeVisible()
+    await expect(page.locator('#redact')).toBeEnabled()
 
-    // Controls that select many pages would contradict the instruction.
+    // Selecting pages does nothing for redaction, so those controls are gone.
     for (const id of ['#select-all', '#select-odd', '#select-even', '#select-invert', '#range-select']) {
       await expect(page.locator(id)).toBeHidden()
     }
-
-    await page.locator('.tile').first().click()
-    await expect(page.locator('#redact')).toBeEnabled()
   })
 
   test('leaves the full editor row untouched', async ({ page }) => {
@@ -499,252 +676,181 @@ test.describe('redaction', () => {
     await expect(page.locator('#redact')).not.toHaveClass(/action-primary/)
     await expect(page.locator('#tool-note')).toBeHidden()
   })
-
-  test('zooms in, keeps the page sharp, and draws accurately while zoomed', async ({ page }) => {
-    await load(page)
-    await tiles(page).first().click()
-    await page.locator('#redact').click()
-    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
-    await expect(page.locator('#redact-zoom-level')).toHaveText('Fit')
-
-    const fitWidth = await page.locator('#redact-stage img').evaluate((i) => i.naturalWidth)
-
-    // One step at a time: each click starts a render, and the label only
-    // changes once that render has replaced the image.
-    await page.locator('#redact-zoom-in').click()
-    await expect(page.locator('#redact-zoom-level')).toHaveText('150%')
-    await page.locator('#redact-zoom-in').click()
-    await expect(page.locator('#redact-zoom-level')).toHaveText('200%')
-
-    // Re-rendered at twice the size rather than stretched, so text stays sharp.
-    await expect
-      .poll(() => page.locator('#redact-stage img').evaluate((i) => i.naturalWidth), { timeout: 30_000 })
-      .toBe(fitWidth * 2)
-
-    // The page is now bigger than its viewport, which is what makes it scroll.
-    const room = await page.locator('#redact-viewport').evaluate((v) => v.scrollWidth - v.clientWidth)
-    expect(room).toBeGreaterThan(0)
-
-    // A box drawn while zoomed is stored in page coordinates, not screen ones.
-    await page.locator('#redact-viewport').evaluate((v) => { v.scrollLeft = 0; v.scrollTop = 0 })
-    const vp = await page.locator('#redact-viewport').boundingBox()
-    await page.mouse.move(vp.x + 30, vp.y + 30)
-    await page.mouse.down()
-    await page.mouse.move(vp.x + 330, vp.y + 62, { steps: 12 })
-    await page.mouse.up()
-    await expect(page.locator('#redact-count')).toHaveText(/1 box/)
-
-    const width = await page.locator('.redact-box').evaluate((b) => parseFloat(b.style.width))
-    expect(width).toBeGreaterThan(15)
-    expect(width).toBeLessThan(30)
-
-    // Going back to Fit keeps the box.
-    await page.locator('#redact-zoom-fit').click()
-    await expect(page.locator('#redact-zoom-level')).toHaveText('Fit')
-    await expect(page.locator('.redact-box')).toHaveCount(1)
-  })
-
-  test('Move mode pans instead of drawing, on any device', async ({ page }) => {
-    await load(page)
-    await tiles(page).first().click()
-    await page.locator('#redact').click()
-    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
-
-    // The toggle only exists once there is something to move.
-    await expect(page.locator('#redact-pan')).toBeHidden()
-    await page.locator('#redact-zoom-in').click()
-    await expect(page.locator('#redact-zoom-level')).toHaveText('150%')
-    await page.locator('#redact-zoom-in').click()
-    await expect(page.locator('#redact-zoom-level')).toHaveText('200%')
-    await expect(page.locator('#redact-pan')).toBeVisible()
-
-    await page.locator('#redact-viewport').evaluate((v) => { v.scrollLeft = 0 })
-    await page.locator('#redact-pan').click()
-
-    // Proportional, because a phone's viewport is a few hundred pixels wide.
-    const vp = await page.locator('#redact-viewport').boundingBox()
-    const y = vp.y + vp.height * 0.4
-    await page.mouse.move(vp.x + vp.width * 0.8, y)
-    await page.mouse.down()
-    await page.mouse.move(vp.x + vp.width * 0.2, y, { steps: 8 })
-    await page.mouse.up()
-
-    await expect
-      .poll(() => page.locator('#redact-viewport').evaluate((v) => v.scrollLeft))
-      .toBeGreaterThan(0)
-    await expect(page.locator('.redact-box')).toHaveCount(0)
-
-    // Returning to Fit takes the toggle away and puts drawing back.
-    await page.locator('#redact-zoom-fit').click()
-    await expect(page.locator('#redact-pan')).toBeHidden()
-  })
-
-  test('the right mouse button pans instead of drawing', async ({ page }, testInfo) => {
-    // A phone has no right button; Move mode is its way in, covered above.
-    test.skip(testInfo.project.name === 'iphone', 'no right mouse button on a phone')
-    await load(page)
-    await tiles(page).first().click()
-    await page.locator('#redact').click()
-    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
-
-    await page.locator('#redact-zoom-in').click()
-    await expect(page.locator('#redact-zoom-level')).toHaveText('150%')
-    await page.locator('#redact-zoom-in').click()
-    await expect(page.locator('#redact-zoom-level')).toHaveText('200%')
-    await page.locator('#redact-viewport').evaluate((v) => { v.scrollLeft = 0 })
-
-    const vp = await page.locator('#redact-viewport').boundingBox()
-    const y = vp.y + vp.height * 0.4
-    await page.mouse.move(vp.x + vp.width * 0.8, y)
-    await page.mouse.down({ button: 'right' })
-    await page.mouse.move(vp.x + vp.width * 0.2, y, { steps: 8 })
-    await page.mouse.up({ button: 'right' })
-
-    await expect
-      .poll(() => page.locator('#redact-viewport').evaluate((v) => v.scrollLeft))
-      .toBeGreaterThan(0)
-    await expect(page.locator('.redact-box')).toHaveCount(0)
-  })
-
-  test('draws a white box when white is chosen', async ({ page }) => {
-    await load(page)
-    await tiles(page).first().click()
-    await page.locator('#redact').click()
-    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
-
-    await page.locator('input[name="redact-colour"][value="white"]').check()
-
-    const stage = await page.locator('#redact-stage img').boundingBox()
-    await page.mouse.move(stage.x + stage.width * 0.2, stage.y + stage.height * 0.4)
-    await page.mouse.down()
-    await page.mouse.move(stage.x + stage.width * 0.7, stage.y + stage.height * 0.5, { steps: 10 })
-    await page.mouse.up()
-
-    await expect(page.locator('.redact-box.white')).toHaveCount(1)
-    await page.locator('#redact-apply').click()
-    await expect(page.locator('.redact-mark.white').first()).toBeVisible()
-  })
-
-  test('black stays the default and can be mixed with white on one page', async ({ page }) => {
-    await load(page)
-    await tiles(page).first().click()
-    await page.locator('#redact').click()
-    await expect(page.locator('#redact-stage img')).toBeVisible({ timeout: 30_000 })
-
-    const stage = await page.locator('#redact-stage img').boundingBox()
-    const drag = async (y0, y1) => {
-      await page.mouse.move(stage.x + stage.width * 0.2, stage.y + stage.height * y0)
-      await page.mouse.down()
-      await page.mouse.move(stage.x + stage.width * 0.7, stage.y + stage.height * y1, { steps: 10 })
-      await page.mouse.up()
-    }
-
-    await drag(0.2, 0.28)                                                   // black by default
-    await page.locator('input[name="redact-colour"][value="white"]').check()
-    await drag(0.5, 0.58)                                                   // white
-
-    await expect(page.locator('.redact-box')).toHaveCount(2)
-    await expect(page.locator('.redact-box.white')).toHaveCount(1)
-  })
 })
 
 test.describe('finding text to redact', () => {
-  const search = async (page, needle) => {
-    await page.goto('/#redact')
-    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
-    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
-    await page.locator('#search-text').fill(needle)
-    await page.locator('#search-run').click()
-  }
+  test('outlines a phrase on every page it appears on', async ({ page }) => {
+    await openRedaction(page)
+    await findInRedaction(page, 'Exhibit')
 
-  test('finds a phrase on every page it appears on', async ({ page }) => {
-    await search(page, 'Exhibit')
-
-    await expect(page.locator('.search-hit')).toHaveCount(2)
-    await expect(page.locator('#search-status')).toContainText('2 results on 2 pages')
-
-    // Each result says which page it is on and shows the words around it.
-    await expect(page.locator('.search-hit').first()).toContainText('Page 2')
-    await expect(page.locator('.search-hit').first().locator('mark')).toHaveText('Exhibit')
+    await expect(page.locator('.redact-match')).toHaveCount(2)
+    await expect(page.locator('#redact-search-status')).toContainText('2 matches on 2 pages')
+    await expect(page.locator('#redact-apply-matches')).toHaveText(/Redact 2 matches/)
   })
 
-  test('says plainly how many pages will become images', async ({ page }) => {
-    await search(page, 'Exhibit')
-    await expect(page.locator('#search-warning')).toContainText('2 pages to an image')
-    await expect(page.locator('#search-apply')).toHaveText(/Redact 2 results/)
+  test('a match can be left out before redacting', async ({ page }) => {
+    await openRedaction(page)
+    await findInRedaction(page, 'Exhibit')
+    await expect(page.locator('.redact-match')).toHaveCount(2)
+
+    await page.locator('.redact-match').first().click()
+    await expect(page.locator('.redact-match.excluded')).toHaveCount(1)
+    await expect(page.locator('#redact-apply-matches')).toHaveText(/Redact 1 match/)
+
+    await page.locator('#redact-apply-matches').click()
+    await expect(page.locator('#redact-count')).toContainText('1 box on 1 page')
   })
 
-  test('redacts only the results left ticked', async ({ page }) => {
-    await search(page, 'Exhibit')
-    await expect(page.locator('.search-hit')).toHaveCount(2)
+  test('says so when nothing matches', async ({ page }) => {
+    await openRedaction(page)
+    await findInRedaction(page, 'Rumpelstiltskin')
 
-    // Untick the second: one box should be added, not two.
-    await page.locator('.search-hit input').nth(1).uncheck()
-    await expect(page.locator('#search-apply')).toHaveText(/Redact 1 result/)
-    await page.locator('#search-apply').click()
-
-    await expect(page.locator('.redact-mark')).toHaveCount(1)
+    await expect(page.locator('#redact-search-status')).toContainText('No match')
+    await expect(page.locator('.redact-match')).toHaveCount(0)
+    await expect(page.locator('#redact-search-results')).toBeHidden()
   })
 
-  test('one Undo takes the whole search back', async ({ page }) => {
-    await search(page, 'Exhibit')
-    await page.locator('#search-apply').click()
+  test('respects Match case', async ({ page }) => {
+    await openRedaction(page)
+    await findInRedaction(page, 'exhibit')
+    await expect(page.locator('.redact-match')).toHaveCount(2)
+
+    await findInRedaction(page, 'exhibit', { matchCase: true })
+    await expect(page.locator('#redact-search-status')).toContainText('No match')
+  })
+
+  test('one Undo takes back everything applied from the view', async ({ page }) => {
+    await openRedaction(page)
+    await findInRedaction(page, 'Exhibit')
+    await page.locator('#redact-apply-matches').click()
+    await page.locator('#redact-apply').click()
     await expect(page.locator('.redact-mark')).toHaveCount(2)
 
     await page.locator('#undo').click()
     await expect(page.locator('.redact-mark')).toHaveCount(0)
   })
 
-  test('reports honestly when there is no match', async ({ page }) => {
-    await search(page, 'Rumpelstiltskin')
-    await expect(page.locator('#search-status')).toContainText('No match')
-    await expect(page.locator('.search-hit')).toHaveCount(0)
-  })
-
-  test('respects Match case', async ({ page }) => {
-    await page.goto('/#redact')
-    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
-    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
-
-    await page.locator('#search-text').fill('exhibit')
-    await page.locator('#search-run').click()
-    await expect(page.locator('.search-hit')).toHaveCount(2)
-
-    await page.locator('#search-match-case').check()
-    await page.locator('#search-run').click()
-    await expect(page.locator('#search-status')).toContainText('No match')
-  })
-
-  test('drops results when the document changes underneath them', async ({ page }) => {
-    await search(page, 'Exhibit')
-    await expect(page.locator('.search-hit')).toHaveCount(2)
-
-    await page.locator('.file-chip .chip-remove, .file-chip button').first().click()
-    await expect(page.locator('.search-hit')).toHaveCount(0)
-  })
-
   // The one that matters: the words must be gone from the SAVED file, not just
   // covered on screen.
   test('destroys the found text in the saved PDF', async ({ page }) => {
-    await search(page, 'Exhibit')
-    await page.locator('#search-apply').click()
+    await openRedaction(page)
+    await findInRedaction(page, 'Exhibit')
+    await page.locator('#redact-apply-matches').click()
+    await page.locator('#redact-apply').click()
     await expect(page.locator('.redact-mark')).toHaveCount(2)
+
+    const file = await savedFile(page, pressSave(page))
+    const pages = await textOfEachPage(file.bytes)
+    expect(pages).toHaveLength(5)
+    expect(pages[1]).not.toContain('Exhibit')
+    expect(pages[2]).not.toContain('Exhibit')
+    expect(pages[0]).toContain('Page One')
+    expect(pages[4]).toContain('Page Five')
+  })
+})
+
+test.describe('deleting pages', () => {
+  async function openReorder(page) {
+    await page.goto('/#organise')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile')).toHaveCount(5, { timeout: 30_000 })
+  }
+
+  test('every page in Reorder has its own delete button', async ({ page }) => {
+    await openReorder(page)
+    await expect(page.locator('.tile-delete')).toHaveCount(5)
+
+    await page.locator('.tile').nth(1).locator('.tile-delete').click()
+    await expect(page.locator('.tile')).toHaveCount(4)
+
+    // Deleting one page leaves the selection alone.
+    await expect(page.locator('.tile.selected')).toHaveCount(0)
+  })
+
+  test('the toolbar Delete says how many pages it will remove', async ({ page }) => {
+    await openReorder(page)
+    await expect(page.locator('#delete')).toBeDisabled()
+
+    await page.locator('.tile').nth(0).click()
+    await expect(page.locator('#delete')).toHaveText('Delete page')
+
+    await page.locator('.tile').nth(2).click()
+    await expect(page.locator('#delete')).toHaveText('Delete 2 pages')
+
+    await page.locator('#delete').click()
+    await expect(page.locator('.tile')).toHaveCount(3)
+  })
+
+  test('one Undo brings a deleted page back', async ({ page }) => {
+    await openReorder(page)
+    await page.locator('.tile').nth(0).locator('.tile-delete').click()
+    await expect(page.locator('.tile')).toHaveCount(4)
+
+    await page.locator('#undo').click()
+    await expect(page.locator('.tile')).toHaveCount(5)
+  })
+
+  test('tools that do not delete pages show no delete button on them', async ({ page }) => {
+    await page.goto('/#numbering')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.tile-delete').first()).toBeHidden()
+  })
+})
+
+test.describe('making a file smaller', () => {
+  test('never hands back a file bigger than the one you started with', async ({ page }) => {
+    // A short text document is already smaller than any picture of itself, so
+    // flattening it would BLOAT it. The tool must notice and refuse.
+    await page.goto('/#compress')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+
+    const file = await savedFile(page, pressSave(page))
+    expect(file.name).toMatch(/\.pdf$/)
+
+    const original = await readFile(FIVE_PAGES).then((bytes) => bytes.length)
+    expect(file.bytes.length).toBeLessThanOrEqual(original)
+
+    // And it says why, rather than pretending it did something.
+    await expect(page.locator('#compress-result')).toContainText('Not worth it')
+  })
+
+  test('offers three settings and keeps the document readable', async ({ page }) => {
+    await page.goto('/#compress')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#compress-level option')).toHaveCount(3)
+
+    await page.locator('#compress-level').selectOption('smallest')
+    const file = await savedFile(page, pressSave(page))
+    const pages = await textOfEachPage(file.bytes)
+    expect(pages).toHaveLength(5)
+  })
+})
+
+test.describe('PDF to images', () => {
+  test('saves one file per page as a zip', async ({ page }) => {
+    await page.goto('/#to-images')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
 
     const download = page.waitForEvent('download', { timeout: 90_000 })
     await page.locator('#primary-action').click()
     const file = await download
-    const bytes = await readFile(await file.path())
+    expect(file.suggestedFilename()).toMatch(/\.zip$/)
+    await expect(page.locator('#images-result')).toContainText('5 images')
+  })
 
-    const pages = await textOfEachPage(bytes)
-    expect(pages).toHaveLength(5)
+  test('offers PNG and JPEG', async ({ page }) => {
+    await page.goto('/#to-images')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
 
-    // Pages 2 and 3 held "Exhibit"; they are images now, so they hold no text.
-    expect(pages[1]).not.toContain('Exhibit')
-    expect(pages[2]).not.toContain('Exhibit')
-
-    // Pages that were not touched keep their text and stay searchable.
-    expect(pages[0]).toContain('Page One')
-    expect(pages[4]).toContain('Page Five')
+    await page.locator('#images-format').selectOption('jpeg')
+    const download = page.waitForEvent('download', { timeout: 90_000 })
+    await page.locator('#primary-action').click()
+    expect((await download).suggestedFilename()).toMatch(/\.zip$/)
   })
 })
 
@@ -752,19 +858,22 @@ test.describe('saving', () => {
   test.beforeEach(async ({ page }) => load(page))
 
   test('saves a PDF', async ({ page }) => {
-    const download = page.waitForEvent('download', { timeout: 60_000 })
-    await page.locator('#primary-action').click()
-    const file = await download
-    expect(file.suggestedFilename()).toMatch(/\.pdf$/)
+    const file = await savedFile(page, pressSave(page))
+    expect(file.name).toMatch(/\.pdf$/)
   })
 
   test('saves only the selected pages', async ({ page }) => {
-    await page.locator('#range-input').fill('2-3')
-    await page.locator('#range-select').click()
-    const download = page.waitForEvent('download', { timeout: 60_000 })
-    await page.locator('#extract').click()
-    const file = await download
-    expect(file.suggestedFilename()).toContain('extract')
+    // Under the load of the whole suite, typing into the box while thumbnails
+    // are still arriving occasionally did not land. Confirm the selection
+    // actually took before relying on it, typing again if it did not.
+    await expect(async () => {
+      await page.locator('#range-input').fill('2-3')
+      await page.locator('#range-select').click()
+      await expect(page.locator('#selection-summary')).toHaveText('2 pages selected', { timeout: 2_000 })
+    }).toPass({ timeout: 20_000 })
+
+    const file = await savedFile(page, () => page.locator('#extract').click())
+    expect(file.name).toContain('extract')
   })
 })
 

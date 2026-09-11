@@ -429,92 +429,7 @@ input[type="range"] { width: 100%; }
   transform-origin: center;
 }
 
-#redact-dialog {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1.25rem;
-  max-width: min(860px, 92vw);
-  max-height: 92vh;
-  overflow: auto;
-}
 
-#redact-dialog::backdrop { background: rgb(0 0 0 / 0.5); }
-#redact-dialog h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
-#redact-dialog .hint { max-width: 62ch; }
-#redact-dialog .caption { margin: 0.75rem 0 0.5rem; font-size: 0.82rem; font-weight: 600; }
-
-#redact-viewport {
-  max-height: min(62vh, 720px);
-  overflow: auto;
-  margin: 0 auto;
-  /* A zoomed page is dragged with the right button; without this the browser
-     tries to select and drag the image itself. */
-  overscroll-behavior: contain;
-}
-
-#redact-viewport.zoomed { border: 1px solid var(--border); background: #e4e4e7; }
-#redact-viewport.zoomed #redact-stage { margin: 0 auto; }
-
-#redact-zoom-row { align-items: center; gap: 0.5rem; margin: 0.5rem 0 0.6rem; flex-wrap: wrap; }
-#redact-zoom-row .field-label { font-size: 0.85rem; font-weight: 600; }
-#redact-zoom-row button { padding: 0.3rem 0.6rem; font-size: 0.85rem; min-width: 2rem; }
-#redact-zoom-level { font-size: 0.85rem; font-weight: 600; min-width: 3.2rem; text-align: center; }
-#redact-zoom-hint { flex: 1 1 14rem; }
-/* --- the find-and-redact result list ------------------------------------- */
-
-#search-results { list-style: none; margin: 0.5rem 0; padding: 0; max-height: 16rem; overflow-y: auto; }
-
-.search-hit { border-bottom: 1px solid var(--border); }
-.search-hit:last-child { border-bottom: 0; }
-.search-hit label { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.45rem 0.1rem; cursor: pointer; }
-.search-hit input { width: auto; margin-top: 0.15rem; flex: none; }
-.search-hit-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
-.search-hit-where { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.search-hit-context { font-size: 0.8rem; line-height: 1.35; word-break: break-word; }
-.search-hit-context mark { background: #fde68a; font-weight: 700; padding: 0 0.1rem; }
-
-#search-warning:not(:empty) {
-  background: #fef3c7;
-  border-left: 3px solid #d97706;
-  padding: 0.5rem 0.6rem;
-  border-radius: 0 4px 4px 0;
-}
-
-#redact-pan.active { background: var(--ink); border-color: var(--ink); color: #fff; }
-#redact-stage.panning { cursor: grab; }
-#redact-stage.panning:active { cursor: grabbing; }
-
-#redact-stage {
-  position: relative;
-  margin: 0 auto;
-  background: #f4f4f5;
-  border: 1px solid var(--border);
-  cursor: crosshair;
-  /* Without this the browser tries to drag the image instead of letting us
-     draw on it. */
-  touch-action: none;
-  user-select: none;
-}
-
-#redact-stage img { display: block; width: 100%; height: 100%; }
-
-#redact-stage.loading::after {
-  content: 'Rendering page...';
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.redact-box { position: absolute; background: rgb(0 0 0 / 0.85); outline: 1px solid #ef4444; pointer-events: none; }
-.redact-box.white { background: #fff; outline: 1px dashed #ef4444; }
-
-#redact-colour-row { align-items: center; gap: 0.9rem; margin-top: 0.75rem; }
-#redact-colour-row .field-label { font-size: 0.85rem; font-weight: 600; }
-#redact-colour-row .radio { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
-#redact-colour-hint { margin: 0.4rem 0 0; }
 
 [hidden] { display: none !important; }
 
@@ -571,10 +486,18 @@ input[type="range"] { width: 100%; }
     font-weight: 600;
   }
 
-  #primary-action:not(:disabled) {
+  /* Only where a separate Share button is showing does Save step back. On a
+     phone that shares, the main button IS the share, so it takes the colour. */
+  body:not(.share-first) #primary-action:not(:disabled) {
     background: var(--paper);
     border-color: var(--border);
     color: var(--ink);
+  }
+  body.share-first #primary-action:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 650;
   }
 }
 
@@ -1165,7 +1088,6 @@ html, body { max-width: 100%; }
 
 /* The page view inside a dialog is sized with a max-width and an aspect ratio
    (see ui/stage.js), so it shrinks to fit rather than running off the side. */
-#redact-stage img:not(.redact-box),
 #sign-stage > img:not(.sign-mark),
 #viewer-frame img {
   width: 100%;
@@ -1702,6 +1624,7 @@ html, body { max-width: 100%; }
   #app-landing .tcard:hover .art-shackle { transform: translateY(3px); }
   #app-landing .tcard:hover .art-card { transform: translate(-3px, 2px) rotate(-3deg); }
   #app-landing .tcard:hover .art-scan { transform: scale(1.06); transform-origin: 32px 32px; }
+  #app-landing .tcard:hover .art-squeeze { transform: scaleY(0.9); transform-origin: 32px 31px; }
 }
 
 /* --- bands --------------------------------------------------------------- */
@@ -1864,11 +1787,25 @@ html, body { max-width: 100%; }
     align-content: center;
     background: none;
     border: 0;
-    padding: 0.45rem;
-    margin-left: 0.4rem;
+    padding: 0.55rem;
     cursor: pointer;
     border-radius: 6px;
+    /* Pinned to the top-right corner of the header. Inside the brand row it
+       sat straight after the logo, which is not where anyone looks for it. */
+    position: absolute;
+    top: 0.55rem;
+    right: 0.6rem;
+    z-index: 45;
   }
+  .nav-toggle span { width: 22px; }
+
+  /* Keep the logo row clear of the button now it floats over the corner. */
+  .topbar .brand { padding-right: 3rem; }
+
+  /* On a phone the header scrolls away rather than sticking, so it needs to be
+     positioned itself: both the corner button and the dropdown menu are placed
+     against it. Without this the menu opened off the bottom of the screen. */
+  .topbar { position: relative; }
   .nav-toggle span { display: block; width: 18px; height: 2px; background: var(--ink); border-radius: 2px; }
   .nav-toggle:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
@@ -1894,7 +1831,6 @@ html, body { max-width: 100%; }
     text-align: left;
     border-bottom: 1px solid var(--border);
   }
-  .topbar { position: relative; }
 }
 
 /* A long tool name must wrap inside its card rather than run past the edge. */
@@ -2077,3 +2013,265 @@ html, body { max-width: 100%; }
 #app-landing .tcard *,
 #app-landing .croom-card,
 #app-landing .croom-card * { white-space: normal; }
+
+
+/* --- the files strip: one place for what is loaded ----------------------- */
+
+#file-strip:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  /* Matches the padding on the selection bar and the page grid below, so the
+     three line up down the left edge. */
+  padding: 0.55rem 1rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.7rem;
+}
+
+#file-strip .strip-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+#file-chips { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; }
+
+/* Adding sits at the end of the list it adds to, rather than up in the header
+   where it kept shouting long after it was needed. */
+.strip-actions { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; margin-left: auto; }
+
+.strip-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.strip-button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); }
+.strip-button:focus-within,
+.strip-button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.strip-button.add span { font-weight: 700; }
+
+/* The header keeps Add only while there is nothing to add to. */
+.top-actions.has-files .file-button { display: none; }
+
+@media (max-width: 700px) {
+  .strip-actions { margin-left: 0; width: 100%; }
+  #file-strip .strip-label { width: 100%; }
+}
+
+
+/* On a phone the sidebar stacked above the pages, so you had to scroll past
+   every setting to reach your own document. The document comes first; the
+   settings for it follow. */
+@media (max-width: 860px) {
+  #app-workspace { display: flex; flex-direction: column; }
+  #app-workspace .canvas { order: 1; }
+  #app-workspace .sidebar { order: 2; }
+}
+
+
+/* --- the redaction view: the whole document, scrolling ---------------------- */
+
+#redact-dialog {
+  width: min(1100px, 96vw);
+  max-width: 96vw;
+  height: 94vh;
+  max-height: 94vh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+#redact-dialog[open] { display: flex; flex-direction: column; }
+#redact-dialog::backdrop { background: rgb(0 0 0 / 0.55); }
+
+.redact-top {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.9rem 1.1rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+}
+.redact-head { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; }
+.redact-head h2 { margin: 0; font-size: 1.1rem; }
+.redact-head .hint { margin: 0; font-size: 0.82rem; }
+
+.redact-search { display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap; }
+#redact-search { flex: 1 1 16rem; min-width: 0; font: inherit; padding: 0.5rem 0.7rem; }
+.redact-search .checkbox { font-size: 0.82rem; }
+#redact-search-status { margin: 0; font-size: 0.82rem; color: var(--muted); }
+#redact-search-status:empty { display: none; }
+.redact-search-results:not([hidden]) { display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap; }
+#redact-prev, #redact-next { min-width: 2.2rem; }
+
+.redact-tools { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.redact-colour { display: inline-flex; gap: 0.7rem; align-items: center; font-size: 0.85rem; }
+.redact-colour .radio { display: inline-flex; align-items: center; gap: 0.3rem; }
+.redact-colour .field-label,
+.redact-zoom .field-label { font-weight: 600; font-size: 0.85rem; }
+.redact-zoom { display: inline-flex; align-items: center; gap: 0.3rem; }
+.redact-zoom button { min-width: 2.1rem; padding: 0.3rem 0.5rem; }
+#redact-zoom-level { min-width: 3rem; text-align: center; font-size: 0.85rem; font-weight: 600; }
+#redact-draw[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+.redact-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1.1rem;
+  background: #e7e5e4;
+  overscroll-behavior: contain;
+}
+.redact-page { width: fit-content; margin: 0 auto 1.4rem; }
+.redact-page-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #57534e;
+}
+
+/* A finger scrolls the document unless drawing is switched on; a mouse always
+   draws, because the wheel is there to scroll. */
+.redact-stage {
+  position: relative;
+  max-width: none;
+  background: #fff;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);
+  touch-action: pan-x pan-y;
+  user-select: none;
+}
+.redact-scroll.drawing .redact-stage { cursor: crosshair; touch-action: none; }
+.redact-stage > img { display: block; width: 100%; height: 100%; pointer-events: none; user-select: none; }
+.redact-stage.loading::after {
+  content: 'Rendering page…';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  color: #a8a29e;
+}
+
+.redact-box { position: absolute; background: rgb(0 0 0 / 0.85); outline: 1px solid #ef4444; pointer-events: none; }
+.redact-box.white { background: #fff; outline: 1px dashed #ef4444; }
+
+.redact-remove {
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #dc2626;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.redact-stage:hover .redact-remove,
+.redact-remove:focus-visible { opacity: 1; }
+
+/* Search matches: proposed, not yet boxes. Yellow until left out. */
+.redact-match {
+  position: absolute;
+  border-radius: 2px;
+  background: rgb(250 204 21 / 0.35);
+  outline: 2px solid #ca8a04;
+  cursor: pointer;
+}
+.redact-match.excluded { background: transparent; outline: 2px dashed #a8a29e; }
+@media (prefers-reduced-motion: no-preference) {
+  .redact-match.flash { animation: redact-flash 0.9s ease-out; }
+}
+@keyframes redact-flash {
+  0%, 40% { box-shadow: 0 0 0 6px rgb(250 204 21 / 0.7); }
+  100% { box-shadow: 0 0 0 0 rgb(250 204 21 / 0); }
+}
+
+.redact-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 1.1rem;
+  border-top: 1px solid var(--border);
+  background: #fff;
+}
+.redact-bottom #redact-count { flex: 1 1 18rem; margin: 0; font-size: 0.84rem; }
+.redact-bottom .row.actions { margin: 0; }
+
+@media (pointer: coarse) {
+  .redact-remove { opacity: 1; width: 30px; height: 30px; top: -15px; right: -15px; font-size: 16px; }
+}
+
+@media (max-width: 640px) {
+  #redact-dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; padding: 0; border-radius: 0; }
+  .redact-top { padding: 0.7rem 0.75rem 0.55rem; gap: 0.45rem; }
+  .redact-head .hint { display: none; }
+  .redact-tools { gap: 0.6rem; }
+  .redact-scroll { padding: 0.6rem; }
+  .redact-bottom { padding: 0.55rem 0.75rem calc(0.55rem + env(safe-area-inset-bottom, 0px)); }
+  #redact-dialog .redact-bottom .row.actions { display: grid; grid-template-columns: 1fr 2fr; gap: 0.45rem; width: 100%; }
+  #redact-apply { grid-column: auto; }
+}
+
+/* --- deleting a page, on the page itself ---------------------------------- */
+
+.tile-delete { display: none; }
+
+body.pages-deletable .tile-delete {
+  position: absolute;
+  /* Bottom corner: the top of a page is where bookmark flags sit. */
+  bottom: 4px;
+  right: 4px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+body.pages-deletable .tile:hover .tile-delete,
+body.pages-deletable .tile.selected .tile-delete,
+body.pages-deletable .tile-delete:focus-visible { opacity: 1; }
+body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+
+/* No hover on a phone, so the button is always there, and big enough to hit. */
+@media (pointer: coarse) {
+  body.pages-deletable .tile-delete { opacity: 1; width: 34px; height: 34px; bottom: 2px; right: 2px; font-size: 18px; }
+}
+
+/* The toolbar Delete looks like what it does, once there is something to delete. */
+#delete:not(:disabled) { color: #b91c1c; border-color: #fca5a5; }
+#delete:not(:disabled):hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }

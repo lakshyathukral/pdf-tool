@@ -370,7 +370,7 @@ export function deleteSelected() {
 // Redaction boxes are stored against the page AS DISPLAYED, so rotating the
 // page has to rotate them too — otherwise a box silently slides off the thing
 // it was covering, which for redaction is the worst possible failure.
-function rotateRect(r, clockwise) {
+export function rotateRect(r, clockwise) {
   return clockwise
     ? { x: 1 - r.y - r.h, y: r.x, w: r.h, h: r.w }
     : { x: r.y, y: 1 - r.x - r.w, w: r.h, h: r.w }
@@ -583,6 +583,37 @@ export function setRedactions(pageId, rects) {
   beginChange()
   const page = pages.find((p) => p.id === pageId)
   if (page) page.redactions = rects.map((r) => ({ ...r }))
+  notify()
+}
+
+// The redaction view edits every page at once and hands back the full set.
+// One call, one undoable step, and no step at all if nothing actually changed,
+// so opening the view and pressing Apply does not leave an empty Undo behind.
+export function replaceRedactions(entries) {
+  const changed = entries.filter(({ pageId, rects }) => {
+    const page = pages.find((p) => p.id === pageId)
+    return page && JSON.stringify(page.redactions) !== JSON.stringify(rects)
+  })
+  if (changed.length === 0) return 0
+
+  beginChange()
+  for (const { pageId, rects } of changed) {
+    const page = pages.find((p) => p.id === pageId)
+    page.redactions = rects.map((r) => ({ ...r }))
+  }
+  notify()
+  return changed.length
+}
+
+// Delete particular pages, whether or not they are selected. The × on a page
+// uses this, so deleting one page never disturbs what else is selected.
+export function deletePages(ids) {
+  const doomed = new Set(ids)
+  if (!pages.some((p) => doomed.has(p.id))) return
+
+  beginChange()
+  pages = pages.filter((p) => !doomed.has(p.id))
+  for (const id of doomed) selection.delete(id)
   notify()
 }
 
