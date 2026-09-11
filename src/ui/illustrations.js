@@ -221,6 +221,38 @@ const ART = {
             stroke-linecap="round" stroke-linejoin="round"/>
     </g>`),
 
+  // --- the steps of the process, drawn in the same paper language ----------
+
+  // Choosing: a small shelf of tool tiles, one of them picked.
+  'step-choose': () => svg(`
+    <rect x="6" y="10" width="22" height="20" rx="4" fill="var(--art-paper)" stroke="currentColor" stroke-width="2.4"/>
+    <rect x="36" y="10" width="22" height="20" rx="4" fill="var(--art-accent)" stroke="currentColor" stroke-width="2.4"/>
+    <rect x="6" y="36" width="22" height="20" rx="4" fill="var(--art-paper)" stroke="currentColor" stroke-width="2.4"/>
+    <rect x="36" y="36" width="22" height="20" rx="4" fill="var(--art-paper)" stroke="currentColor" stroke-width="2.4"/>
+    <path class="art-mark" d="M41.5 20l4 4 7-8" fill="none" stroke="var(--art-paper)" stroke-width="2.8"
+          stroke-linecap="round" stroke-linejoin="round"/>`),
+
+  // Adding: a page with a plus landing on it.
+  'step-add': () => svg(`
+    ${sheet(17, 20, { w: 30, h: 38 })}
+    ${lines(23, 36, [16, 12])}
+    <g class="art-mark">
+      <circle cx="32" cy="14" r="10" fill="var(--art-accent)"/>
+      <path d="M32 9v10M27 14h10" stroke="var(--art-paper)" stroke-width="2.6" stroke-linecap="round"/>
+    </g>`),
+
+  // Downloading: the finished page dropping into a tray.
+  'step-download': () => svg(`
+    ${sheet(19, 4, { w: 26, h: 34, fold: 8 })}
+    ${lines(25, 18, [14, 10])}
+    <path d="M10 44v10a3 3 0 0 0 3 3h38a3 3 0 0 0 3-3V44" fill="none" stroke="currentColor"
+          stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <g class="art-mark">
+      <circle cx="32" cy="46" r="9" fill="var(--art-accent)"/>
+      <path d="M32 41v9M28 46.5l4 4 4-4" fill="none" stroke="var(--art-paper)" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </g>`),
+
   // Not a tool: the note about scanned pages.
   ocr: () => svg(`
     ${sheet(10, 10, { w: 34, h: 44 })}

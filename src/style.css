@@ -1659,20 +1659,140 @@ html, body { max-width: 100%; }
 #app-landing .bundle-art svg { width: 100%; height: auto; color: #cbd4e2; }
 #app-landing .flow-art svg { width: 100%; height: auto; color: var(--navy); margin-bottom: 1.4rem; }
 
-/* --- steps --------------------------------------------------------------- */
+/* --- steps: colour blocks stepping down the page ------------------------- */
 
-#app-landing .steps {
-  list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;
+#app-landing .steps-b { padding: 0.4rem 0 1rem; }
+
+#app-landing .sb-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  margin-bottom: 1.8rem;
 }
-#app-landing .steps li { display: flex; align-items: center; gap: 0.7rem; }
-#app-landing .step-n {
-  flex: none; display: grid; place-items: center;
-  width: 2rem; height: 2rem; border-radius: 50%;
-  background: var(--paper-2); border: 1px solid var(--edge);
-  font-weight: 700; font-size: 0.9rem; color: var(--navy);
+#app-landing .sb-title {
+  margin: 0;
+  /* Balanced, so a heading never leaves one word stranded on its own line. */
+  max-width: 18ch;
+  text-wrap: balance;
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  line-height: 1.04;
+  color: var(--navy);
 }
-#app-landing .step-t { font-size: 0.98rem; font-weight: 600; color: var(--navy); }
+#app-landing .sb-sub { margin: 0 0 0.35rem; max-width: 32ch; font-size: 1.05rem; line-height: 1.5; color: var(--ink-soft); }
+
+#app-landing .sb-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.1rem;
+  align-items: start;
+}
+#app-landing .sb-row[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+#app-landing .sb-card {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 330px;
+  padding: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: 22px;
+  background: var(--c);
+  color: #fff;
+  box-shadow: 0 18px 36px rgb(22 35 58 / 0.18);
+  --art-paper: #fffdf8;
+  --art-accent: #16233a;
+}
+
+/* The staircase. Margins rather than transforms, so the page makes room. */
+#app-landing .sb-card:nth-child(2) { margin-top: 2.4rem; }
+#app-landing .sb-card:nth-child(3) { margin-top: 4.8rem; }
+#app-landing .sb-card:nth-child(4) { margin-top: 7.2rem; }
+
+#app-landing .sb-num {
+  position: absolute;
+  top: -1.2rem;
+  left: 1.1rem;
+  font-family: var(--font-serif);
+  font-size: 12rem;
+  font-weight: 800;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 2.5px rgb(255 255 255 / 0.6);
+  pointer-events: none;
+  user-select: none;
+}
+@supports not (-webkit-text-stroke: 1px) {
+  #app-landing .sb-num { color: rgb(255 255 255 / 0.22); }
+}
+
+#app-landing .sb-art {
+  position: absolute;
+  top: 1.3rem;
+  right: 1.3rem;
+  width: 116px;
+  height: 116px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fffdf8;
+  color: #16233a;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.25);
+}
+#app-landing .sb-art .art { width: 76px; height: 76px; }
+
+#app-landing .sb-words { position: relative; }
+#app-landing .sb-card-title { margin: 0 0 0.35rem; font-size: 1.5rem; font-weight: 800; line-height: 1.2; color: #fff; }
+#app-landing .sb-note { margin: 0; font-size: 1.02rem; line-height: 1.45; color: rgb(255 255 255 / 0.92); }
+
+/* Four steps share the width, so the numbers and pictures come down a size. */
+#app-landing .sb-row[data-count="4"] .sb-card { min-height: 300px; padding: 1.3rem; }
+#app-landing .sb-row[data-count="4"] .sb-num { font-size: 9rem; }
+#app-landing .sb-row[data-count="4"] .sb-art { top: 1.1rem; right: 1.1rem; width: 92px; height: 92px; }
+#app-landing .sb-row[data-count="4"] .sb-art .art { width: 60px; height: 60px; }
+#app-landing .sb-row[data-count="4"] .sb-card-title { font-size: 1.3rem; }
+#app-landing .sb-row[data-count="4"] .sb-note { font-size: 0.95rem; }
+
+/* A mid-sized screen takes two across, still stepping. */
+@media (max-width: 960px) {
+  #app-landing .sb-row,
+  #app-landing .sb-row[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #app-landing .sb-card:nth-child(n) { margin-top: 0; }
+  #app-landing .sb-card:nth-child(even) { margin-top: 2.4rem; }
+  #app-landing .sb-card,
+  #app-landing .sb-row[data-count="4"] .sb-card { min-height: 290px; padding: 1.35rem; }
+  #app-landing .sb-num,
+  #app-landing .sb-row[data-count="4"] .sb-num { font-size: 9.5rem; }
+  #app-landing .sb-art,
+  #app-landing .sb-row[data-count="4"] .sb-art { top: 1.1rem; right: 1.1rem; width: 96px; height: 96px; }
+  #app-landing .sb-art .art,
+  #app-landing .sb-row[data-count="4"] .sb-art .art { width: 62px; height: 62px; }
+}
+
+/* A phone stacks them, one full-width block after another. */
+@media (max-width: 620px) {
+  #app-landing .sb-head { margin-bottom: 1.2rem; }
+  #app-landing .sb-row,
+  #app-landing .sb-row[data-count="4"] { grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
+  #app-landing .sb-card:nth-child(n) { margin-top: 0; }
+  #app-landing .sb-card,
+  #app-landing .sb-row[data-count="4"] .sb-card { min-height: 230px; padding: 1.25rem; }
+  #app-landing .sb-num,
+  #app-landing .sb-row[data-count="4"] .sb-num { top: -0.9rem; left: 0.9rem; font-size: 8rem; }
+  #app-landing .sb-art,
+  #app-landing .sb-row[data-count="4"] .sb-art { top: 1rem; right: 1rem; width: 84px; height: 84px; }
+  #app-landing .sb-art .art,
+  #app-landing .sb-row[data-count="4"] .sb-art .art { width: 54px; height: 54px; }
+  #app-landing .sb-card-title,
+  #app-landing .sb-row[data-count="4"] .sb-card-title { font-size: 1.3rem; }
+}
 
 /* --- finder -------------------------------------------------------------- */
 
@@ -2275,3 +2395,115 @@ body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b9
 /* The toolbar Delete looks like what it does, once there is something to delete. */
 #delete:not(:disabled) { color: #b91c1c; border-color: #fca5a5; }
 #delete:not(:disabled):hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+
+
+/* --- the legal band: unmistakably for legal work -------------------------- */
+
+#app-landing .legal-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 2.4rem;
+  align-items: center;
+  padding: 2.6rem 2.6rem 2.8rem;
+  border-radius: 20px;
+  border-top: 6px solid var(--brass);
+  background: var(--navy);
+  color: #f3efe7;
+  --art-paper: #f3efe7;
+  --art-accent: var(--brass);
+}
+
+#app-landing .legal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 1.1rem;
+  padding: 0.35rem 1rem 0.35rem 0.4rem;
+  border-radius: 999px;
+  background: var(--brass);
+  color: var(--navy);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+#app-landing .legal-badge-mark {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--brass);
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  letter-spacing: 0;
+}
+
+#app-landing .legal-title {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.9rem, 3.6vw, 2.7rem);
+  line-height: 1.1;
+  color: #fff;
+}
+#app-landing .legal-note { margin: 0 0 1.6rem; max-width: 44ch; font-size: 1.02rem; color: #c7cedb; }
+
+#app-landing .legal-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1.7rem;
+}
+#app-landing .legal-tool {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
+  color: #fff;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+#app-landing .legal-tool * { white-space: normal; }
+#app-landing .legal-tool:hover { background: rgb(255 255 255 / 0.12); border-color: var(--brass); }
+#app-landing .legal-tool:focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
+#app-landing .legal-tool-art .art { display: block; width: 42px; height: 42px; color: #cbd4e2; }
+#app-landing .legal-tool-words { display: grid; min-width: 0; }
+#app-landing .legal-tool-name { font-size: 0.96rem; font-weight: 700; }
+#app-landing .legal-tool-phrase { font-size: 0.8rem; color: #aeb8c8; }
+
+#app-landing .btn.legal-cta { background: var(--brass); color: var(--navy); font-weight: 800; }
+#app-landing .btn.legal-cta:hover { background: #c29a45; }
+
+#app-landing .legal-art svg { display: block; width: 100%; height: auto; color: #16233a; }
+
+@media (max-width: 860px) {
+  #app-landing .legal-band { grid-template-columns: minmax(0, 1fr); padding: 2rem 1.5rem 2.2rem; }
+  #app-landing .legal-art { max-width: 320px; margin: 0 auto; }
+}
+@media (max-width: 620px) {
+  #app-landing .legal-band { padding: 1.6rem 1.05rem 1.8rem; border-radius: 14px; }
+  /* Tighter lettering so the badge stays on one line on a phone. */
+  #app-landing .legal-badge { font-size: 0.68rem; letter-spacing: 0.07em; padding-right: 0.8rem; }
+  #app-landing .legal-badge-mark { width: 1.5rem; height: 1.5rem; font-size: 0.9rem; }
+  #app-landing .legal-tools { grid-template-columns: minmax(0, 1fr); }
+  #app-landing .legal-art { max-width: 240px; }
+}
+
+/* "Legal tools" in the header is a brass pill, so it is found at a glance. */
+.site-nav .nav-link[href="#legal"] {
+  padding: 0.25rem 0.8rem;
+  border: 1.5px solid #a8802f;
+  border-radius: 999px;
+  color: #7d5d1c;
+}
+.site-nav .nav-link[href="#legal"]:hover { background: #a8802f; color: #fff; }
+@media (max-width: 700px) {
+  .site-nav .nav-link[href="#legal"] { border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 0.9rem 1.1rem; color: #7d5d1c; font-weight: 700; }
+}

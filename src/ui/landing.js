@@ -120,14 +120,49 @@ function privacyNote() {
   return note
 }
 
-function steps(items) {
-  const list = el('ol', 'steps')
-  for (const [i, text] of items.entries()) {
-    const step = el('li')
-    step.append(el('span', 'step-n', String(i + 1)), el('span', 'step-t', text))
-    list.append(step)
+// The steps as bold colour blocks stepping down the page: each a solid card
+// with a giant outlined number and its picture in a paper circle. The
+// staircase is the point: it reads as a sequence before a word is read.
+function stepsSection(title, sub, items, { scene = null } = {}) {
+  const section = el('section', 'band steps-b')
+
+  const head = el('div', 'sb-head')
+  head.append(el('h2', 'sb-title', title))
+  if (sub) head.append(el('p', 'sb-sub', sub))
+  section.append(head)
+  if (scene) section.append(scene)
+
+  // A darker brass for the four-step version: white text on the usual brass
+  // falls short of comfortable contrast.
+  const colours = items.length === 4
+    ? ['#2a5db0', '#5c7a56', '#8a6a24', '#b5482f']
+    : ['#2a5db0', '#5c7a56', '#b5482f']
+
+  const row = el('ol', 'sb-row')
+  row.dataset.count = String(items.length)
+
+  for (const [i, item] of items.entries()) {
+    const card = el('li', 'sb-card')
+    card.style.setProperty('--c', colours[i % colours.length])
+
+    // The list itself tells a screen reader the order; the numeral is for eyes.
+    const num = el('span', 'sb-num', String(i + 1))
+    num.setAttribute('aria-hidden', 'true')
+
+    const art = el('span', 'sb-art')
+    art.innerHTML = toolArt(item.art)
+    art.setAttribute('aria-hidden', 'true')
+
+    const words = el('div', 'sb-words')
+    words.append(el('h3', 'sb-card-title', item.title))
+    if (item.note) words.append(el('p', 'sb-note', item.note))
+
+    card.append(num, art, words)
+    row.append(card)
   }
-  return list
+
+  section.append(row)
+  return section
 }
 
 function section(title, { note = '', dark = false } = {}) {
@@ -168,52 +203,108 @@ function renderHome() {
   hero.append(words, art)
   page.append(hero)
 
+  // The legal band, straight after the hero. Legal work is who this is built
+  // for, and lower down the page it was easy to scroll right past it.
+  const legal = el('section', 'legal-band')
+  const legalWords = el('div', 'legal-words')
+
+  const badge = el('p', 'legal-badge')
+  badge.append(el('span', 'legal-badge-mark', '§'), document.createTextNode('For lawyers and legal teams'))
+
+  legalWords.append(
+    badge,
+    el('h2', 'legal-title', 'Sensitive documents. Kept local.'),
+    el('p', 'legal-note', 'Prepare bundles, annexures, indexes and redactions without uploading files.'),
+  )
+
+  const legalTools = el('div', 'legal-tools')
+  for (const [name, phrase, id] of [
+    ['Build a bundle', 'Merge in filing order', 'merge'],
+    ['Bookmarks and index', 'Navigate long bundles', 'bookmarks'],
+    ['Bates numbering', 'Number every page', 'numbering'],
+    ['Label annexures', 'Mark Exhibit A, B, C', 'label'],
+  ]) {
+    const card = el('button', 'legal-tool')
+    card.type = 'button'
+    const art = el('span', 'legal-tool-art')
+    art.innerHTML = toolArt(id)
+    art.setAttribute('aria-hidden', 'true')
+    const words = el('span', 'legal-tool-words')
+    words.append(el('span', 'legal-tool-name', name), el('span', 'legal-tool-phrase', phrase))
+    card.append(art, words)
+    card.addEventListener('click', () => goToTool(id))
+    legalTools.append(card)
+  }
+
+  const legalCta = el('button', 'btn legal-cta', 'Explore legal PDF tools')
+  legalCta.type = 'button'
+  legalCta.addEventListener('click', () => { location.hash = 'legal' })
+  legalWords.append(legalTools, legalCta)
+
+  const legalArt = el('div', 'legal-art')
+  legalArt.innerHTML = legalBundleScene()
+  legalArt.setAttribute('aria-hidden', 'true')
+
+  legal.append(legalWords, legalArt)
+  page.append(legal)
+
   // Popular tools, led by the workspace.
   const popular = section('Popular tools')
   popular.append(controlRoomCard(), toolGrid(FEATURED_TOOL_IDS.slice(0, 6), { large: true }))
   page.append(popular)
 
-  // The legal band.
-  const legal = section('Sensitive documents. Kept local.', { dark: true })
-  legal.append(el('p', 'band-note',
-    'Prepare bundles, annexures, indexes and redactions without uploading files.'))
-
-  const bundle = el('div', 'bundle-art')
-  bundle.innerHTML = bundleScene()
-  bundle.setAttribute('aria-hidden', 'true')
-
-  const legalList = el('ul', 'legal-list')
-  for (const [name, id] of [
-    ['Build a bundle', 'merge'],
-    ['Bookmarks and index', 'bookmarks'],
-    ['Bates numbering', 'numbering'],
-    ['Label annexures', 'label'],
-  ]) {
-    const item = el('li')
-    const link = el('button', 'legal-link', name)
-    link.type = 'button'
-    link.addEventListener('click', () => goToTool(id))
-    item.append(link)
-    legalList.append(item)
-  }
-
-  const legalCta = el('button', 'btn ghost', 'Explore legal PDF tools')
-  legalCta.type = 'button'
-  legalCta.addEventListener('click', () => { location.hash = 'legal' })
-
-  const legalBody = el('div', 'band-split')
-  const legalWords = el('div')
-  legalWords.append(legalList, legalCta)
-  legalBody.append(legalWords, bundle)
-  legal.append(legalBody)
-  page.append(legal)
-
   // How it goes.
-  const flow = section('Three steps, every time')
-  flow.append(steps(['Choose a tool', 'Add your documents', 'Download your PDF']))
-  page.append(flow)
+  page.append(stepsSection(
+    'Three steps, every time.',
+    'No account, no upload, no waiting. Pick a job and leave with a better PDF.',
+    [
+      { title: 'Choose a tool', note: 'Pick the one job you need done.', art: 'step-choose' },
+      { title: 'Add your documents', note: 'Drop in PDFs or photos. They stay on your device.', art: 'step-add' },
+      { title: 'Download your PDF', note: 'Save or share the finished file.', art: 'step-download' },
+    ],
+  ))
 
   return page
+}
+
+// The home page's legal picture: a thick bundle with coloured filing tabs and a
+// CONFIDENTIAL stamp across it. Generic legal paperwork, no court, no authority.
+function legalBundleScene() {
+  const tabs = [
+    ['INDEX', 'var(--cobalt)'],
+    ['ANNEXURE A', 'var(--sage)'],
+    ['EXHIBIT', 'var(--brass)'],
+    ['AGREEMENT', 'var(--rust)'],
+  ]
+  const tabRows = tabs
+    .map(([label, colour], i) => {
+      const y = 58 + i * 46
+      const w = Math.max(70, label.length * 8 + 26)
+      return `
+        <rect x="236" y="${y}" width="${w}" height="30" rx="5" fill="${colour}"/>
+        <text x="${236 + w / 2 + 4}" y="${y + 20}" text-anchor="middle" font-size="12" font-weight="800"
+              letter-spacing="0.6" fill="#fffdf8" font-family="ui-sans-serif, system-ui, sans-serif">${label}</text>`
+    })
+    .join('')
+
+  return `<svg viewBox="0 0 360 290" role="img" aria-label="A tabbed legal bundle marked confidential">
+    <rect x="44" y="40" width="200" height="236" rx="8" fill="#e9e3d6" stroke="currentColor" stroke-width="2.5"/>
+    <rect x="34" y="30" width="200" height="236" rx="8" fill="#f3efe7" stroke="currentColor" stroke-width="2.5"/>
+    ${tabRows}
+    <rect x="24" y="20" width="210" height="240" rx="8" fill="#fffdf8" stroke="currentColor" stroke-width="3"/>
+    <text x="50" y="62" font-size="15" font-weight="800" letter-spacing="1.5" fill="#16233a"
+          font-family="ui-sans-serif, system-ui, sans-serif">CASE BUNDLE</text>
+    <g stroke="#16233a" stroke-width="4" stroke-linecap="round" opacity="0.18">
+      <line x1="50" y1="92" x2="200" y2="92"/><line x1="50" y1="112" x2="186" y2="112"/>
+      <line x1="50" y1="132" x2="200" y2="132"/><line x1="50" y1="152" x2="170" y2="152"/>
+      <line x1="50" y1="222" x2="200" y2="222"/><line x1="50" y1="242" x2="150" y2="242"/>
+    </g>
+    <g transform="rotate(-14 128 186)">
+      <rect x="36" y="164" width="184" height="44" rx="6" fill="none" stroke="#b5482f" stroke-width="4"/>
+      <text x="128" y="193" text-anchor="middle" font-size="17" font-weight="900" letter-spacing="1.4"
+            fill="#b5482f" font-family="ui-sans-serif, system-ui, sans-serif">CONFIDENTIAL</text>
+    </g>
+  </svg>`
 }
 
 // A bundle of tabbed documents. Generic tabs only: no court, no authority, no
@@ -450,12 +541,21 @@ function renderLegal() {
   room.append(roomWords, roomArt)
   page.append(room)
 
-  const flow = section('From loose documents to a clear bundle.')
   const scene = el('div', 'flow-art')
   scene.innerHTML = bundleFlow()
   scene.setAttribute('aria-hidden', 'true')
-  flow.append(scene, steps(['Arrange', 'Index', 'Number', 'Download']))
-  page.append(flow)
+
+  page.append(stepsSection(
+    'From loose documents to a clear bundle.',
+    'Four steps from a folder of files to a bundle ready to file.',
+    [
+      { title: 'Arrange', note: 'Put the documents in filing order.', art: 'organise' },
+      { title: 'Index', note: 'Bookmark each document so the bundle is easy to navigate.', art: 'bookmarks' },
+      { title: 'Number', note: 'Bates-number every page.', art: 'numbering' },
+      { title: 'Download', note: 'Save the finished bundle.', art: 'step-download' },
+    ],
+    { scene },
+  ))
 
   return page
 }
