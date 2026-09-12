@@ -9,9 +9,10 @@
 
 import * as model from '../model.js'
 import { renderLarge } from '../render.js'
-import { addOverlays } from './overlays.js'
+import { addOverlays, makeTextMark } from './overlays.js'
 import { fitStage } from './stage.js'
-import { PAGE_NUMBER, anchorFractions, numberMark, resolveSpot } from '../textmarks.js'
+import { COLOURS, PAGE_NUMBER, anchorFractions, numberMark, resolveSpot } from '../textmarks.js'
+import { FONTS, getFont, hasItalic } from '../fonts.js'
 
 const VIEW_WIDTH = 620
 
@@ -22,6 +23,7 @@ const counter = document.querySelector('#viewer-counter')
 const hint = document.querySelector('#viewer-text-hint')
 const numberNote = document.querySelector('#viewer-number-note')
 const watermarkNote = document.querySelector('#viewer-watermark-note')
+const addMenu = document.querySelector('#viewer-add-menu')
 
 // The watermark and redaction boxes are tapped rather than dragged: a
 // watermark sits across the whole page, and a box is sized in the redaction
@@ -42,6 +44,21 @@ let onEditText = null
 let onEditNumbers = null
 // Opens the redaction view at a page. Passed in by main.js.
 let onRedactPage = null
+// Switches page numbering on and opens its placing view.
+let onAddNumbers = null
+// Opens the watermark's own panel.
+let onWatermark = null
+// Hands text typed here to the placing view, to put it on other pages too.
+let onPlaceEverywhere = null
+// The look text was last given, so a new piece starts where the last left off.
+let seedLook = () => ({})
+
+// Text being typed straight on the page: { x, y, text, look }.
+let draft = null
+// Where "Add text here" is being offered, after a tap on blank paper.
+let addHere = null
+
+const SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48]
 
 let selected = null       // the group of the text picked on this page
 let lastMove = null       // { pageId, group, from } — what "Undo move" puts back
@@ -120,7 +137,207 @@ function decorateText(page) {
   }
 
   decorateTappable(page)
+  if (draft) paintDraft()
+  else if (addHere) paintAddHere()
   hint.hidden = frame.querySelectorAll('.text-mark, .watermark-preview, .redact-mark').length === 0
+}
+
+// --- adding text by typing on the page ---------------------------------------
+
+function defaultLook() {
+  const seed = seedLook() ?? {}
+  return {
+    size: Number.isFinite(seed.size) ? seed.size : 14,
+    font: getFont(seed.font).id,
+    bold: seed.bold !== false,
+    italic: Boolean(seed.italic) && hasItalic(getFont(seed.font).id),
+    colour: COLOURS[seed.colour] ? seed.colour : 'black',
+    box: ['none', 'outline', 'filled'].includes(seed.box) ? seed.box : 'none',
+  }
+}
+
+// The text starts where you tapped and grows right and down from there, the
+// way typing does.
+function startDraft(point) {
+  addHere = null
+  selected = null
+  draft = { x: clamp(point.x, 0.02, 0.94), y: clamp(point.y, 0.02, 0.94), text: '', look: defaultLook() }
+  redrawOverlays()
+}
+
+function cancelDraft() {
+  if (!draft) return
+  draft = null
+  redrawOverlays()
+}
+
+function commitDraft() {
+  const page = currentPage()
+  const text = draft?.text.trim()
+  if (!page || !text) return cancelDraft()
+
+  const mark = { text, x: draft.x, y: draft.y, anchor: 'top-left', ...draft.look }
+  draft = null
+  // The model change redraws the page through refreshViewer().
+  model.addTextMarks([{ pageId: page.id, mark }])
+}
+
+function restyleDraft(patch) {
+  Object.assign(draft.look, patch)
+  if (!hasItalic(draft.look.font)) draft.look.italic = false
+  redrawOverlays()
+}
+
+function paintAddHere() {
+  const bar = document.createElement('div')
+  bar.className = 'mv-bar add-here'
+  bar.style.left = `${addHere.x * 100}%`
+  bar.style.top = `${addHere.y * 100}%`
+  bar.append(actionButton('Add text here', 'add-here'))
+  frame.append(bar)
+  keepInsidePage(bar)
+}
+
+function draftBar() {
+  const bar = document.createElement('div')
+  bar.className = 'mv-bar draft-bar'
+  bar.style.left = `${draft.x * 100}%`
+
+  const fonts = document.createElement('select')
+  fonts.setAttribute('aria-label', 'Font')
+  for (const font of FONTS) fonts.append(new Option(font.name, font.id))
+  fonts.value = draft.look.font
+  fonts.addEventListener('change', () => restyleDraft({ font: fonts.value }))
+
+  const sizes = document.createElement('select')
+  sizes.setAttribute('aria-label', 'Size')
+  for (const size of SIZES) sizes.append(new Option(`${size} pt`, String(size)))
+  sizes.value = String(draft.look.size)
+  sizes.addEventListener('change', () => restyleDraft({ size: Number(sizes.value) }))
+
+  const style = document.createElement('span')
+  style.className = 'draft-group'
+  for (const [label, key] of [['B', 'bold'], ['I', 'italic']]) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = key === 'italic' ? 'italic' : ''
+    button.textContent = label
+    button.setAttribute('aria-label', key === 'bold' ? 'Bold' : 'Italic')
+    button.setAttribute('aria-pressed', String(Boolean(draft.look[key])))
+    button.disabled = key === 'italic' && !hasItalic(draft.look.font)
+    button.addEventListener('click', () => restyleDraft({ [key]: !draft.look[key] }))
+    style.append(button)
+  }
+
+  const colours = document.createElement('span')
+  colours.className = 'draft-group draft-colours'
+  for (const name of ['black', 'blue', 'red']) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.dataset.colour = name
+    button.style.setProperty('--swatch', COLOURS[name].css)
+    button.setAttribute('aria-label', COLOURS[name].name)
+    button.setAttribute('aria-pressed', String(draft.look.colour === name))
+    button.addEventListener('click', () => restyleDraft({ colour: name }))
+    colours.append(button)
+  }
+
+  const boxes = document.createElement('select')
+  boxes.setAttribute('aria-label', 'Box around it')
+  for (const [label, value] of [['No box', 'none'], ['Outline', 'outline'], ['Filled', 'filled']]) {
+    boxes.append(new Option(label, value))
+  }
+  boxes.value = draft.look.box
+  boxes.addEventListener('change', () => restyleDraft({ box: boxes.value }))
+
+  const everywhere = actionButton('Other pages…', 'draft-everywhere')
+  everywhere.addEventListener('click', () => {
+    const text = draft.text.trim()
+    const look = { ...draft.look }
+    draft = null
+    dialog.close()
+    onPlaceEverywhere?.({ text, look })
+  })
+
+  const cancel = actionButton('Cancel', 'draft-cancel')
+  cancel.addEventListener('click', cancelDraft)
+
+  const add = actionButton('Add', 'draft-add', 'primary')
+  add.addEventListener('click', commitDraft)
+
+  bar.append(fonts, sizes, style, colours, boxes, everywhere, cancel, add)
+  return bar
+}
+
+function paintDraft() {
+  if (!shown) return
+
+  const node = makeTextMark({ ...draft.look, text: draft.text, x: draft.x, y: draft.y, anchor: 'top-left' },
+    shown.pointsWide, shown.pointsHigh)
+  node.classList.add('draft')
+  node.contentEditable = 'true'
+  node.spellcheck = false
+  node.setAttribute('aria-label', 'Type the text for this page')
+  node.addEventListener('input', () => { draft.text = node.textContent })
+  node.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); commitDraft() }
+    else if (event.key === 'Escape') { event.preventDefault(); cancelDraft() }
+  })
+
+  frame.append(node)
+  const bar = draftBar()
+  frame.append(bar)
+  putBarByTheText(node, bar)
+
+  // Put the cursor at the end of whatever has been typed so far.
+  node.focus({ preventScroll: true })
+  const range = document.createRange()
+  range.selectNodeContents(node)
+  range.collapse(false)
+  const selection = window.getSelection()
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+// Just under the text being typed, measured from the text itself — or just
+// above it when there is no room below. Anchoring it to the page instead put
+// it on top of the words.
+function putBarByTheText(node, bar) {
+  // On a phone the bar is docked at the foot of the screen by the stylesheet,
+  // so it must not be given a position here as well.
+  if (window.matchMedia('(max-width: 700px)').matches) {
+    bar.classList.remove('above', 'wrapped')
+    bar.style.top = ''
+    bar.style.left = ''
+    return
+  }
+
+  const page = frame.getBoundingClientRect()
+  const text = node.getBoundingClientRect()
+  const room = dialog.getBoundingClientRect()
+  const gap = 10
+  const edge = 12
+
+  // Wider than the window it sits in: let it wrap rather than run off the side.
+  bar.classList.toggle('wrapped', bar.getBoundingClientRect().width > room.width - edge * 2)
+
+  const box = bar.getBoundingClientRect()
+  const below = text.bottom - page.top + gap
+  const fits = below + box.height < page.height
+  bar.style.top = `${((fits ? below : text.top - page.top - gap) / page.height) * 100}%`
+  bar.classList.toggle('above', !fits)
+
+  // Left edge measured in the page's own pixels, kept inside the dialog.
+  const left = Math.min(
+    Math.max(text.left, room.left + edge),
+    room.right - edge - box.width,
+  ) - page.left
+  bar.style.left = `${left}px`
+}
+
+const closeAddMenu = () => {
+  addMenu.hidden = true
+  document.querySelector('#viewer-add').setAttribute('aria-expanded', 'false')
 }
 
 function decorateTappable() {
@@ -211,6 +428,8 @@ async function show() {
   if (shown?.pageId !== page.id) {
     selected = null
     lastMove = null
+    draft = null
+    addHere = null
   }
   press = null
   shown = null
@@ -284,11 +503,19 @@ function setUpMovingText() {
 
     const node = event.target.closest('.text-mark.movable')
     if (!node) {
+      // Typing on the page: a tap elsewhere leaves it alone.
+      if (draft) return
+
       // Tapping the page itself puts the picked text down.
       if (selected) {
         selected = null
         redrawOverlays()
+        return
       }
+
+      // Otherwise, offer to add text where the page was tapped.
+      addHere = pointerFraction(event)
+      redrawOverlays()
       return
     }
 
@@ -367,6 +594,14 @@ function setUpMovingText() {
   frame.addEventListener('click', (event) => {
     const button = event.target.closest('.mv-bar button')
     if (!button) return
+
+    // The bar for text being typed wires up its own buttons.
+    if (button.closest('.draft-bar')) return
+
+    if (button.dataset.action === 'add-here') {
+      startDraft(addHere ?? { x: 0.2, y: 0.2 })
+      return
+    }
     const group = button.closest('[data-group]')?.dataset.group
     const pageId = currentPageId()
     if (!group || !pageId) return
@@ -419,10 +654,14 @@ function setUpMovingText() {
   })
 }
 
-export function setupViewer(onRedact, editText = null, editNumbers = null) {
-  onEditText = editText
-  onEditNumbers = editNumbers
-  onRedactPage = onRedact
+export function setupViewer(options = {}) {
+  onRedactPage = options.onRedact ?? null
+  onEditText = options.onEditText ?? null
+  onEditNumbers = options.onEditNumbers ?? null
+  onAddNumbers = options.onAddNumbers ?? null
+  onWatermark = options.onWatermark ?? null
+  onPlaceEverywhere = options.onPlaceEverywhere ?? null
+  seedLook = options.look ?? seedLook
 
   document.querySelector('#viewer-watermark-show').addEventListener('click', () => {
     const id = currentPageId()
@@ -452,10 +691,39 @@ export function setupViewer(onRedact, editText = null, editNumbers = null) {
     show()
   })
 
+  document.querySelector('#viewer-add').addEventListener('click', (event) => {
+    event.stopPropagation()
+    const open = addMenu.hidden
+    addMenu.hidden = !open
+    document.querySelector('#viewer-add').setAttribute('aria-expanded', String(open))
+  })
+
+  addMenu.addEventListener('click', (event) => {
+    const item = event.target.closest('button[data-add]')
+    if (!item) return
+    closeAddMenu()
+
+    const id = currentPageId()
+    if (item.dataset.add === 'text') {
+      // Near the top left, where a reader starts: it can be dragged from there.
+      startDraft({ x: 0.18, y: 0.16 })
+    } else if (item.dataset.add === 'numbers') {
+      dialog.close()
+      onAddNumbers?.(id)
+    } else if (item.dataset.add === 'watermark') {
+      dialog.close()
+      onWatermark?.()
+    }
+  })
+
+  dialog.addEventListener('click', (event) => {
+    if (!event.target.closest('.viewer-add')) closeAddMenu()
+  })
+
   document.querySelector('#viewer-redact').addEventListener('click', () => {
     const id = currentPageId()
     dialog.close()
-    onRedact(id)
+    onRedactPage?.(id)
   })
 
   // Arrow keys page through, which is the whole point of a viewer.
@@ -466,10 +734,13 @@ export function setupViewer(onRedact, editText = null, editNumbers = null) {
 
   dialog.addEventListener('close', () => {
     releaseImage()
+    closeAddMenu()
     shown = null
     selected = null
     lastMove = null
     press = null
+    draft = null
+    addHere = null
   })
 }
 

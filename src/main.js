@@ -33,7 +33,7 @@ import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
 import { parsePageRanges, formatPageRanges } from './ranges.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
 import { openSigner, setupSigner } from './ui/sign.js'
-import { setupTextTool, drawTextPanel, getTextSettings, applyTextSettings, openTextEditor, openNumberPlacer } from './ui/addtext.js'
+import { setupTextTool, drawTextPanel, getTextSettings, applyTextSettings, openTextEditor, openNumberPlacer, startPlacing, textLook } from './ui/addtext.js'
 import { loadFaceBytes } from './fonts.js'
 import { countedPages, hasHindiLetters, lastPageNumber, toHindiWords } from './textmarks.js'
 import * as presets from './presets.js'
@@ -1293,16 +1293,36 @@ window.addEventListener('hashchange', applyRoute)
 
 setupDragDrop(openViewer)
 setupRedactor()
-setupViewer(openRedactor, openTextEditor, openNumberPlacer)
-setupSigner()
-setupTextTool({
-  remember,
-  // Tapping the faded watermark in a placing view: it is changed in its panel.
-  onWatermark: () => {
-    el('panel-watermark').open = true
-    el('panel-watermark').scrollIntoView({ behavior: 'smooth', block: 'start' })
+setupViewer({
+  onRedact: openRedactor,
+  onEditText: openTextEditor,
+  onEditNumbers: openNumberPlacer,
+  // "+ Add to this page" → Page numbers: switch them on, then place them.
+  onAddNumbers: (pageId) => {
+    el('numbering-enabled').checked = true
+    el('panel-numbering').open = true
+    readNumbering()
+    remember()
+    openNumberPlacer(pageId)
   },
+  onWatermark: () => {
+    el('watermark-enabled').checked = true
+    readWatermark()
+    remember()
+    openWatermarkPanel()
+  },
+  // Text typed on one page, to go on other pages too.
+  onPlaceEverywhere: startPlacing,
+  look: textLook,
 })
+setupSigner()
+// The watermark has no placing view of its own; it is changed in its panel.
+function openWatermarkPanel() {
+  el('panel-watermark').open = true
+  el('panel-watermark').scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+setupTextTool({ remember, onWatermark: openWatermarkPanel })
 setupFileList()
 setupBookmarks(openViewer)
 drawFileStrip()

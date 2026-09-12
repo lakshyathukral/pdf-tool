@@ -813,6 +813,94 @@ test.describe('the same choices on every tool', () => {
   })
 })
 
+test.describe('adding straight from the page viewer', () => {
+  test('tapping the page offers to add text there, and typing adds it', async ({ page }) => {
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await tiles(page).nth(1).dblclick()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+
+    const frame = await page.locator('#viewer-frame').boundingBox()
+    await page.mouse.click(frame.x + frame.width * 0.3, frame.y + frame.height * 0.25)
+    await expect(page.locator('.mv-bar.add-here')).toBeVisible()
+    await page.locator('.mv-bar.add-here button').click()
+
+    const draft = page.locator('#viewer-frame .text-mark.draft')
+    await expect(draft).toBeVisible()
+    await expect(page.locator('.draft-bar')).toBeVisible()
+    await page.keyboard.type('Typed on the page')
+    await page.locator('.draft-bar button[data-action="draft-add"]').click()
+
+    // It lands on this page only, and is movable like any other text.
+    await expect(page.locator('#viewer-frame .text-mark.movable')).toHaveCount(1)
+    await page.locator('#viewer-close').click()
+    await expect(page.locator('.frame .text-mark')).toHaveCount(1)
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const text = await textOfEachPage(bytes)
+    expect(text[1]).toContain('Typed on the page')
+    expect(text[0]).not.toContain('Typed on the page')
+  })
+
+  test('the Add menu offers text, page numbers and a watermark', async ({ page }) => {
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await tiles(page).first().dblclick()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#viewer-add').click()
+    await expect(page.locator('#viewer-add-menu')).toBeVisible()
+    await expect(page.locator('#viewer-add-menu button')).toHaveCount(3)
+
+    // Text: a box to type in, with the same choices in its bar.
+    await page.locator('#viewer-add-menu button[data-add="text"]').click()
+    await expect(page.locator('#viewer-frame .text-mark.draft')).toBeVisible()
+    await page.keyboard.type('From the menu')
+    await page.locator('.draft-bar select[aria-label="Font"]').selectOption('georgia')
+    await page.locator('.draft-bar button[data-action="draft-add"]').click()
+    await expect(page.locator('#viewer-frame .text-mark.movable')).toHaveCount(1)
+
+    // Page numbers: switched on, and its placing view opens.
+    await page.locator('#viewer-add').click()
+    await page.locator('#viewer-add-menu button[data-add="numbers"]').click()
+    await expect(page.locator('#text-title')).toHaveText('Place your page numbers')
+    await expect(page.locator('#numbering-enabled')).toBeChecked()
+    await page.locator('#text-cancel').click()
+
+    // The watermark has no placing view; its panel opens instead.
+    await tiles(page).first().dblclick()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#viewer-add').click()
+    await page.locator('#viewer-add-menu button[data-add="watermark"]').click()
+    await expect(page.locator('#viewer-dialog')).toBeHidden()
+    await expect(page.locator('#panel-watermark')).toHaveAttribute('open', '')
+    await expect(page.locator('#watermark-enabled')).toBeChecked()
+  })
+
+  test('text typed on a page can be put on the other pages too', async ({ page }) => {
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await tiles(page).first().dblclick()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#viewer-add').click()
+    await page.locator('#viewer-add-menu button[data-add="text"]').click()
+    await page.keyboard.type('On every page')
+    await page.locator('.draft-bar button[data-action="draft-everywhere"]').click()
+
+    // The placing view opens with those words already in step 1.
+    await expect(page.locator('#text-dialog')).toBeVisible()
+    await expect(page.locator('#label-text')).toHaveValue('On every page')
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#text-apply').click()
+    await expect(page.locator('.frame .text-mark')).toHaveCount(3)
+  })
+})
+
 test.describe('which panel opens', () => {
   test('a tool opens its own panel, not Saving', async ({ page }) => {
     await page.goto('/#numbering')

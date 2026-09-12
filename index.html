@@ -846,6 +846,14 @@
       </p>
       <div id="viewer-frame"></div>
       <div class="row actions">
+        <div class="viewer-add">
+          <button id="viewer-add" type="button" class="viewer-add-button" aria-haspopup="menu" aria-expanded="false">+ Add to this page</button>
+          <div class="viewer-add-menu" id="viewer-add-menu" role="menu" hidden>
+            <button type="button" role="menuitem" data-add="text"><span aria-hidden="true">T</span> Text on this page</button>
+            <button type="button" role="menuitem" data-add="numbers"><span aria-hidden="true">№</span> Page numbers</button>
+            <button type="button" role="menuitem" data-add="watermark"><span aria-hidden="true">▧</span> Watermark</button>
+          </div>
+        </div>
         <button id="viewer-prev" type="button">&larr; Previous</button>
         <button id="viewer-next" type="button">Next &rarr;</button>
         <span class="divider"></span>

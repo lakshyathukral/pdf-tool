@@ -2854,3 +2854,76 @@ body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b9
   padding: 0.3rem 0.75rem; border: 0; border-radius: 999px; background: #2a5db0; color: #fff;
   font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
 }
+
+/* --- adding something from the page viewer --------------------------------- */
+
+.viewer-add { position: relative; }
+.viewer-add-button {
+  font: inherit; font-weight: 700; padding: 0.55rem 1rem; border: 0; border-radius: 10px;
+  background: #2a5db0; color: #fff; cursor: pointer;
+}
+.viewer-add-button:hover { background: #234f97; }
+
+.viewer-add-menu {
+  position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 5; min-width: 15rem; padding: 0.35rem;
+  border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: 0 14px 36px rgb(0 0 0 / 0.22);
+}
+.viewer-add-menu[hidden] { display: none; }
+.viewer-add-menu button {
+  display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.6rem 0.7rem; margin: 0;
+  border: 0; border-radius: 8px; background: none; font: inherit; font-size: 0.92rem; font-weight: 600; text-align: left; cursor: pointer;
+}
+.viewer-add-menu button:hover { background: #f5f8fe; color: #2a5db0; }
+.viewer-add-menu span { width: 1.3rem; text-align: center; }
+
+/* The offer after tapping blank paper, and the text being typed. */
+.mv-bar.add-here { bottom: auto; transform: translate(-50%, calc(-100% - 10px)); }
+
+#viewer-frame .text-mark.draft {
+  pointer-events: auto; min-width: 2ch; cursor: text; outline: 2px solid #2a5db0; outline-offset: 3px;
+  background: rgb(255 255 255 / 0.9);
+}
+
+/* One line, just under the text being typed (viewer.js measures where). It may
+   be wider than the page; it is nudged back inside the view after it is drawn. */
+.mv-bar.draft-bar {
+  bottom: auto; transform: none; flex-wrap: nowrap; max-width: none;
+  /* Sized by its own controls, not squeezed by the width of the page it sits
+     on; viewer.js then keeps it inside the dialog. */
+  width: max-content;
+  align-items: center; gap: 4px;
+}
+.mv-bar.draft-bar.above { transform: translateY(-100%); }
+.mv-bar.draft-bar.wrapped { flex-wrap: wrap; max-width: min(92vw, 30rem); }
+.mv-bar.draft-bar::after { display: none; }
+.mv-bar.draft-bar select {
+  padding: 6px 8px; border: 0; border-radius: 8px; background: rgb(255 255 255 / 0.14); color: #fff;
+  font: inherit; font-size: 12.5px; font-weight: 600;
+}
+.mv-bar.draft-bar select option { color: #1c1917; }
+.draft-group { display: flex; gap: 2px; }
+.draft-group button.italic { font-style: italic; }
+.mv-bar.draft-bar button[aria-pressed="true"] { background: rgb(255 255 255 / 0.22); }
+.draft-colours button {
+  width: 1.5rem; height: 1.5rem; padding: 0; border-radius: 50%; border: 2px solid transparent;
+  background: var(--swatch); cursor: pointer;
+}
+.draft-colours button[aria-pressed="true"] { border-color: #fff; }
+.mv-bar.draft-bar button.primary { background: #2a5db0; font-weight: 800; }
+.mv-bar.draft-bar button.primary:hover { background: #3f74c9; }
+
+@media (max-width: 700px) {
+  .viewer-add-menu { left: auto; right: 0; }
+  /* A phone has no room beside the text, so the bar sits at the bottom of the
+     screen — like a keyboard toolbar — and never covers what is being typed. */
+  .mv-bar.draft-bar {
+    position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    top: auto !important; transform: none !important; justify-content: center;
+    /* The bar for picked text stacks on a phone; this one must stay a row and
+       wrap, or the menus take their flex basis as a height. */
+    flex-direction: row; flex-wrap: wrap; width: auto;
+  }
+  /* A flex basis of 8rem was being taken as a height, making each menu 128px
+     tall. Sized explicitly instead. */
+  .mv-bar.draft-bar select { flex: 1 1 9rem; height: 2.2rem; align-self: center; padding: 0 0.5rem; }
+}

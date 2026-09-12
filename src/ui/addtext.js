@@ -976,6 +976,23 @@ export function setupTextTool(options = {}) {
   drawTextPanel()
 }
 
+// --- the page viewer hands work over to this tool -----------------------------
+
+// The look text was last given, so text typed on a page starts from it.
+export const textLook = () => ({ ...look })
+
+// Text typed on one page, to be put on other pages too: it becomes step 1, and
+// the placing view opens with the look it already had.
+export async function startPlacing({ text, look: incoming }) {
+  if (text) $('label-text').value = text
+  $('label-auto').open = false
+  if (incoming) look = { ...look, ...incoming, x: null, y: null }
+
+  drawTextPanel()
+  remember()
+  await openPlacer()
+}
+
 // --- presets and "remember what I used" --------------------------------------
 
 export function getTextSettings() {
