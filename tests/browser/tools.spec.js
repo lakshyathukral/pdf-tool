@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
-import { textOfEachPage } from '../helpers/read-pdf.js'
+import { textOfEachPage, positionOf, outline } from '../helpers/read-pdf.js'
 
 const FIVE_PAGES = fileURLToPath(new URL('../fixtures/five-pages.pdf', import.meta.url))
 const THREE_PAGES = fileURLToPath(new URL('../fixtures/three-pages.pdf', import.meta.url))
@@ -305,13 +305,14 @@ test.describe('the file strip', () => {
 
 test.describe('settings do not leak between tools', () => {
   test('a watermark switched on in one tool is not applied in another', async ({ page }) => {
-    // The report: open a PDF in the Label tool and find DRAFT already on it.
+    // The report: open a PDF in the Label tool (now Add text on pages) and find
+    // DRAFT already on it.
     await page.goto('/#photo-watermark')
     await expect(page.locator('#watermark-enabled')).toBeChecked()
 
     // Change tool WITHOUT reloading, as clicking through the app does.
     await page.evaluate(() => { location.hash = '#label' })
-    await expect(page.locator('#tool-name')).toHaveText('Label pages')
+    await expect(page.locator('#tool-name')).toHaveText('Add text on pages')
 
     await page.locator('#file-input').setInputFiles([FIVE_PAGES])
     await expect(page.locator('.tile').first()).toBeVisible({ timeout: 30_000 })
@@ -387,7 +388,7 @@ test.describe('marking up', () => {
   test('previews page numbers on the thumbnails', async ({ page }) => {
     await page.locator('#panel-numbering > summary').click()
     await page.locator('#numbering-enabled').check()
-    await expect(page.locator('.badge.numbering').first()).toBeVisible()
+    await expect(page.locator('.frame .text-mark[data-group="page-number"]').first()).toBeVisible()
   })
 
   test('previews a watermark', async ({ page }) => {
@@ -409,51 +410,406 @@ test.describe('marking up', () => {
   })
 })
 
-test.describe('positioning a label by dragging', () => {
-  test('drags the label and keeps where it was put', async ({ page }) => {
-    await load(page)
-    await tiles(page).first().click()
+test.describe('adding text on pages', () => {
+  test('numbers annexures across files, placed by tapping the page', async ({ page }) => {
+    await page.goto('/#label')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES, THREE_PAGES])
+    await expect(tiles(page).nth(7)).toBeVisible({ timeout: 30_000 })
 
-    await page.locator('#panel-label > summary').click()
-    await page.locator('#label-text').fill('EXHIBIT A')
-    await page.locator('#panel-label .sub > summary').click()
-    await page.locator('#label-exact').check()
+    await page.locator('#label-chips .at-chip', { hasText: 'Annexure' }).click()
+
+    // Two files, so it goes on the first page of each, counting up.
+    await expect(page.locator('input[name="label-pages"][value="first"]')).toBeChecked()
+    await expect(page.locator('#label-sequence li')).toHaveCount(2)
+    await expect(page.locator('#label-sequence')).toContainText('Annexure P-2')
+
     await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.td-mark')).toBeVisible()
 
-    await expect(page.locator('#place-stage img')).toBeVisible({ timeout: 30_000 })
-    const stage = await page.locator('#place-stage').boundingBox()
+    // The page fits the screen, and tapping it moves the text there.
+    const stage = await page.locator('#text-stage').boundingBox()
+    expect(stage.width).toBeLessThanOrEqual(page.viewportSize().width)
+    await page.mouse.click(stage.x + stage.width * 0.5, stage.y + stage.height * 0.5)
+    const mark = await page.locator('.td-mark').boundingBox()
+    expect(Math.abs(mark.x + mark.width / 2 - (stage.x + stage.width / 2))).toBeLessThan(stage.width * 0.05)
 
-    // Click a quarter across and three quarters down.
-    await page.mouse.click(stage.x + stage.width * 0.25, stage.y + stage.height * 0.75)
-    await expect(page.locator('#place-readout')).toContainText('%')
+    await page.locator('#text-apply').click()
+    await expect(page.locator('#text-dialog')).toBeHidden()
 
-    await page.locator('#place-apply').click()
-    await expect(page.locator('#place-dialog')).toBeHidden()
+    // Previewed on the pages as real text, not a badge, and listed to remove.
+    await expect(page.locator('.frame .text-mark')).toHaveCount(2)
+    await expect(page.locator('#label-added-list li')).toHaveCount(1)
 
-    // The dragged position comes back into the number fields.
-    const across = Number(await page.locator('#label-x').inputValue())
-    const down = Number(await page.locator('#label-y').inputValue())
-    expect(across).toBeGreaterThan(10)
-    expect(across).toBeLessThan(40)
-    expect(down).toBeGreaterThan(60)
-    expect(down).toBeLessThan(90)
+    const { bytes } = await savedFile(page, pressSave(page))
+    const text = await textOfEachPage(bytes)
+    expect(text[0]).toContain('Annexure P-1')
+    expect(text[5]).toContain('Annexure P-2')
 
-    // And the label previews on the thumbnail.
-    await expect(page.locator('.badge.label').first()).toBeVisible()
+    // Each row has Edit and ×; this is the ×.
+    await page.locator('#label-added-list button[data-group]').click()
+    await expect(page.locator('.frame .text-mark')).toHaveCount(0)
   })
 
-  test('the placement view fits the screen', async ({ page }) => {
-    await load(page)
-    await tiles(page).first().click()
-    await page.locator('#panel-label > summary').click()
-    await page.locator('#label-text').fill('TEST')
-    await page.locator('#panel-label .sub > summary').click()
-    await page.locator('#label-exact').check()
-    await page.locator('#label-place').click()
+  test('can put the text in a different spot on one page', async ({ page }) => {
+    await page.goto('/#label')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
 
-    await expect(page.locator('#place-stage img')).toBeVisible({ timeout: 30_000 })
-    const stage = await page.locator('#place-stage').boundingBox()
-    expect(stage.width).toBeLessThanOrEqual(page.viewportSize().width)
+    await page.locator('#label-text').fill('MOVED')
+    await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+
+    // Every page starts at the top right; page 2 alone goes to the bottom left.
+    await page.locator('#text-scope button[data-scope="each"]').click()
+    await page.locator('#text-next').click()
+    await expect(page.locator('#text-pager-label')).toContainText('2 of 3')
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#text-grid button[data-anchor="bottom-left"]').click()
+    await expect(page.locator('#text-pager-label .td-own')).toBeVisible()
+    await expect(page.locator('#text-summary')).toContainText('1 placed on their own')
+    await page.locator('#text-apply').click()
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    expect(await positionOf(bytes, 1, /MOVED/)).toEqual({ horizontal: 'right', vertical: 'top' })
+    expect(await positionOf(bytes, 2, /MOVED/)).toEqual({ horizontal: 'left', vertical: 'bottom' })
+    expect(await positionOf(bytes, 3, /MOVED/)).toEqual({ horizontal: 'right', vertical: 'top' })
+  })
+
+  test('lettered numbering starts at a letter', async ({ page }) => {
+    await page.goto('/#label')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES, THREE_PAGES])
+    await expect(tiles(page).nth(7)).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#label-chips .at-chip', { hasText: 'Exhibit' }).click()
+    await expect(page.locator('#label-start')).toHaveValue('A')
+    await page.locator('#label-start').fill('C')
+    await expect(page.locator('#label-sequence')).toContainText('Exhibit C')
+    await expect(page.locator('#label-sequence')).toContainText('Exhibit D')
+
+    // Switching style rewrites the start in the new style, not back to 1.
+    await page.locator('#label-style button[data-value="I"]').click()
+    await expect(page.locator('#label-start')).toHaveValue('III')
+  })
+
+  test('text can be dragged to a new spot on one page, right in the page viewer', async ({ page }) => {
+    await page.goto('/#label')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#label-text').fill('FIXED')
+    await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#text-apply').click()
+    await expect(page.locator('#text-dialog')).toBeHidden()
+
+    // Page 3 full size: its text is boxed, and the page says it can be dragged.
+    await tiles(page).nth(2).click()
+    await page.locator('#view').click()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    const mark = page.locator('#viewer-frame .text-mark.movable')
+    await expect(mark).toBeVisible()
+    await expect(page.locator('#viewer-text-hint')).toBeVisible()
+
+    const frame = await page.locator('#viewer-frame').boundingBox()
+    const box = await mark.boundingBox()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(frame.x + frame.width * 0.2, frame.y + frame.height * 0.9, { steps: 12 })
+    await page.mouse.up()
+    await expect(page.locator('#viewer-frame .mv-tag.moved')).toBeVisible()
+    await expect(page.locator('#viewer-frame .mv-bar')).toBeVisible()
+    await page.locator('#viewer-close').click()
+
+    // Still one piece of text, and the editor knows page 3 has its own spot.
+    await expect(page.locator('#label-added-list li')).toHaveCount(1)
+    await page.locator('#label-added-list .at-edit').click()
+    await expect(page.locator('#text-title')).toHaveText('Edit your text')
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#text-next').click()
+    await page.locator('#text-next').click()
+    await expect(page.locator('#text-pager-label .td-own')).toBeVisible()
+    await page.locator('#text-cancel').click()
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    expect(await positionOf(bytes, 1, /FIXED/)).toEqual({ horizontal: 'right', vertical: 'top' })
+    expect(await positionOf(bytes, 3, /FIXED/)).toEqual({ horizontal: 'left', vertical: 'bottom' })
+  })
+
+  test('tapping text in the page viewer offers to restyle it or take it off that page', async ({ page }) => {
+    await page.goto('/#label')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#label-text').fill('TAPPED')
+    await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#text-apply').click()
+    await expect(page.locator('#text-dialog')).toBeHidden()
+
+    // Take it off page 2 only.
+    await tiles(page).nth(1).click()
+    await page.locator('#view').click()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#viewer-frame .text-mark.movable').click()
+    await expect(page.locator('#viewer-frame .mv-bar')).toBeVisible()
+    await page.locator('#viewer-frame .mv-bar button[data-action="remove"]').click()
+    await expect(page.locator('#viewer-frame .text-mark')).toHaveCount(0)
+    await page.locator('#viewer-close').click()
+    await expect(page.locator('.frame .text-mark')).toHaveCount(2)
+
+    // The bar's first button opens the full editor at that page. Clicking a
+    // page adds it to the selection, so clear the last one first.
+    await page.locator('#select-none').click()
+    await tiles(page).nth(2).click()
+    await page.locator('#view').click()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#viewer-frame .text-mark.movable').click()
+    await page.locator('#viewer-frame .mv-bar button[data-action="style"]').click()
+    await expect(page.locator('#text-dialog')).toBeVisible()
+    await expect(page.locator('#text-title')).toHaveText('Edit your text')
+    await expect(page.locator('#text-pager-label')).toContainText('2 of 2')
+  })
+
+  test('puts your own words on every page, with a second piece of text alongside', async ({ page }) => {
+    await page.goto('/#label')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await expect(page.locator('#label-place')).toBeDisabled()
+    await page.locator('#label-text').fill('Received on 12 March')
+    await expect(page.locator('input[name="label-pages"][value="every"]')).toBeChecked()
+
+    await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#text-grid button[data-anchor="bottom-left"]').click()
+    await page.locator('#text-fonts button[data-font="arial"]').click()
+    await page.locator('#text-box button[data-box="outline"]').click()
+    await page.locator('#text-apply').click()
+
+    await page.locator('#label-chips .at-chip', { hasText: 'Certified True Copy' }).click()
+    await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#text-apply').click()
+
+    await expect(page.locator('.frame .text-mark')).toHaveCount(6)
+    await expect(page.locator('#label-added-list li')).toHaveCount(2)
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const text = await textOfEachPage(bytes)
+    for (const pageText of text) {
+      expect(pageText).toContain('Received on 12 March')
+      expect(pageText).toContain('Certified True Copy')
+    }
+  })
+})
+
+test.describe('page numbers on the page', () => {
+  test('are placed like text, moved on one page and hidden on another', async ({ page }) => {
+    await page.goto('/#numbering')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#numbering-enabled').check()
+    await page.locator('#numbering-prefix').fill('NUM-')
+    await expect(page.locator('.frame .text-mark[data-group="page-number"]')).toHaveCount(3)
+
+    // Every page: top left, in a box.
+    await page.locator('#numbering-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#text-title')).toHaveText('Place your page numbers')
+    await page.locator('#text-grid button[data-anchor="top-left"]').click()
+    await page.locator('#text-box button[data-box="outline"]').click()
+    await page.locator('#text-apply').click()
+    await expect(page.locator('#text-dialog')).toBeHidden()
+
+    // Page 2 full size: drag its number to the bottom right.
+    await tiles(page).nth(1).click()
+    await page.locator('#view').click()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    const number = page.locator('#viewer-frame .text-mark.movable[data-group="page-number"]')
+    await expect(number).toBeVisible()
+    const frame = await page.locator('#viewer-frame').boundingBox()
+    const box = await number.boundingBox()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(frame.x + frame.width * 0.85, frame.y + frame.height * 0.9, { steps: 12 })
+    await page.mouse.up()
+    await expect(page.locator('#viewer-frame .mv-tag.moved')).toBeVisible()
+
+    // Page 3: leave the number off.
+    await page.locator('#viewer-next').click()
+    await expect(page.locator('#viewer-caption')).toContainText('page 3')
+    await page.locator('#viewer-frame .text-mark.movable[data-group="page-number"]').click()
+    await page.locator('#viewer-frame .mv-bar button[data-action="remove"]').click()
+    await expect(page.locator('#viewer-number-note')).toBeVisible()
+    await page.locator('#viewer-close').click()
+    await expect(page.locator('#numbering-hidden')).toContainText('Hidden on 1 page')
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    expect(await positionOf(bytes, 1, /NUM-0001/)).toEqual({ horizontal: 'left', vertical: 'top' })
+    expect(await positionOf(bytes, 2, /NUM-0002/)).toEqual({ horizontal: 'right', vertical: 'bottom' })
+    expect(await positionOf(bytes, 3, /NUM-0003/)).toBeNull()
+  })
+})
+
+test.describe('the same choices on every tool', () => {
+  test('a watermark can be left off one page from the page viewer', async ({ page }) => {
+    await page.goto('/#photo-watermark')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.frame .watermark-preview').first()).toBeVisible()
+
+    await tiles(page).first().click()
+    await page.locator('#view').click()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#viewer-frame .watermark-preview').nth(4).click({ force: true })
+    await page.locator('#viewer-frame .mv-bar button[data-action="remove"]').click()
+    await expect(page.locator('#viewer-watermark-note')).toBeVisible()
+    await expect(page.locator('#viewer-frame .watermark-preview')).toHaveCount(0)
+    await page.locator('#viewer-close').click()
+    await expect(page.locator('#watermark-hidden')).toContainText('Left off 1 page')
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const text = await textOfEachPage(bytes)
+    expect(text[0]).not.toContain('VERIFICATION')
+    expect(text[1]).toContain('VERIFICATION')
+  })
+
+  test('redaction boxes move and resize, and can be removed from the page viewer', async ({ page }) => {
+    await load(page)
+    await page.locator('#redact').click()
+    await expect(page.locator('.redact-stage img').first()).toBeVisible({ timeout: 30_000 })
+
+    const stage = await page.locator('.redact-stage').first().boundingBox()
+    await page.mouse.move(stage.x + stage.width * 0.2, stage.y + stage.height * 0.2)
+    await page.mouse.down()
+    await page.mouse.move(stage.x + stage.width * 0.5, stage.y + stage.height * 0.26, { steps: 8 })
+    await page.mouse.up()
+
+    const box = page.locator('.redact-box[data-index]').first()
+    const before = await box.boundingBox()
+    await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2 + 60, { steps: 8 })
+    await page.mouse.up()
+    const after = await box.boundingBox()
+    expect(after.y).toBeGreaterThan(before.y + 40)
+
+    // The page is taller than the screen: bring the corner into view before
+    // dragging it, and measure again once it has scrolled.
+    await page.locator('.redact-resize').first().scrollIntoViewIfNeeded()
+    const moved = await box.boundingBox()
+    const corner = await page.locator('.redact-resize').first().boundingBox()
+    await page.mouse.move(corner.x + corner.width / 2, corner.y + corner.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(corner.x + corner.width / 2 + 60, corner.y + corner.height / 2 + 30, { steps: 8 })
+    await page.mouse.up()
+    const bigger = await box.boundingBox()
+    expect(bigger.width).toBeGreaterThan(moved.width + 30)
+    await page.locator('#redact-apply').click()
+
+    await tiles(page).first().click()
+    await page.locator('#view').click()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#viewer-frame .redact-mark').click()
+    await page.locator('#viewer-frame .mv-bar button[data-action="remove"]').click()
+    await expect(page.locator('#viewer-frame .redact-mark')).toHaveCount(0)
+  })
+
+  test('bookmarks number themselves like text, and rename with a button', async ({ page }) => {
+    await page.goto('/#bookmarks')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(tiles(page).nth(4)).toBeVisible({ timeout: 30_000 })
+
+    await tiles(page).nth(1).click()
+    await tiles(page).nth(3).click()
+    await page.locator('#bookmark-auto > summary').click()
+    await expect(page.locator('#bookmark-sequence')).toContainText('Annexure P-2')
+    await page.locator('#bookmark-add').click()
+    await expect(page.locator('.bookmark-row', { hasText: 'Annexure P-1' })).toHaveCount(1)
+    await expect(page.locator('.bookmark-row', { hasText: 'Annexure P-2' })).toHaveCount(1)
+
+    await page.locator('.bookmark-row', { hasText: 'Annexure P-2' }).locator('.bookmark-edit').click()
+    await page.locator('.bookmark-rename').fill('Annexure P-2 (Sale Deed)')
+    await page.locator('.bookmark-rename').press('Enter')
+    await expect(page.locator('.bookmark-row', { hasText: 'Annexure P-2 (Sale Deed)' })).toHaveCount(1)
+  })
+
+  test('text added on pages can become bookmarks in the same step', async ({ page }) => {
+    await page.goto('/#label')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES, THREE_PAGES])
+    await expect(tiles(page).nth(7)).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#label-chips .at-chip', { hasText: 'Annexure' }).click()
+    await page.locator('#label-bookmark').check()
+    await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#text-apply').click()
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    expect(JSON.stringify(await outline(bytes))).toContain('Annexure P-2')
+  })
+
+  test('placing text shows the page number faded, and tapping it switches to the numbers', async ({ page }) => {
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#panel-numbering > summary').click()
+    await page.locator('#numbering-enabled').check()
+    await page.locator('#panel-label > summary').click()
+    await page.locator('#label-text').fill('ADDED')
+    await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+
+    const faded = page.locator('#text-stage .td-context .text-mark[data-group="page-number"]')
+    await expect(faded).toBeVisible()
+    await faded.click()
+    await page.locator('.td-other-bar button').click()
+
+    await expect(page.locator('#text-title')).toHaveText('Place your page numbers')
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    // The text being placed was kept on the way.
+    await expect(page.locator('#label-added-list li')).toHaveCount(1)
+  })
+
+  test('choosing the Hindi font offers the words in Hindi', async ({ page }) => {
+    await page.goto('/#label')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#label-chips .at-chip', { hasText: 'Certified True Copy' }).click()
+    await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#text-fonts button[data-font="hindi"]').click()
+    await expect(page.locator('#text-hindi-tip')).toBeVisible()
+
+    await page.locator('#text-hindi-words').click()
+    await expect(page.locator('#text-pager-label')).toContainText('प्रमाणित सत्य प्रतिलिपि')
+    await expect(page.locator('#text-hindi-tip')).toBeHidden()
+    await page.locator('#text-apply').click()
+    await expect(page.locator('#label-text')).toHaveValue('प्रमाणित सत्य प्रतिलिपि')
+  })
+
+  test('page numbers can be Roman numerals and start after a hidden cover page', async ({ page }) => {
+    await page.goto('/#numbering')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    await page.locator('#numbering-enabled').check()
+    await page.locator('#numbering-style').selectOption('roman-lower')
+    await tiles(page).first().click()
+    await page.locator('#view').click()
+    await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#viewer-frame .text-mark.movable[data-group="page-number"]').click()
+    await page.locator('#viewer-frame .mv-bar button[data-action="remove"]').click()
+    await page.locator('#viewer-close').click()
+    await page.locator('#numbering-count-hidden').uncheck()
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    expect(await positionOf(bytes, 2, /^i$/)).not.toBeNull()
+    expect(await positionOf(bytes, 3, /^ii$/)).not.toBeNull()
   })
 })
 

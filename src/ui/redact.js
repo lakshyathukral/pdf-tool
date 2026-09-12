@@ -49,6 +49,8 @@ let zoomIndex = 0
 let drawMode = !touchFirst
 let drawing = null
 let panning = null
+// A box being moved, or resized by its corner: { stage, rect, start, x0, y0, resize }
+let editing = null
 let dirty = false
 let observer = null
 let renderSeq = 0
@@ -190,6 +192,12 @@ function boxElement(rect, pageId, index) {
 
   // The box being dragged out has no remove button yet: it is not a box yet.
   if (index >= 0) {
+    // A finished box can be dragged to move it, or by its corner to resize it
+    // — the same as text is moved on the page elsewhere in the app.
+    box.dataset.pageId = pageId
+    box.dataset.index = String(index)
+    box.title = 'Drag to move. Drag the corner to resize.'
+
     const remove = document.createElement('button')
     remove.type = 'button'
     remove.className = 'redact-remove'
@@ -198,7 +206,12 @@ function boxElement(rect, pageId, index) {
     remove.setAttribute('aria-label', 'Remove this box')
     remove.dataset.pageId = pageId
     remove.dataset.index = String(index)
-    box.append(remove)
+
+    const resize = document.createElement('span')
+    resize.className = 'redact-resize'
+    resize.setAttribute('aria-hidden', 'true')
+
+    box.append(remove, resize)
   }
   return box
 }
@@ -286,6 +299,27 @@ scroller.addEventListener('pointerdown', (event) => {
     return
   }
 
+  // On a finished box, a drag moves it — or resizes it, from its corner.
+  const boxNode = event.target.closest('.redact-box[data-index]')
+  if (boxNode && event.button === 0) {
+    const boxStage = boxNode.closest('.redact-stage')
+    const rect = draft.get(boxNode.dataset.pageId)?.[Number(boxNode.dataset.index)]
+    if (boxStage && rect) {
+      const { x, y } = fractionIn(boxStage, event)
+      editing = {
+        stage: boxStage,
+        rect,
+        start: { ...rect },
+        x0: x,
+        y0: y,
+        resize: Boolean(event.target.closest('.redact-resize')),
+      }
+      boxStage.setPointerCapture(event.pointerId)
+      event.preventDefault()
+      return
+    }
+  }
+
   const stage = event.target.closest('.redact-stage')
   if (!stage || event.button !== 0) return
   if (event.pointerType === 'touch' && !drawMode) return
@@ -303,6 +337,27 @@ scroller.addEventListener('pointermove', (event) => {
     scroller.scrollTop = panning.top - (event.clientY - panning.y)
     return
   }
+
+  if (editing) {
+    const { x, y } = fractionIn(editing.stage, event)
+    const { rect, start } = editing
+    const dx = x - editing.x0
+    const dy = y - editing.y0
+
+    // The box is changed where it lives in the draft, so Undo last box and
+    // Apply both see the moved box.
+    if (editing.resize) {
+      rect.w = Math.min(1 - start.x, Math.max(MIN_BOX * 2, start.w + dx))
+      rect.h = Math.min(1 - start.y, Math.max(MIN_BOX * 2, start.h + dy))
+    } else {
+      rect.x = Math.min(1 - start.w, Math.max(0, start.x + dx))
+      rect.y = Math.min(1 - start.h, Math.max(0, start.y + dy))
+    }
+    dirty = true
+    paintStage(editing.stage)
+    return
+  }
+
   if (!drawing) return
 
   const { x, y } = fractionIn(drawing.stage, event)
@@ -314,6 +369,11 @@ scroller.addEventListener('pointermove', (event) => {
 function finishPointer() {
   if (panning) {
     panning = null
+    return
+  }
+  if (editing) {
+    editing = null
+    updateCount()
     return
   }
   if (!drawing) return
@@ -574,6 +634,7 @@ function teardown() {
   matches = []
   drawing = null
   panning = null
+  editing = null
 }
 
 // Opens on the whole document. Given a page, it scrolls there first, so the

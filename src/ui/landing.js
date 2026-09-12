@@ -222,7 +222,7 @@ function renderHome() {
     ['Build a bundle', 'Merge in filing order', 'merge'],
     ['Bookmarks and index', 'Navigate long bundles', 'bookmarks'],
     ['Bates numbering', 'Number every page', 'numbering'],
-    ['Label annexures', 'Mark Exhibit A, B, C', 'label'],
+    ['Number annexures', 'Annexure P-1, P-2, P-3', 'label'],
   ]) {
     const card = el('button', 'legal-tool')
     card.type = 'button'
@@ -526,7 +526,7 @@ function renderLegal() {
     el('p', 'eyebrow', 'ONE WORKSPACE'),
     el('h2', 'croom-feature-title', 'Prepare the whole bundle in Control Room.'),
     el('p', 'croom-feature-note',
-      'Arrange pages, add bookmarks, apply Bates numbers, label annexures and review '
+      'Arrange pages, add bookmarks, apply Bates numbers, number annexures and review '
       + 'the final PDF before download.'),
   )
   const roomCta = el('button', 'btn primary', 'Open PDF Control Room')

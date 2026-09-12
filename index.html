@@ -195,10 +195,34 @@
             These become the navigation panel in Acrobat. A bookmark belongs to
             its page, so reordering pages moves its bookmark too.
           </p>
-          <label class="field">
+          <label class="field" id="bookmark-title-field">
             <span>Title for the selected page(s)</span>
             <input type="text" id="bookmark-title" placeholder="e.g. B1. Witness Statement" />
           </label>
+          <p class="at-auto-note" id="bookmark-auto-note" hidden>Numbered automatically. See below.</p>
+          <details class="at-adv" id="bookmark-auto">
+            <summary>Number them automatically <span class="at-tag">Advanced</span></summary>
+            <p class="at-note">
+              Select the pages and write the word once. Each page gets the next
+              number, in page order: Annexure P-1, P-2, P-3.
+            </p>
+            <div class="at-grid2">
+              <label class="field"><span>Text</span><input type="text" id="bookmark-word" value="Annexure" /></label>
+              <label class="field"><span>Before the number</span><input type="text" id="bookmark-prefix" value="P-" placeholder="optional" /></label>
+            </div>
+            <div class="field at-field">
+              <span>Number style</span>
+              <div class="at-seg" id="bookmark-style">
+                <button type="button" data-value="1" aria-pressed="true">1, 2, 3</button>
+                <button type="button" data-value="A" aria-pressed="false">A, B, C</button>
+                <button type="button" data-value="I" aria-pressed="false">I, II, III</button>
+                <button type="button" data-value="i" aria-pressed="false">i, ii, iii</button>
+              </div>
+            </div>
+            <label class="field at-field at-start"><span>Start at</span><input type="text" id="bookmark-start" value="1" maxlength="12" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+            <p class="at-mini-title">What gets added</p>
+            <ul class="at-seq" id="bookmark-sequence"></ul>
+          </details>
           <div class="row actions">
             <button id="bookmark-add" type="button" class="primary" disabled>Add bookmark</button>
             <button id="bookmark-add-sub" type="button" disabled>Add sub-bookmark</button>
@@ -237,64 +261,66 @@
         </details>
 
         <details class="panel" id="panel-label">
-          <summary>Label pages</summary>
-          <p class="hint">Fixed text on the pages you have selected — an exhibit number, a confidentiality notice.</p>
-          <label class="field">
-            <span>Label text</span>
-            <input type="text" id="label-text" placeholder="e.g. EXHIBIT A" />
-          </label>
-          <div class="row">
-            <label class="field grow">
-              <span>Where on the page</span>
-              <select id="label-position">
-                <option value="top-left">Top left</option>
-                <option value="top-center">Top centre</option>
-                <option value="top-right">Top right</option>
-                <option value="middle-center">Centre</option>
-                <option value="bottom-left">Bottom left</option>
-                <option value="bottom-center">Bottom centre</option>
-                <option value="bottom-right" selected>Bottom right</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Size (pt)</span>
-              <input type="number" id="label-size" value="12" min="6" max="72" />
-            </label>
+          <summary>Add text on pages</summary>
+          <p class="at-intro">
+            Put words on your pages: <b>Annexure P-1</b>, <b>Exhibit A</b>,
+            <b>Certified True Copy</b>, or anything you type.
+          </p>
+
+          <p class="at-step"><span>1</span> What to write</p>
+          <input type="text" id="label-text" class="at-input" placeholder="Type anything, e.g. Certified True Copy" aria-label="What to write" />
+          <p class="at-auto-note" id="label-auto-note" hidden>Numbered automatically. See below.</p>
+          <div class="at-chips" id="label-chips">
+            <button type="button" class="at-chip" data-text="Certified True Copy">Certified True Copy</button>
+            <button type="button" class="at-chip" data-text="Confidential">Confidential</button>
+            <button type="button" class="at-chip" data-text="Without Prejudice">Without Prejudice</button>
+            <button type="button" class="at-chip" data-word="Annexure" data-prefix="P-" data-style="1">Annexure P-1, P-2&hellip;</button>
+            <button type="button" class="at-chip" data-word="Exhibit" data-prefix="" data-style="A">Exhibit A, B, C&hellip;</button>
           </div>
-          <details class="sub">
-            <summary>Advanced placement</summary>
-            <label class="field">
-              <span>Distance from the edge (mm)</span>
-              <input type="number" id="label-margin" value="12.7" min="0" max="100" step="0.5" />
-            </label>
-            <label class="checkbox">
-              <input type="checkbox" id="label-exact" />
-              <span>Place at an exact point instead</span>
-            </label>
-            <div class="row actions" id="label-place-row" hidden>
-              <button id="label-place" type="button" disabled>Drag it into position&hellip;</button>
-            </div>
-            <div class="row" id="label-exact-fields" hidden>
-              <label class="field grow">
-                <span>Across (% from left)</span>
-                <input type="number" id="label-x" value="50" min="0" max="100" step="0.5" />
-              </label>
-              <label class="field grow">
-                <span>Down (% from top)</span>
-                <input type="number" id="label-y" value="50" min="0" max="100" step="0.5" />
-              </label>
-            </div>
-            <p class="hint">
-              Percentages rather than millimetres, so a label lands in the same
-              visual place whatever size the page is.
+
+          <details class="at-adv" id="label-auto">
+            <summary>Number them automatically <span class="at-tag">Advanced</span></summary>
+            <p class="at-note">
+              Write the word once. The number goes up by itself on each page
+              in step 2, so four files become Annexure P-1 to P-4.
             </p>
+            <div class="at-grid2">
+              <label class="field"><span>Text</span><input type="text" id="label-word" value="Annexure" /></label>
+              <label class="field"><span>Before the number</span><input type="text" id="label-prefix" value="P-" placeholder="optional" /></label>
+            </div>
+            <div class="field at-field">
+              <span>Number style</span>
+              <div class="at-seg" id="label-style">
+                <button type="button" data-value="1" aria-pressed="true">1, 2, 3</button>
+                <button type="button" data-value="A" aria-pressed="false">A, B, C</button>
+                <button type="button" data-value="I" aria-pressed="false">I, II, III</button>
+                <button type="button" data-value="i" aria-pressed="false">i, ii, iii</button>
+              </div>
+            </div>
+            <label class="field at-field at-start"><span>Start at</span><input type="text" id="label-start" value="1" maxlength="12" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+            <p class="at-mini-title">What gets added</p>
+            <ul class="at-seq" id="label-sequence"></ul>
           </details>
 
-          <div class="row actions">
-            <button id="label-apply" type="button" class="primary" disabled>Add label</button>
-            <button id="label-clear" type="button" disabled>Remove</button>
+          <p class="at-step"><span>2</span> Which pages</p>
+          <div class="at-radios" id="label-pages">
+            <label class="at-radio"><input type="radio" name="label-pages" value="every" /> Every page <em id="label-count-every"></em></label>
+            <label class="at-radio"><input type="radio" name="label-pages" value="selected" /> Selected pages <em id="label-count-selected"></em></label>
+            <label class="at-radio"><input type="radio" name="label-pages" value="first" /> First page of each file <em id="label-count-first"></em></label>
           </div>
+
+          <p class="at-step"><span>3</span> Place it</p>
+          <label class="checkbox at-bookmark">
+            <input type="checkbox" id="label-bookmark" />
+            <span>Also add each one as a bookmark</span>
+          </label>
+          <button type="button" id="label-place" class="at-place" disabled>Place it on the page <span aria-hidden="true">&rarr;</span></button>
           <p class="hint" id="label-hint"></p>
+
+          <div class="at-added" id="label-added" hidden>
+            <p class="at-mini-title">Text already added</p>
+            <ul id="label-added-list"></ul>
+          </div>
         </details>
 
         <details class="panel" id="panel-numbering">
@@ -311,6 +337,8 @@
               <option value="page">Page 1</option>
               <option value="plain">1</option>
               <option value="dashes">- 1 -</option>
+              <option value="roman-lower">i, ii, iii</option>
+              <option value="roman-upper">I, II, III</option>
             </select>
           </label>
           <div class="row">
@@ -327,27 +355,20 @@
               <input type="number" id="numbering-start" value="1" min="0" />
             </label>
           </div>
-          <div class="row">
-            <label class="field grow">
-              <span>Where on the page</span>
-              <select id="numbering-position">
-                <option value="bottom-right" selected>Bottom right</option>
-                <option value="bottom-left">Bottom left</option>
-                <option value="bottom-center">Bottom centre</option>
-                <option value="top-right">Top right</option>
-                <option value="top-left">Top left</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Size (pt)</span>
-              <input type="number" id="numbering-size" value="10" min="6" max="24" />
+          <p class="preview" id="numbering-preview"></p>
+          <button type="button" id="numbering-place" class="at-place numbering-place" disabled>Place it on the page <span aria-hidden="true">&rarr;</span></button>
+          <p class="hint">
+            Pick a corner or drag it, and choose the font, size and box. To move
+            or hide the number on one page, open that page full size.
+          </p>
+          <div class="numbering-hidden" id="numbering-hidden" hidden>
+            <span id="numbering-hidden-text"></span>
+            <button type="button" id="numbering-show-all">Show on every page</button>
+            <label class="checkbox numbering-count">
+              <input type="checkbox" id="numbering-count-hidden" checked />
+              <span>Count the hidden pages too. Untick to start at 1 after a cover page.</span>
             </label>
           </div>
-          <label class="field">
-            <span>Distance from the edge (mm)</span>
-            <input type="number" id="numbering-margin" value="12.7" min="0" max="100" step="0.5" />
-          </label>
-          <p class="preview" id="numbering-preview"></p>
         </details>
 
         <details class="panel" id="panel-watermark">
@@ -360,6 +381,38 @@
             <span>Watermark text</span>
             <input type="text" id="watermark-text" value="DRAFT" placeholder="e.g. DRAFT" />
           </label>
+          <div class="row">
+            <label class="field grow">
+              <span>Font</span>
+              <select id="watermark-font">
+                <option value="times">Times New Roman</option>
+                <option value="arial" selected>Arial</option>
+                <option value="calibri">Calibri</option>
+                <option value="cambria">Cambria</option>
+                <option value="georgia">Georgia</option>
+                <option value="garamond">Garamond</option>
+                <option value="courier">Courier New</option>
+                <option value="hindi">Hindi</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Colour</span>
+              <select id="watermark-colour">
+                <option value="grey" selected>Grey</option>
+                <option value="black">Black</option>
+                <option value="blue">Blue</option>
+                <option value="red">Red</option>
+              </select>
+            </label>
+          </div>
+          <label class="checkbox watermark-bold">
+            <input type="checkbox" id="watermark-bold" />
+            <span>Bold</span>
+          </label>
+          <p class="hint watermark-hindi-tip" id="watermark-hindi-tip" hidden>
+            <span>Hindi letters show when the words are in Hindi.</span>
+            <button type="button" id="watermark-hindi-words">Use Hindi words</button>
+          </p>
           <div class="row">
             <label class="field">
               <span>Size (pt)</span>
@@ -384,11 +437,16 @@
             job shows. To stop it being editable at all, use "Flatten pages"
             under Saving.
           </p>
+          <div class="numbering-hidden" id="watermark-hidden" hidden>
+            <span id="watermark-hidden-text"></span>
+            <button type="button" id="watermark-show-all">Put it back on every page</button>
+          </div>
+          <p class="hint">To leave the watermark off one page, open that page full size and tap it.</p>
         </details>
 
         <details class="panel" id="panel-presets">
           <summary>Presets</summary>
-          <p class="hint">Save the numbering, watermark and label settings under a name and reuse them. Kept in this browser only.</p>
+          <p class="hint">Save the numbering, watermark and text settings under a name and reuse them. Kept in this browser only.</p>
           <div class="row">
             <label class="field grow">
               <span>Saved presets</span>
@@ -647,20 +705,81 @@
       </div>
     </dialog>
 
-    <dialog id="place-dialog">
-      <h2>Position the label</h2>
-      <p class="hint">
-        Drag the label, or click anywhere on the page to move it there. It is
-        shown at the size it will print.
-      </p>
-      <p class="caption" id="place-caption"></p>
-      <div id="place-stage"></div>
-      <p class="inline-hint" id="place-readout"></p>
-      <div class="row actions">
-        <button id="place-apply" type="button" class="primary">Use this position</button>
-        <button id="place-centre" type="button">Centre it</button>
-        <button id="place-cancel" type="button">Cancel</button>
+    <dialog id="text-dialog" aria-labelledby="text-title">
+      <header class="td-head">
+        <div>
+          <h2 id="text-title">Place your text</h2>
+          <p>Drag it, or pick a spot on the grid. Faded items are already on the page: tap one to edit it.</p>
+        </div>
+        <button type="button" id="text-close" class="td-ghost">Close</button>
+      </header>
+      <div class="td-body">
+        <div class="td-stage-wrap">
+          <div class="td-pager" id="text-pager">
+            <button type="button" id="text-prev" aria-label="Previous page">&lsaquo;</button>
+            <span id="text-pager-label"></span>
+            <button type="button" id="text-next" aria-label="Next page">&rsaquo;</button>
+          </div>
+          <div class="td-stage loading" id="text-stage"></div>
+        </div>
+        <aside class="td-controls">
+          <section class="wide">
+            <h3>Position</h3>
+            <div class="td-scope-block" id="text-scope-block" hidden>
+              <div class="td-seg td-scope" id="text-scope" role="group" aria-label="Which pages the position applies to">
+                <button type="button" data-scope="all" aria-pressed="true">Same spot on every page</button>
+                <button type="button" data-scope="each" aria-pressed="false">Set each page separately</button>
+              </div>
+              <p class="td-tip td-scope-tip" id="text-scope-tip" hidden></p>
+            </div>
+            <div class="td-grid" id="text-grid" role="group" aria-label="Position on the page"><button type="button" data-anchor="top-left" aria-label="Top left"></button><button type="button" data-anchor="top-center" aria-label="Top centre"></button><button type="button" data-anchor="top-right" aria-label="Top right"></button><button type="button" data-anchor="middle-left" aria-label="Middle left"></button><button type="button" data-anchor="middle-center" aria-label="Middle centre"></button><button type="button" data-anchor="middle-right" aria-label="Middle right"></button><button type="button" data-anchor="bottom-left" aria-label="Bottom left"></button><button type="button" data-anchor="bottom-center" aria-label="Bottom centre"></button><button type="button" data-anchor="bottom-right" aria-label="Bottom right"></button></div>
+            <p class="td-tip">Or drag the text anywhere on the page.</p>
+          </section>
+          <section class="wide">
+            <h3>Size <output id="text-size-out">14 pt</output></h3>
+            <input type="range" id="text-size" min="6" max="72" step="1" value="14" aria-label="Size in points" />
+          </section>
+          <section class="wide">
+            <h3>Font</h3>
+            <div class="td-fonts" id="text-fonts"></div>
+            <p class="td-tip">Free look-alikes of the Word fonts, built into the site.</p>
+            <p class="td-tip td-hindi-tip" id="text-hindi-tip" hidden>
+              <span>Hindi letters show when the words are in Hindi.</span>
+              <button type="button" id="text-hindi-words">Use Hindi words</button>
+            </p>
+          </section>
+          <section>
+            <h3>Style</h3>
+            <div class="td-seg">
+              <button type="button" id="text-bold" aria-pressed="true" aria-label="Bold"><b>B</b></button>
+              <button type="button" id="text-italic" aria-pressed="false" aria-label="Italic"><i>I</i></button>
+            </div>
+          </section>
+          <section>
+            <h3>Colour</h3>
+            <div class="td-swatches" id="text-colours">
+              <button type="button" data-colour="black" aria-label="Black" style="--swatch:#000000"></button>
+              <button type="button" data-colour="blue" aria-label="Blue" style="--swatch:#1d3f9e"></button>
+              <button type="button" data-colour="red" aria-label="Red" style="--swatch:#b91c1c"></button>
+            </div>
+          </section>
+          <section class="wide">
+            <h3>Box around it</h3>
+            <div class="td-seg" id="text-box">
+              <button type="button" data-box="none">None</button>
+              <button type="button" data-box="outline">Outline</button>
+              <button type="button" data-box="filled">Filled</button>
+            </div>
+          </section>
+        </aside>
       </div>
+      <footer class="td-foot">
+        <span id="text-summary"></span>
+        <div>
+          <button type="button" id="text-cancel" class="td-ghost">Cancel</button>
+          <button type="button" id="text-apply" class="td-primary">Add</button>
+        </div>
+      </footer>
     </dialog>
 
     <dialog id="sign-dialog">
@@ -713,6 +832,18 @@
         <span class="inline-hint" id="viewer-counter"></span>
         <button id="viewer-close" type="button">Close</button>
       </div>
+      <p class="viewer-text-hint" id="viewer-text-hint" hidden>
+        <b aria-hidden="true">✥</b>
+        <span>Drag text or a page number to move it on this page. Tap anything added to the page for more choices.</span>
+      </p>
+      <p class="viewer-number-note" id="viewer-number-note" hidden>
+        The page number is hidden on this page.
+        <button type="button" id="viewer-number-show">Show it</button>
+      </p>
+      <p class="viewer-number-note" id="viewer-watermark-note" hidden>
+        The watermark is left off this page.
+        <button type="button" id="viewer-watermark-show">Put it back</button>
+      </p>
       <div id="viewer-frame"></div>
       <div class="row actions">
         <button id="viewer-prev" type="button">&larr; Previous</button>
@@ -720,7 +851,7 @@
         <span class="divider"></span>
         <button id="viewer-rotate-left" type="button">Rotate left</button>
         <button id="viewer-rotate-right" type="button">Rotate right</button>
-        <button id="viewer-redact" type="button">Redact this page&hellip;</button>
+        <button id="viewer-redact" type="button">Mark what to redact&hellip;</button>
       </div>
       <p class="hint">Use the left and right arrow keys to page through.</p>
     </dialog>
@@ -731,7 +862,8 @@
           <h2>Redact</h2>
           <p class="hint">
             Scroll through the document and drag a box over anything that must
-            go. The text underneath is destroyed, not covered.
+            go. Drag a box to move it, or its corner to resize it. The text
+            underneath is destroyed, not covered.
           </p>
         </div>
 

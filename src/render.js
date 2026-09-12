@@ -89,7 +89,18 @@ export async function renderThumbnail(sourceId, pageIndex) {
   const canvas = await drawPage(sourceId, pageIndex, { width: THUMBNAIL_WIDTH })
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 
-  const entry = { url: URL.createObjectURL(blob), width: canvas.width, height: canvas.height }
+  // The page's size in points, so text added to it can be previewed at the
+  // size it will print, however small the thumbnail.
+  const page = await documents.get(sourceId).getPage(pageIndex + 1)
+  const size = page.getViewport({ scale: 1, rotation: page.rotate })
+
+  const entry = {
+    url: URL.createObjectURL(blob),
+    width: canvas.width,
+    height: canvas.height,
+    pointsWide: size.width,
+    pointsHigh: size.height,
+  }
   thumbnails.set(cacheKey, entry)
   return entry
 }

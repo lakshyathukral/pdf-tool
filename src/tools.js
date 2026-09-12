@@ -34,7 +34,7 @@ export const TOOLS = {
     shortName: 'Control Room',
     subtitle: 'Prepare your document in one place.',
     description: 'Your all-in-one workspace for preparing, organising and finishing PDFs.',
-    blurb: 'Reorder pages, add labels, apply page numbers, watermark documents, create bookmarks and download the finished PDF.',
+    blurb: 'Reorder pages, add annexure numbers and text, apply page numbers, watermark documents, create bookmarks and download the finished PDF.',
     phrase: 'Everything you need to prepare a document in one place.',
     icon: '⌘',
     panels: 'all',
@@ -45,7 +45,7 @@ export const TOOLS = {
     features: [
       'Reorder pages',
       'Rotate and delete pages',
-      'Add labels',
+      'Add text and annexure numbers',
       'Add page numbers',
       'Watermark pages',
       'Extract and split pages',
@@ -186,21 +186,22 @@ export const TOOLS = {
     pageActions: ['view'],
     primary: 'save',
     primaryLabel: 'Save numbered PDF',
-    hint: 'Tick "Number the pages" in the sidebar, choose a style, then save.',
+    hint: 'Tick "Number the pages", choose a style, and place it on the page if you want it somewhere else.',
   },
 
+  // The id stays "label" so links people have saved keep working.
   label: {
-    name: 'Label pages',
-    phrase: 'Stamp it and send it',
+    name: 'Add text on pages',
+    phrase: 'Annexure P-1, Certified True Copy',
     category: 'add',
-    blurb: 'Stamp exhibit numbers or a confidentiality notice onto chosen pages.',
+    blurb: 'Put Annexure P-1, Exhibit A, Certified True Copy or your own words on chosen pages. Numbers can count up by themselves.',
     icon: '🏷',
     colour: '#be123c',
     panels: ['panel-label'],
     pageActions: ['select-all', 'select-none', 'view'],
     primary: 'save',
-    primaryLabel: 'Save labelled PDF',
-    hint: 'Select the pages to mark, type the label, then add it.',
+    primaryLabel: 'Save PDF',
+    hint: 'Type what to write, choose the pages, then place it on the page.',
   },
 
   extract: {

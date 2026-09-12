@@ -3,6 +3,11 @@ import { readFile } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { buildPdf, buildOutline, formatPageNumber } from '../src/export.js'
 import { textOfEachPage, rotations, outline, positionOf, centreOf, metadata, open } from './helpers/read-pdf.js'
+import { faceFiles } from '../src/fonts.js'
+
+// The browser fetches font files; here they are read straight from disk.
+const loadFaces = (font, bold, italic) =>
+  Promise.all(faceFiles(font, bold, italic).map((file) => readFile(new URL(`..${file.path}`, import.meta.url))))
 
 const five = await readFile(new URL('./fixtures/five-pages.pdf', import.meta.url))
 const three = await readFile(new URL('./fixtures/three-pages.pdf', import.meta.url))
@@ -34,6 +39,7 @@ const build = (pages, options = {}) =>
     numbering: numberingOff,
     watermark: watermarkOff,
     rasterize: async () => { throw new Error('rasterize should not be needed here') },
+    loadFaces,
     ...options,
   })
 
@@ -94,44 +100,130 @@ describe('page numbering', () => {
   })
 })
 
-describe('label placement', () => {
-  it('sits in the chosen corner by default', async () => {
+describe('text on pages', () => {
+  const mark = (extra = {}) => ({
+    group: 't1',
+    text: 'Annexure P-1',
+    x: 0.9,
+    y: 0.05,
+    anchor: 'top-right',
+    size: 14,
+    font: 'times',
+    bold: true,
+    italic: false,
+    colour: 'black',
+    box: 'none',
+    ...extra,
+  })
+
+  it('sits in the corner the grid put it in', async () => {
     const out = await build([page('s1', 0, {
-      stamps: [{ text: 'EXHIBIT A', position: 'top-left', size: 14 }],
+      stamps: [mark({ text: 'EXHIBIT A', anchor: 'top-left', x: 0.06, y: 0.05 })],
     })])
     expect(await positionOf(out, 1, /EXHIBIT A/)).toEqual({ horizontal: 'left', vertical: 'top' })
   })
 
-  it('moves further in when the margin is increased', async () => {
-    const near = await build([page('s1', 0, {
-      stamps: [{ text: 'NEAR', position: 'top-left', size: 12, margin: 5 }],
-    })])
-    const far = await build([page('s1', 0, {
-      stamps: [{ text: 'FAR', position: 'top-left', size: 12, margin: 60 }],
-    })])
-    const a = await centreOf(near, 1, /NEAR/)
-    const b = await centreOf(far, 1, /FAR/)
-    expect(b.x).toBeGreaterThan(a.x)
-    expect(b.y).toBeGreaterThan(a.y)   // further down from the top
+  it('grows away from the edge it is anchored to, so longer text stays on the page', async () => {
+    const short = await build([page('s1', 0, { stamps: [mark({ text: 'P-1' })] })])
+    const long = await build([page('s1', 0, { stamps: [mark({ text: 'Annexure P-1 Certified True Copy' })] })])
+    const a = await centreOf(short, 1, /P-1/)
+    const b = await centreOf(long, 1, /Certified/)
+    expect(b.x).toBeLessThan(a.x)
+    expect(a.x).toBeLessThan(0.9)
   })
 
-  it('lands at an exact fraction of the page when asked', async () => {
+  it('puts its middle on the point given when anchored in the middle', async () => {
     const out = await build([page('s1', 0, {
-      stamps: [{ text: 'PINNED', position: 'top-left', size: 12, mode: 'exact', x: 0.25, y: 0.75 }],
+      stamps: [mark({ text: 'PINNED', anchor: 'middle-center', x: 0.25, y: 0.75, box: 'outline' })],
     })])
     const centre = await centreOf(out, 1, /PINNED/)
-    expect(centre.x).toBeGreaterThan(0.25)
-    expect(centre.x).toBeLessThan(0.45)
+    expect(centre.x).toBeCloseTo(0.25, 1)
     expect(centre.y).toBeCloseTo(0.75, 1)
   })
 
-  it('keeps an exact placement correct on a rotated page', async () => {
+  it('keeps its place on a rotated page', async () => {
     const out = await build([page('s1', 0, {
       rotation: 90,
-      stamps: [{ text: 'PINNED', position: 'top-left', size: 12, mode: 'exact', x: 0.2, y: 0.2 }],
+      stamps: [mark({ text: 'PINNED', anchor: 'middle-center', x: 0.2, y: 0.2, box: 'filled' })],
     })])
     const centre = await centreOf(out, 1, /PINNED/)
+    expect(centre.x).toBeCloseTo(0.2, 1)
     expect(centre.y).toBeCloseTo(0.2, 1)
+  })
+
+  it('carries several pieces of text on one page', async () => {
+    const out = await build([page('s1', 0, {
+      stamps: [
+        mark({ text: 'Annexure P-1' }),
+        mark({ group: 't2', text: 'Certified True Copy', anchor: 'bottom-right', x: 0.9, y: 0.95, font: 'arial', colour: 'blue' }),
+      ],
+    })])
+    const [text] = await textOfEachPage(out)
+    expect(text).toContain('Annexure P-1')
+    expect(text).toContain('Certified True Copy')
+  })
+
+  it('writes Hindi with a number after it', async () => {
+    const out = await build([page('s1', 0, {
+      stamps: [mark({ text: 'अनुलग्नक पी-1', font: 'hindi' })],
+    })])
+    const [text] = await textOfEachPage(out)
+    expect(text).toContain('-1')
+  })
+
+  it('says so plainly if it is not given any fonts', async () => {
+    await expect(build([page('s1', 0, { stamps: [mark()] })], { loadFaces: null }))
+      .rejects.toThrow(/fonts/)
+  })
+})
+
+describe('page numbers placed on the page', () => {
+  it('sit where the numbering says, move on one page, and can be left off another', async () => {
+    const numbering = { ...numberingOff, enabled: true, prefix: 'NUM-', anchor: 'top-left' }
+    const out = await build([
+      page('s1', 0),
+      page('s1', 1, { numberSpot: { anchor: 'bottom-right', x: 0.9, y: 0.95 } }),
+      page('s1', 2, { numberHidden: true }),
+      page('s1', 3),
+    ], { numbering })
+
+    expect(await positionOf(out, 1, /NUM-0001/)).toEqual({ horizontal: 'left', vertical: 'top' })
+    expect(await positionOf(out, 2, /NUM-0002/)).toEqual({ horizontal: 'right', vertical: 'bottom' })
+    expect(await positionOf(out, 3, /NUM-0003/)).toBeNull()
+    // The hidden page still took its turn in the count.
+    expect(await positionOf(out, 4, /NUM-0004/)).toEqual({ horizontal: 'left', vertical: 'top' })
+  })
+
+  it('still reads settings saved with only a corner', async () => {
+    const numbering = { ...numberingOff, enabled: true, prefix: 'OLD-', position: 'top-right' }
+    const out = await build([page('s1', 0)], { numbering })
+    expect(await positionOf(out, 1, /OLD-0001/)).toEqual({ horizontal: 'right', vertical: 'top' })
+  })
+})
+
+describe('page numbers in other styles, and after hidden pages', () => {
+  it('writes the words in Hindi when the Hindi font is chosen', () => {
+    expect(formatPageNumber({ ...numberingOff, style: 'page-of', font: 'hindi' }, 2, 7)).toBe('पृष्ठ 2 / 7')
+    expect(formatPageNumber({ ...numberingOff, style: 'page', font: 'hindi' }, 2, 7)).toBe('पृष्ठ 2')
+    expect(formatPageNumber({ ...numberingOff, style: 'page-of', font: 'times' }, 2, 7)).toBe('Page 2 of 7')
+  })
+
+  it('writes Roman numerals', () => {
+    expect(formatPageNumber({ ...numberingOff, style: 'roman-lower' }, 4, 10)).toBe('iv')
+    expect(formatPageNumber({ ...numberingOff, style: 'roman-upper' }, 9, 10)).toBe('IX')
+  })
+
+  it('can start counting after pages whose number is hidden', async () => {
+    const numbering = { ...numberingOff, enabled: true, prefix: 'NUM-', countHidden: false }
+    const out = await build([
+      page('s1', 0, { numberHidden: true }),
+      page('s1', 1),
+      page('s1', 2),
+    ], { numbering })
+    const text = await textOfEachPage(out)
+    expect(text[0]).not.toContain('NUM-')
+    expect(text[1]).toContain('NUM-0001')
+    expect(text[2]).toContain('NUM-0002')
   })
 })
 
@@ -155,6 +247,15 @@ describe('watermark', () => {
     const pdf = await open(out)
     const items = (await (await pdf.getPage(1)).getTextContent()).items
     expect(items.filter((t) => t.str.includes('DRAFT'))).toHaveLength(9)
+  })
+
+  it('can be left off one page, in any of the fonts', async () => {
+    const out = await build([page('s1', 0, { watermarkHidden: true }), page('s1', 1)], {
+      watermark: { enabled: true, text: 'CONFIDENTIAL', size: 40, opacity: 0.2, angle: 45, font: 'georgia', colour: 'red', bold: true },
+    })
+    const text = await textOfEachPage(out)
+    expect(text[0]).not.toContain('CONFIDENTIAL')
+    expect(text[1]).toContain('CONFIDENTIAL')
   })
 })
 

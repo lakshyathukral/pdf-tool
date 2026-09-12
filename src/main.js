@@ -33,7 +33,9 @@ import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
 import { parsePageRanges, formatPageRanges } from './ranges.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
 import { openSigner, setupSigner } from './ui/sign.js'
-import { openPlacer, setupPlacer } from './ui/place.js'
+import { setupTextTool, drawTextPanel, getTextSettings, applyTextSettings, openTextEditor, openNumberPlacer } from './ui/addtext.js'
+import { loadFaceBytes } from './fonts.js'
+import { countedPages, hasHindiLetters, lastPageNumber, toHindiWords } from './textmarks.js'
 import * as presets from './presets.js'
 import * as signatures from './signatures.js'
 import { pdfFromImages, PAGE_SIZES } from './images.js'
@@ -239,8 +241,6 @@ function refreshControls() {
   // Says how many will go, so pressing it is never a surprise.
   const selectedCount = model.getSelectedIds().length
   el('delete').textContent = selectedCount > 1 ? `Delete ${selectedCount} pages` : 'Delete page'
-  el('label-apply').disabled = !hasSelection
-  el('label-clear').disabled = !hasSelection
   // Signing needs an image loaded and exactly one page chosen.
   el('sign-open').disabled = selected !== 1 || !signatures.hasSignatures()
   el('sign-remove-pages').disabled = !hasSelection
@@ -253,15 +253,12 @@ function refreshControls() {
 
   drawSignatureList()
 
-  // Positioning by hand needs one page to show, and text to show on it.
-  el('label-place').disabled = selected !== 1
-
   el('bookmark-add').disabled = !hasSelection
   el('bookmark-add-sub').disabled = !hasSelection
 
   el('bookmark-hint').textContent =
     !hasSelection ? 'Select a page first — click a thumbnail.'
-    : selected > 1 ? `Will name all ${selected} selected pages. Use {n} in the title to number them.`
+    : selected > 1 ? `Will add a bookmark to each of the ${selected} selected pages.`
     : ''
   el('primary-action').disabled =
     !hasPages || (activeTool().primary === 'extract' && !hasSelection)
@@ -309,8 +306,6 @@ function refreshControls() {
     : selected === 1 ? '1 page selected'
     : `${selected} pages selected`
 
-  el('label-hint').textContent = hasSelection ? '' : 'Select pages first — click a thumbnail.'
-
   // The Bates-only fields are noise under the other styles.
   const numbering = model.getNumbering()
   const isBates = numbering.style === 'bates'
@@ -320,13 +315,30 @@ function refreshControls() {
   // Show the real first and last number so settings can be checked before
   // saving rather than after.
   const pageCount = model.getPages().length
-  const last = numbering.start + pageCount - 1
+  const last = lastPageNumber(numbering, model.getPages())
 
   el('numbering-preview').textContent =
     !numbering.enabled ? ''
     : pageCount === 0 ? 'Add pages to see the numbering.'
     : `Pages will read ${formatPageNumber(numbering, numbering.start, last)} to ` +
       `${formatPageNumber(numbering, last, last)}, added when you save.`
+
+  el('numbering-place').disabled = !numbering.enabled || pageCount === 0
+  const hiddenNumbers = model.hiddenNumberCount()
+  el('numbering-hidden').hidden = !numbering.enabled || hiddenNumbers === 0
+  el('numbering-hidden-text').textContent = `Hidden on ${hiddenNumbers} page${hiddenNumbers === 1 ? '' : 's'}.`
+
+  const watermarkSettings = model.getWatermark()
+  const hiddenWatermarks = model.hiddenWatermarkCount()
+  el('watermark-hidden').hidden = !watermarkSettings.enabled || hiddenWatermarks === 0
+  el('watermark-hidden-text').textContent =
+    `Left off ${hiddenWatermarks} page${hiddenWatermarks === 1 ? '' : 's'}.`
+
+  // A font cannot translate: English words in the Hindi font stay English.
+  const englishInHindi = watermarkSettings.font === 'hindi' && Boolean(watermarkSettings.text)
+    && !hasHindiLetters(watermarkSettings.text)
+  el('watermark-hindi-tip').hidden = !englishInHindi
+  el('watermark-hindi-words').hidden = !toHindiWords(watermarkSettings.text)
 
   el('flatten-options').hidden = !model.getFlatten().enabled
 
@@ -368,6 +380,7 @@ model.subscribe(() => {
   drawGrid()
   drawFileStrip()
   drawBookmarks()
+  drawTextPanel()
   refreshViewer()
   refreshControls()
 })
@@ -624,57 +637,6 @@ el('delete').addEventListener('click', model.deleteSelected)
 el('redact').addEventListener('click', () => openRedactor(model.getSelectedIds()[0]))
 el('view').addEventListener('click', () => openViewer(model.getSelectedIds()[0]))
 
-function labelPlacement() {
-  const exact = el('label-exact').checked
-  return {
-    position: el('label-position').value,
-    size: Number(el('label-size').value),
-    mode: exact ? 'exact' : 'preset',
-    margin: Number(el('label-margin').value),
-    // Stored as fractions, which is what the exporter and the preview both use.
-    x: Number(el('label-x').value) / 100,
-    y: Number(el('label-y').value) / 100,
-  }
-}
-
-el('label-apply').addEventListener('click', () => {
-  model.setLabelOnSelected(el('label-text').value.trim(), labelPlacement())
-})
-
-el('label-clear').addEventListener('click', () => model.setLabelOnSelected('', labelPlacement()))
-
-// The preset position and its margin mean nothing once an exact point is set.
-for (const name of ['label-exact', 'label-x', 'label-y', 'label-margin']) {
-  el(name).addEventListener('input', () => {
-    const exact = el('label-exact').checked
-    el('label-exact-fields').hidden = !exact
-    el('label-place-row').hidden = !exact
-    el('label-position').disabled = exact
-    el('label-margin').disabled = exact
-    remember()
-  })
-}
-
-el('label-place').addEventListener('click', () => {
-  const text = el('label-text').value.trim() || 'Label'
-  openPlacer(
-    {
-      pageId: model.getSelectedIds()[0],
-      text,
-      size: Number(el('label-size').value),
-      start: { x: Number(el('label-x').value) / 100, y: Number(el('label-y').value) / 100 },
-    },
-    ({ x, y }) => {
-      // Feed the dragged position back into the number fields, so it can be
-      // nudged afterwards and saved into a preset like anything else.
-      el('label-x').value = Math.round(x * 1000) / 10
-      el('label-y').value = Math.round(y * 1000) / 10
-      remember()
-      model.setLabelOnSelected(el('label-text').value.trim(), labelPlacement())
-    },
-  )
-})
-
 // ---------------------------------------------------------------------------
 // Document settings
 // ---------------------------------------------------------------------------
@@ -686,15 +648,7 @@ function readSettings() {
   return {
     numbering: model.getNumbering(),
     watermark: model.getWatermark(),
-    label: {
-      text: el('label-text').value,
-      position: el('label-position').value,
-      size: Number(el('label-size').value),
-      exact: el('label-exact').checked,
-      margin: Number(el('label-margin').value),
-      x: Number(el('label-x').value),
-      y: Number(el('label-y').value),
-    },
+    label: getTextSettings(),
     metadata: model.getMetadata(),
     flatten: model.getFlatten(),
   }
@@ -716,9 +670,8 @@ function applySettings(settings, { restoreEnabled = true } = {}) {
     el('numbering-prefix').value = numbering.prefix
     el('numbering-start').value = numbering.start
     el('numbering-padding').value = numbering.padding
-    el('numbering-position').value = numbering.position
-    el('numbering-size').value = numbering.size
-    el('numbering-margin').value = numbering.margin ?? 12.7
+    el('numbering-count-hidden').checked = numbering.countHidden !== false
+    applyNumberLook(numbering)
   }
 
   if (watermark) {
@@ -728,6 +681,11 @@ function applySettings(settings, { restoreEnabled = true } = {}) {
     el('watermark-angle').value = watermark.angle
     el('watermark-opacity').value = Math.round(watermark.opacity * 100)
     el('watermark-tiled').checked = Boolean(watermark.tiled)
+    // Settings saved before these existed come back as the old look.
+    el('watermark-font').value = ['times', 'arial', 'calibri', 'cambria', 'georgia', 'garamond', 'courier', 'hindi']
+      .includes(watermark.font) ? watermark.font : 'arial'
+    el('watermark-colour').value = ['grey', 'black', 'blue', 'red'].includes(watermark.colour) ? watermark.colour : 'grey'
+    el('watermark-bold').checked = Boolean(watermark.bold)
   }
 
   if (flatten) {
@@ -737,19 +695,7 @@ function applySettings(settings, { restoreEnabled = true } = {}) {
     el('flatten-format').value = flatten.format ?? 'png'
   }
 
-  if (label) {
-    el('label-text').value = label.text ?? ''
-    el('label-position').value = label.position ?? 'bottom-right'
-    el('label-size').value = label.size ?? 12
-    el('label-exact').checked = Boolean(label.exact)
-    el('label-margin').value = label.margin ?? 12.7
-    el('label-x').value = label.x ?? 50
-    el('label-y').value = label.y ?? 50
-    el('label-exact-fields').hidden = !label.exact
-    el('label-place-row').hidden = !label.exact
-    el('label-position').disabled = Boolean(label.exact)
-    el('label-margin').disabled = Boolean(label.exact)
-  }
+  if (label) applyTextSettings(label)
 
   if (metadata) {
     el('meta-title').value = metadata.title ?? ''
@@ -767,6 +713,26 @@ function readMetadata() {
   model.setMetadata({ title: el('meta-title').value, author: el('meta-author').value })
 }
 
+// How page numbers look and where they sit, from saved settings. Anything out
+// of range is ignored rather than trusted; settings saved before numbers could
+// be placed on the page only had a corner, which is still honoured.
+function applyNumberLook(saved) {
+  const fraction = (v) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null)
+  model.setNumbering({
+    anchor: typeof saved.anchor === 'string' ? saved.anchor
+      : typeof saved.position === 'string' ? saved.position
+      : 'bottom-right',
+    x: fraction(saved.x),
+    y: fraction(saved.y),
+    size: Number.isFinite(saved.size) ? Math.min(72, Math.max(6, Math.round(saved.size))) : 10,
+    font: typeof saved.font === 'string' ? saved.font : 'arial',
+    bold: Boolean(saved.bold),
+    italic: Boolean(saved.italic),
+    colour: ['black', 'blue', 'red'].includes(saved.colour) ? saved.colour : 'black',
+    box: ['none', 'outline', 'filled'].includes(saved.box) ? saved.box : 'none',
+  })
+}
+
 function readNumbering() {
   model.setNumbering({
     enabled: el('numbering-enabled').checked,
@@ -774,9 +740,7 @@ function readNumbering() {
     prefix: el('numbering-prefix').value,
     start: Number(el('numbering-start').value),
     padding: Number(el('numbering-padding').value),
-    position: el('numbering-position').value,
-    size: Number(el('numbering-size').value),
-    margin: Number(el('numbering-margin').value),
+    countHidden: el('numbering-count-hidden').checked,
   })
 }
 
@@ -789,6 +753,9 @@ function readWatermark() {
     // The slider is in whole percent; pdf-lib wants a 0..1 fraction.
     opacity: Number(el('watermark-opacity').value) / 100,
     tiled: el('watermark-tiled').checked,
+    font: el('watermark-font').value,
+    colour: el('watermark-colour').value,
+    bold: el('watermark-bold').checked,
   })
 }
 
@@ -804,11 +771,11 @@ function remember() {
   presets.rememberLastUsed(readSettings())
 }
 
-for (const name of ['enabled', 'style', 'prefix', 'start', 'padding', 'position', 'size', 'margin']) {
+for (const name of ['enabled', 'style', 'prefix', 'start', 'padding', 'count-hidden']) {
   el(`numbering-${name}`).addEventListener('input', () => { readNumbering(); remember() })
 }
 
-for (const name of ['enabled', 'text', 'size', 'angle', 'opacity', 'tiled']) {
+for (const name of ['enabled', 'text', 'size', 'angle', 'opacity', 'tiled', 'font', 'colour', 'bold']) {
   el(`watermark-${name}`).addEventListener('input', () => { readWatermark(); remember() })
 }
 
@@ -820,9 +787,17 @@ for (const name of ['meta-title', 'meta-author']) {
   el(name).addEventListener('input', () => { readMetadata(); remember() })
 }
 
-for (const name of ['label-text', 'label-position', 'label-size']) {
-  el(name).addEventListener('input', remember)
-}
+// Page numbers are placed with the same view as added text.
+el('numbering-place').addEventListener('click', () => openNumberPlacer())
+el('numbering-show-all').addEventListener('click', model.showNumbersEverywhere)
+el('watermark-show-all').addEventListener('click', model.showWatermarkEverywhere)
+el('watermark-hindi-words').addEventListener('click', () => {
+  const hindi = toHindiWords(el('watermark-text').value)
+  if (!hindi) return
+  el('watermark-text').value = hindi
+  readWatermark()
+  remember()
+})
 
 el('output-name').addEventListener('input', () => model.setOutputName(el('output-name').value))
 
@@ -988,6 +963,7 @@ function exportOptions(pages, firstNumber, totalPages) {
     watermark: model.getWatermark(),
     rasterize: rasterizeRedacted,
     signatures: new Map(signatures.listSignatures().map((sig) => [sig.id, sig])),
+    loadFaces: loadFaceBytes,
     metadata: model.getMetadata(),
     // Encryption must be the LAST thing done to the file. Flattening re-opens
     // the built file to render its pages, which is impossible once it is
@@ -1047,7 +1023,7 @@ function doCompress() {
 
     const numbering = model.getNumbering()
     const asIs = await buildPdf(
-      exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
+      exportOptions(pages, numbering.start, lastPageNumber(numbering, pages)),
     )
 
     const flatten = model.getFlatten()
@@ -1098,7 +1074,7 @@ function doImages() {
 
     const numbering = model.getNumbering()
     const built = await buildPdf(
-      exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
+      exportOptions(pages, numbering.start, lastPageNumber(numbering, pages)),
     )
 
     const format = el('images-format').value
@@ -1182,7 +1158,7 @@ function doSave() {
     const pages = model.getPages()
     const numbering = model.getNumbering()
     const bytes = await finish(await buildPdf(
-      exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
+      exportOptions(pages, numbering.start, lastPageNumber(numbering, pages)),
     ), pages)
     const name = safeFileName(chosenName())
     const outcome = await deliver(bytes, name)
@@ -1196,7 +1172,7 @@ function doExtract() {
     const pages = model.getSelectedPages()
     const numbering = model.getNumbering()
     const bytes = await finish(await buildPdf(
-      exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
+      exportOptions(pages, numbering.start, lastPageNumber(numbering, pages)),
     ), pages)
     const name = safeFileName(`${chosenName()}-extract`)
     const outcome = await deliver(bytes, name)
@@ -1246,7 +1222,7 @@ function doSplit() {
       // Numbering keeps counting across the whole document rather than
       // restarting at 1 in every piece.
       const bytes = await finish(await buildPdf(
-        exportOptions(chunk, numbering.start + from, numbering.start + all.length - 1),
+        exportOptions(chunk, numbering.start + countedPages(numbering, all.slice(0, from)), lastPageNumber(numbering, all)),
       ), chunk)
 
       const title = mode === 'bookmarks' ? titleAt.get(from) : null
@@ -1281,7 +1257,7 @@ el('share-action').addEventListener('click', () => {
     const pages = model.getPages()
     const numbering = model.getNumbering()
     const bytes = await finish(await buildPdf(
-      exportOptions(pages, numbering.start, numbering.start + pages.length - 1),
+      exportOptions(pages, numbering.start, lastPageNumber(numbering, pages)),
     ), pages)
 
     try {
@@ -1317,9 +1293,16 @@ window.addEventListener('hashchange', applyRoute)
 
 setupDragDrop(openViewer)
 setupRedactor()
-setupViewer(openRedactor)
+setupViewer(openRedactor, openTextEditor, openNumberPlacer)
 setupSigner()
-setupPlacer()
+setupTextTool({
+  remember,
+  // Tapping the faded watermark in a placing view: it is changed in its panel.
+  onWatermark: () => {
+    el('panel-watermark').open = true
+    el('panel-watermark').scrollIntoView({ behavior: 'smooth', block: 'start' })
+  },
+})
 setupFileList()
 setupBookmarks(openViewer)
 drawFileStrip()

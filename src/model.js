@@ -12,6 +12,8 @@ let sources = new Map()
 // The document, in order. Each entry describes ONE page of the output:
 //   { id, sourceId, pageIndex, rotation, stamps: [], redactions: [],
 //     bookmarks: [], signatures: [] }
+// stamps are the text added with "Add text on pages" — see textmarks.js for
+// their shape.
 // signatures are placements: { signatureId, x, y, w, h } as fractions of the
 // page AS DISPLAYED, measured from the top-left — the same convention as
 // redaction boxes, so both survive zooming and rotation the same way.
@@ -35,13 +37,29 @@ let numbering = {
   prefix: '',
   start: 1,
   padding: 4,
-  position: 'bottom-right',
   size: 10,
+  // How the number looks and where it sits: the same choices as added text.
+  // x and y of null mean "at the grid spot", worked out for each page's size.
+  anchor: 'bottom-right',
+  x: null,
+  y: null,
+  font: 'arial',
+  bold: false,
+  italic: false,
+  colour: 'black',
+  box: 'none',
+  // Whether a page whose number is hidden still uses up a number. Off lets
+  // numbering start at 1 after a cover page.
+  countHidden: true,
 }
 
 let watermark = {
   enabled: false,
   text: 'DRAFT',
+  // The same fonts as added text, so the preview can be drawn as it prints.
+  font: 'arial',
+  bold: false,
+  colour: 'grey',
   size: 60,
   opacity: 0.15,
   angle: 45,
@@ -227,6 +245,12 @@ export function addSource(id, name, bytes, pageCount, sourceOutline = []) {
       // merging a set of exhibits produces a navigable bundle with no work.
       bookmarks: pageIndex === 0 ? [{ title: bookmarkTitleFor(name), level: 1 }] : [],
       signatures: [],
+      // Where this page's number sits if moved on its own, and whether it is
+      // left off this page. Hidden numbers still count.
+      numberSpot: null,
+      numberHidden: false,
+      // Leaves the watermark off this page only.
+      watermarkHidden: false,
     })
   }
 
@@ -422,17 +446,155 @@ export function duplicateSelected() {
   notify()
 }
 
-// A stamp is placed either in one of the nine standard spots, inset from the
-// edge by `margin` millimetres, or at an exact point given as a fraction of the
-// page. Fractions rather than millimetres for the exact case, so a label lands
-// in the same visual place whatever size the page is.
-export function setLabelOnSelected(text, placement) {
-  if (selection.size === 0) return
+// --- text on pages ---------------------------------------------------------
+
+// Text added together shares a group, so "Annexure P-1 to P-4" can be taken
+// off again in one go rather than page by page. A page can carry several
+// groups: a bundle often needs an annexure number AND "Certified True Copy".
+let nextGroupId = 1
+
+// entries: [{ pageId, mark }]. One undoable step however many pages it covers.
+// With bookmark on, each page also gets a bookmark with the same words — an
+// annexure number usually needs to be both — in the same undoable step.
+export function addTextMarks(entries, { bookmark = false } = {}) {
+  const useful = entries.filter((e) => e.mark.text && pages.some((p) => p.id === e.pageId))
+  if (useful.length === 0) return null
+
   beginChange()
-  for (const page of pages) {
-    if (!selection.has(page.id)) continue
-    page.stamps = text ? [{ text, ...placement }] : []
+  const group = `t${nextGroupId++}`
+  for (const { pageId, mark } of useful) {
+    const page = pages.find((p) => p.id === pageId)
+    page.stamps.push({ ...mark, group })
+    if (bookmark) page.bookmarks.push({ title: mark.text.trim(), level: 1 })
   }
+  notify()
+  return group
+}
+
+export function removeTextGroup(group) {
+  if (!pages.some((p) => p.stamps.some((s) => s.group === group))) return
+  beginChange()
+  for (const page of pages) page.stamps = page.stamps.filter((s) => s.group !== group)
+  notify()
+}
+
+// Every page carrying a group, with that page's text, in document order —
+// what the editor needs to reopen text that was already added.
+export function getTextGroupMarks(group) {
+  return pages.flatMap((page) =>
+    page.stamps.filter((mark) => mark.group === group).map((mark) => ({ page, mark })))
+}
+
+// Put edited text back as one undoable step. It keeps its group, so it stays
+// one row under "Text already added".
+export function replaceTextGroup(group, entries) {
+  if (!pages.some((p) => p.stamps.some((s) => s.group === group))) return
+  beginChange()
+  for (const page of pages) page.stamps = page.stamps.filter((s) => s.group !== group)
+  for (const { pageId, mark } of entries) {
+    pages.find((p) => p.id === pageId)?.stamps.push({ ...mark, group })
+  }
+  notify()
+}
+
+// Move one page's copy of a piece of text, leaving every other page alone —
+// dragging it in the page viewer.
+export function moveTextMark(pageId, group, { x, y }) {
+  const mark = pages.find((p) => p.id === pageId)?.stamps.find((s) => s.group === group)
+  if (!mark || (mark.x === x && mark.y === y)) return
+  beginChange()
+  mark.x = x
+  mark.y = y
+  notify()
+}
+
+// Take a piece of text off one page only.
+export function removeTextMark(pageId, group) {
+  const page = pages.find((p) => p.id === pageId)
+  if (!page?.stamps.some((s) => s.group === group)) return
+  beginChange()
+  page.stamps = page.stamps.filter((s) => s.group !== group)
+  notify()
+}
+
+// Each set of text added, in the order it first appears in the document.
+export function getTextGroups() {
+  const groups = new Map()
+  for (const page of pages) {
+    for (const mark of page.stamps) {
+      if (!groups.has(mark.group)) groups.set(mark.group, { group: mark.group, texts: [], pages: 0 })
+      const entry = groups.get(mark.group)
+      entry.texts.push(mark.text)
+      entry.pages += 1
+    }
+  }
+  return [...groups.values()]
+}
+
+// --- page numbers on single pages --------------------------------------------
+
+// Move the page number on one page only. null puts it back with the rest.
+export function setNumberSpot(pageId, spot) {
+  const page = pages.find((p) => p.id === pageId)
+  if (!page) return
+  beginChange()
+  page.numberSpot = spot ? { anchor: spot.anchor, x: spot.x, y: spot.y } : null
+  notify()
+}
+
+// Every page's own spot at once, from the placing view: one undoable step.
+export function setNumberSpots(entries) {
+  if (entries.length === 0) return
+  beginChange()
+  for (const { pageId, spot } of entries) {
+    const page = pages.find((p) => p.id === pageId)
+    if (page) page.numberSpot = spot ? { anchor: spot.anchor, x: spot.x, y: spot.y } : null
+  }
+  notify()
+}
+
+export function setNumberHidden(pageId, hidden) {
+  const page = pages.find((p) => p.id === pageId)
+  if (!page || Boolean(page.numberHidden) === hidden) return
+  beginChange()
+  page.numberHidden = hidden
+  notify()
+}
+
+export function showNumbersEverywhere() {
+  if (!pages.some((p) => p.numberHidden)) return
+  beginChange()
+  for (const page of pages) page.numberHidden = false
+  notify()
+}
+
+export const hiddenNumberCount = () => pages.filter((p) => p.numberHidden).length
+
+// --- the watermark on single pages -------------------------------------------
+
+export function setWatermarkHidden(pageId, hidden) {
+  const page = pages.find((p) => p.id === pageId)
+  if (!page || Boolean(page.watermarkHidden) === hidden) return
+  beginChange()
+  page.watermarkHidden = hidden
+  notify()
+}
+
+export function showWatermarkEverywhere() {
+  if (!pages.some((p) => p.watermarkHidden)) return
+  beginChange()
+  for (const page of pages) page.watermarkHidden = false
+  notify()
+}
+
+export const hiddenWatermarkCount = () => pages.filter((p) => p.watermarkHidden).length
+
+// One redaction box off one page — tapping it in the page viewer.
+export function removeRedaction(pageId, index) {
+  const page = pages.find((p) => p.id === pageId)
+  if (!page?.redactions[index]) return
+  beginChange()
+  page.redactions.splice(index, 1)
   notify()
 }
 
@@ -499,6 +661,18 @@ export function nudgeBookmarkLevel(pageId, index, delta) {
 }
 
 export const maxBookmarkLevel = () => MAX_BOOKMARK_LEVEL
+
+// A bookmark on each of several pages, each with its own title, as one step —
+// automatic numbering gives every page the next number.
+export function addBookmarks(entries, level) {
+  const useful = entries.filter((e) => e.title.trim() && pages.some((p) => p.id === e.pageId))
+  if (useful.length === 0) return
+  beginChange()
+  for (const { pageId, title } of useful) {
+    pages.find((p) => p.id === pageId).bookmarks.push({ title: title.trim(), level })
+  }
+  notify()
+}
 
 // Name every selected page at once. {n} in the title is replaced by a counter,
 // so "Exhibit {n}" gives Exhibit 1, Exhibit 2, and so on in page order.

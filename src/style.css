@@ -349,6 +349,8 @@ input[type="range"] { width: 100%; }
    the image inside keeps its natural size and is spun within it. */
 .frame {
   position: relative;
+  /* Text added to a page is sized in cqw, so it scales with the frame. */
+  container-type: inline-size;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -380,7 +382,6 @@ input[type="range"] { width: 100%; }
   pointer-events: none;
 }
 
-.badge.label { background: rgb(0 0 0 / 0.8); color: #fff; }
 .badge.numbering { background: #fde68a; color: #7c2d12; }
 
 .badge.at-top-left, .badge.at-top-center, .badge.at-top-right { top: 4px; }
@@ -1173,58 +1174,6 @@ html, body { max-width: 100%; }
 }
 
 .files-chip:hover { border-color: var(--accent); background: var(--accent-wash); }
-
-/* --- dragging a label into position -------------------------------------- */
-
-#place-dialog {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1.25rem;
-  max-width: min(860px, 94vw);
-  max-height: 94vh;
-  overflow: auto;
-}
-
-#place-dialog::backdrop { background: rgb(28 25 23 / 0.5); }
-#place-dialog h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
-#place-dialog .caption { margin: 0.75rem 0 0.5rem; font-size: 0.82rem; font-weight: 600; }
-
-#place-stage {
-  position: relative;
-  margin: 0.6rem auto;
-  background: #f4f4f5;
-  border: 1px solid var(--border);
-  cursor: crosshair;
-  touch-action: none;
-  user-select: none;
-}
-
-#place-stage > img { display: block; width: 100%; height: 100%; }
-
-#place-stage.loading::after {
-  content: 'Rendering page...';
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-/* The label itself, at the size it will print. */
-.place-chip {
-  position: absolute;
-  white-space: nowrap;
-  font-family: Helvetica, Arial, sans-serif;
-  line-height: 1;
-  color: #000;
-  cursor: grab;
-  outline: 1px dashed var(--accent);
-  outline-offset: 2px;
-  background: rgb(255 255 255 / 0.55);
-}
-
-.place-chip:active { cursor: grabbing; }
 
 /* A secondary file button — same shape, less shouty than the primary one. */
 .file-button.subtle {
@@ -2506,4 +2455,402 @@ body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b9
 .site-nav .nav-link[href="#legal"]:hover { background: #a8802f; color: #fff; }
 @media (max-width: 700px) {
   .site-nav .nav-link[href="#legal"] { border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 0.9rem 1.1rem; color: #7d5d1c; font-weight: 700; }
+}
+
+/* --- text on pages: the preview ------------------------------------------ */
+
+/* Drawn to match the saved file. The proportions here (line height, padding)
+   are the same numbers as LINE_HEIGHT, PAD_X and PAD_Y in textmarks.js. */
+#viewer-frame { container-type: inline-size; }
+
+.text-mark {
+  position: absolute;
+  white-space: pre;
+  line-height: 1.25;
+  padding: 0.12em 0.35em;
+  color: var(--ink);
+  /* A PDF places letters by their own widths, without kerning. */
+  font-kerning: none;
+  pointer-events: none;
+}
+.text-mark.box-outline { box-shadow: inset 0 0 0 var(--rule) var(--ink); }
+.text-mark.box-filled { background: var(--ink); color: #fff; }
+
+/* --- text on pages: the sidebar steps ------------------------------------ */
+
+#panel-label .at-intro { margin: 0.1rem 0 0.4rem; font-size: 0.84rem; line-height: 1.5; color: #57534e; }
+
+.at-step {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin: 1.05rem 0 0.5rem;
+  font-size: 0.76rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.at-step span {
+  display: grid; place-items: center; width: 1.35rem; height: 1.35rem; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 0.72rem; letter-spacing: 0;
+}
+
+.at-input {
+  width: 100%; font: inherit; font-size: 1rem; padding: 0.6rem 0.75rem;
+  border: 1.5px solid #d6d3d1; border-radius: 10px;
+}
+.at-input:focus { outline: 2px solid #2a5db0; outline-offset: 1px; border-color: #2a5db0; }
+.at-auto-note {
+  margin: 0; padding: 0.6rem 0.75rem; border: 1.5px dashed #b6c6e6; border-radius: 10px;
+  background: #f5f8fe; font-size: 0.86rem; font-weight: 600; color: #2a5db0;
+}
+
+.at-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+.at-chip {
+  font: inherit; font-size: 0.78rem; font-weight: 600; padding: 0.32rem 0.68rem;
+  border-radius: 999px; border: 1px solid #d6d3d1; background: #fff; color: #44403c; white-space: nowrap; cursor: pointer;
+}
+.at-chip:hover { border-color: #2a5db0; color: #2a5db0; background: #f5f8fe; }
+
+.at-adv { margin-top: 0.85rem; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 0 0.8rem; background: #fff; }
+.at-adv[open] { border-color: #2a5db0; background: #f5f8fe; padding-bottom: 0.85rem; }
+.at-adv > summary {
+  display: flex; align-items: center; gap: 0.45rem; padding: 0.6rem 0;
+  list-style: none; cursor: pointer; font-size: 0.87rem; font-weight: 800; color: var(--accent);
+}
+.at-adv > summary::-webkit-details-marker { display: none; }
+.at-adv > summary::before { content: '▸'; color: #2a5db0; }
+.at-adv[open] > summary::before { content: '▾'; }
+.at-tag {
+  margin-left: auto; padding: 0.12rem 0.5rem; border-radius: 999px; background: var(--accent); color: #fff;
+  font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.at-note { margin: 0 0 0.7rem; font-size: 0.79rem; line-height: 1.45; color: #44403c; }
+.at-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+.at-adv .field > span { font-weight: 700; color: #57534e; }
+.at-adv .field input { font-weight: 600; }
+.at-field { margin-top: 0.55rem; }
+.at-start { max-width: 7rem; }
+
+.at-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1.5px solid #d6d3d1; border-radius: 10px; overflow: hidden; background: #fff; }
+.at-seg button {
+  font: inherit; font-size: 0.74rem; font-weight: 600; padding: 0.45rem 0.1rem; margin: 0;
+  border: 0; border-right: 1px solid #e7e5e4; border-radius: 0; background: #fff; color: #44403c; cursor: pointer; white-space: nowrap;
+}
+.at-seg button:last-child { border-right: 0; }
+.at-seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+.at-mini-title { margin: 0.8rem 0 0.35rem; font-size: 0.69rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #57534e; }
+.at-seq { list-style: none; margin: 0; padding: 0.45rem 0.7rem; display: grid; border: 1px solid #dbe4f3; border-radius: 10px; background: #fff; }
+.at-seq li { display: grid; gap: 0.05rem; padding: 0.22rem 0; border-bottom: 1px solid #eef2f8; font-size: 0.82rem; }
+.at-seq li:last-child { border-bottom: 0; }
+.at-seq b { color: var(--accent); overflow-wrap: anywhere; }
+.at-seq span { font-size: 0.76rem; color: #78716c; overflow-wrap: anywhere; }
+.at-seq li.more { font-size: 0.76rem; color: #78716c; }
+
+.at-radios { display: grid; gap: 0.4rem; }
+.at-radio {
+  display: flex; align-items: center; gap: 0.55rem; padding: 0.55rem 0.7rem;
+  border: 1.5px solid #e7e5e4; border-radius: 10px; font-size: 0.88rem; font-weight: 600; color: #1c1917; cursor: pointer;
+}
+.at-radio input { width: auto; margin: 0; accent-color: var(--accent); }
+.at-radio em { margin-left: auto; font-style: normal; font-weight: 500; font-size: 0.76rem; color: #78716c; white-space: nowrap; }
+.at-radio.on { border-color: var(--accent); background: #f5f5f4; }
+
+.at-place {
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem; width: 100%;
+  padding: 0.85rem 1rem; border: 0; border-radius: 12px; background: #2a5db0; color: #fff;
+  font: inherit; font-size: 1rem; font-weight: 800; cursor: pointer; box-shadow: 0 6px 16px rgb(42 93 176 / 0.3);
+}
+.at-place:hover:not(:disabled) { background: #234f97; }
+.at-place:disabled { background: #cbd5e1; color: #f8fafc; box-shadow: none; cursor: not-allowed; }
+
+.at-added ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.at-added li {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.4rem 0.45rem 0.7rem;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft);
+}
+.at-added li div { min-width: 0; display: grid; }
+.at-added li b { font-size: 0.84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.at-added li span { font-size: 0.74rem; color: #78716c; }
+.at-added li button {
+  margin-left: auto; flex: none; width: 1.9rem; height: 1.9rem; padding: 0; border-radius: 50%;
+  border: 1px solid #d6d3d1; background: #fff; font-size: 1.05rem; line-height: 1; color: #57534e; cursor: pointer;
+}
+.at-added li button:hover { border-color: var(--danger); color: var(--danger); }
+
+/* --- text on pages: the placing view ------------------------------------- */
+
+#text-dialog {
+  width: min(1220px, 96vw); height: min(920px, 94vh); max-width: 96vw; max-height: 94vh;
+  padding: 0; border: 0; border-radius: 18px; overflow: hidden; box-shadow: 0 30px 80px rgb(0 0 0 / 0.35);
+}
+#text-dialog[open] { display: flex; flex-direction: column; }
+#text-dialog::backdrop { background: rgb(15 23 42 / 0.6); }
+
+.td-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.4rem 0.9rem; border-bottom: 1px solid #e7e5e4; }
+.td-head h2 { margin: 0 0 0.2rem; font-size: 1.3rem; color: var(--accent); }
+.td-head p { margin: 0; font-size: 0.88rem; color: #57534e; }
+
+.td-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+.td-stage-wrap {
+  min-height: 0; overflow: auto; background: #e7e5e4; padding: 1rem 1.4rem 2.6rem;
+  display: grid; justify-items: center; align-content: start; gap: 0.7rem;
+}
+.td-pager { display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: #44403c; text-align: center; }
+.td-pager[hidden] { display: none; }
+.td-pager button {
+  flex: none; width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 50%; border: 1px solid #d6d3d1;
+  background: #fff; font-size: 1.2rem; line-height: 1; cursor: pointer;
+}
+.td-pager button:disabled { opacity: 0.4; cursor: default; }
+.td-pager b { color: var(--accent); }
+.td-pager small { font-size: 0.8rem; color: #78716c; }
+
+.td-stage {
+  --ratio: 0.7071;
+  position: relative;
+  width: min(620px, 100%, calc((min(920px, 94vh) - 310px) * var(--ratio)));
+  aspect-ratio: var(--ratio);
+  background: #fff; box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+  container-type: inline-size;
+  touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair;
+}
+.td-stage > img { display: block; width: 100%; height: 100%; pointer-events: none; }
+.td-stage.loading { background: repeating-linear-gradient(45deg, #f4f4f5, #f4f4f5 8px, #e9e9ec 8px, #e9e9ec 16px); }
+.td-stage.loading::after {
+  content: 'Rendering page...'; position: absolute; inset: 0; display: grid; place-items: center;
+  color: var(--muted); font-size: 0.85rem;
+}
+
+.td-mark.text-mark { pointer-events: auto; cursor: grab; outline: 2px dashed #2a5db0; outline-offset: 4px; touch-action: none; }
+.td-mark.text-mark:active { cursor: grabbing; }
+.td-mark.text-mark:focus-visible { outline-color: #0f2f63; }
+.td-grip {
+  position: absolute; top: calc(100% + 9px); left: 50%; transform: translateX(-50%);
+  padding: 4px 8px; border-radius: 999px; background: #2a5db0; color: #fff;
+  font: 700 11px/1 system-ui, -apple-system, sans-serif; font-style: normal; letter-spacing: 0; white-space: nowrap; pointer-events: none;
+}
+/* Text near the bottom edge: put the handle above so it stays visible. */
+.td-mark.grip-above .td-grip { top: auto; bottom: calc(100% + 9px); }
+
+.td-controls { overflow: auto; padding: 1rem 1.2rem; border-left: 1px solid #e7e5e4; background: #fff; display: grid; align-content: start; gap: 1.1rem; }
+.td-controls section { min-width: 0; }
+.td-controls h3 {
+  display: flex; justify-content: space-between; margin: 0 0 0.5rem;
+  font-size: 0.74rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.td-controls h3 output { font-weight: 700; color: #2a5db0; letter-spacing: 0; text-transform: none; font-size: 0.85rem; }
+.td-tip { margin: 0.45rem 0 0; font-size: 0.77rem; color: #78716c; }
+
+/* Stacked, so neither choice is ever cut short in the narrow controls column. */
+.td-seg.td-scope { margin-bottom: 0.55rem; grid-auto-flow: row; }
+.td-seg.td-scope button { font-size: 0.84rem; line-height: 1.25; padding: 0.55rem 0.7rem; text-align: left; border-right: 0; border-bottom: 1px solid #e7e5e4; }
+.td-seg.td-scope button:last-child { border-bottom: 0; }
+.td-scope-tip { margin: 0 0 0.7rem; padding: 0.5rem 0.65rem; border-radius: 8px; background: #f5f8fe; color: #2a5db0; font-weight: 600; }
+.td-own {
+  margin-left: 0.4rem; padding: 0.12rem 0.45rem; border-radius: 999px;
+  background: #2a5db0; color: #fff; font-size: 0.7rem; font-weight: 700; white-space: nowrap;
+}
+.td-own[hidden] { display: none; }
+
+.td-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; width: 140px; padding: 0.45rem; border: 1.5px solid #d6d3d1; border-radius: 10px; background: #fafaf9; }
+.td-grid button { aspect-ratio: 1.3; padding: 0; border: 0; border-radius: 5px; background: #e7e5e4; cursor: pointer; }
+.td-grid button:hover { background: #bfcde6; }
+.td-grid button[aria-pressed="true"] { background: #2a5db0; }
+
+#text-size { width: 100%; accent-color: #2a5db0; }
+
+.td-fonts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+.td-font {
+  display: grid; gap: 0.12rem; min-width: 0; text-align: left; padding: 0.5rem 0.6rem;
+  border: 1.5px solid #e7e5e4; border-radius: 10px; background: #fff; cursor: pointer; font: inherit;
+}
+.td-font[aria-pressed="true"] { border-color: #2a5db0; background: #f5f8fe; box-shadow: 0 0 0 2px rgb(42 93 176 / 0.18); }
+.td-font b { font-size: 1.08rem; line-height: 1.3; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-font small { font: 600 0.68rem/1.3 system-ui, -apple-system, sans-serif; color: #78716c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.td-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1.5px solid #d6d3d1; border-radius: 10px; overflow: hidden; background: #fff; }
+.td-seg button {
+  font: inherit; font-size: 0.86rem; font-weight: 600; padding: 0.5rem 0.3rem; margin: 0;
+  border: 0; border-right: 1px solid #e7e5e4; border-radius: 0; background: #fff; color: #44403c; cursor: pointer;
+}
+.td-seg button:last-child { border-right: 0; }
+.td-seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.td-seg button:disabled { color: #c8c4bf; cursor: not-allowed; }
+
+.td-swatches { display: flex; gap: 0.6rem; }
+.td-swatches button { width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 50%; border: 3px solid #fff; background: var(--swatch); box-shadow: 0 0 0 1.5px #d6d3d1; cursor: pointer; }
+.td-swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2.5px #2a5db0; }
+
+.td-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.85rem 1.4rem; border-top: 1px solid #e7e5e4; background: #fff; }
+.td-foot span { font-size: 0.9rem; color: #44403c; }
+.td-foot div { display: flex; gap: 0.6rem; }
+.td-ghost { font: inherit; font-weight: 600; padding: 0.6rem 1rem; border-radius: 10px; border: 1px solid #d6d3d1; background: #fff; cursor: pointer; }
+.td-primary { font: inherit; font-weight: 800; padding: 0.7rem 1.4rem; border-radius: 10px; border: 0; background: #2a5db0; color: #fff; cursor: pointer; }
+.td-primary:hover { background: #234f97; }
+
+@media (max-width: 700px) {
+  #text-dialog { width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; border-radius: 0; }
+  .td-head { padding: 0.8rem 0.9rem 0.6rem; }
+  .td-head p { display: none; }
+  .td-body { display: block; overflow: auto; }
+  .td-stage-wrap { min-height: auto; padding: 0.7rem 0.7rem 2.4rem; overflow: visible; }
+  .td-stage { width: min(100%, calc(52dvh * var(--ratio))); }
+  .td-controls { border-left: 0; border-top: 1px solid #e7e5e4; overflow: visible; grid-template-columns: 1fr 1fr; gap: 1rem 0.9rem; }
+  .td-controls section.wide { grid-column: 1 / -1; }
+  .td-foot { flex-direction: column; align-items: stretch; gap: 0.55rem; padding: 0.7rem 0.9rem calc(0.7rem + env(safe-area-inset-bottom, 0px)); }
+  .td-foot div { display: grid; grid-template-columns: 1fr 2fr; }
+}
+
+/* --- text on pages: editing what was added --------------------------------- */
+
+.at-added li .at-edit {
+  margin-left: auto; width: auto; padding: 0 0.8rem; border-radius: 999px;
+  border-color: #b6c6e6; font-size: 0.78rem; font-weight: 700; color: #2a5db0;
+}
+.at-added li .at-edit:hover { border-color: #2a5db0; color: #2a5db0; background: #f5f8fe; }
+.at-added li .at-edit + button { margin-left: 0; }
+
+#label-start[aria-invalid="true"] { border-color: var(--danger); outline-color: var(--danger); }
+
+/* Text in the page viewer: boxed, and dragged straight on the page. */
+.viewer-text-hint {
+  display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0 0.7rem; padding: 0.6rem 0.85rem;
+  border-radius: 10px; background: #eef3fc; color: #1f4f9c; font-size: 0.88rem; font-weight: 600; line-height: 1.35;
+}
+.viewer-text-hint[hidden] { display: none; }
+.viewer-text-hint b {
+  display: grid; place-items: center; flex: none; width: 1.7rem; height: 1.7rem; border-radius: 50%;
+  background: #2a5db0; color: #fff; font-size: 0.95rem;
+}
+
+/* The tag and the bar sit just outside the page's edge when text is near it. */
+#viewer-frame { overflow: visible; }
+
+#viewer-frame .text-mark.movable {
+  pointer-events: auto; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+  outline: 2px dashed #2a5db0; outline-offset: 5px; background: rgb(42 93 176 / 0.07);
+}
+#viewer-frame .text-mark.movable:focus-visible { outline-color: #0f2f63; }
+#viewer-frame .text-mark.movable.dragging { cursor: grabbing; }
+#viewer-frame .text-mark.movable.sel {
+  outline: 2.5px solid #2a5db0; box-shadow: 0 0 0 9px rgb(42 93 176 / 0.16); background: rgb(42 93 176 / 0.1);
+}
+
+.mv-tag {
+  position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%);
+  padding: 4px 9px; border-radius: 999px; background: #2a5db0; color: #fff;
+  font: 700 11px/1 system-ui, -apple-system, sans-serif; font-style: normal; letter-spacing: 0;
+  white-space: nowrap; pointer-events: none;
+}
+.mv-tag.moved { background: #15654a; }
+.text-mark.tag-above .mv-tag { top: auto; bottom: calc(100% + 10px); }
+
+.mv-bar {
+  position: absolute; left: 50%; bottom: calc(100% + 16px); transform: translateX(-50%); z-index: 2;
+  display: flex; gap: 2px; padding: 4px; border-radius: 11px; background: #16233a;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.25);
+  font: 600 12.5px/1 system-ui, -apple-system, sans-serif; font-style: normal; letter-spacing: 0; white-space: nowrap;
+}
+.mv-bar::after {
+  content: ''; position: absolute; left: calc(50% + var(--pointer-shift, 0px)); bottom: -6px; width: 12px; height: 12px;
+  background: #16233a; transform: translateX(-50%) rotate(45deg);
+}
+.text-mark.bar-below .mv-bar { bottom: auto; top: calc(100% + 16px); }
+.text-mark.bar-below .mv-bar::after { bottom: auto; top: -6px; }
+.mv-bar button {
+  position: relative; z-index: 1; margin: 0; padding: 8px 11px; border: 0; border-radius: 8px;
+  background: transparent; color: #fff; font: inherit; cursor: pointer;
+}
+.mv-bar button:hover { background: rgb(255 255 255 / 0.12); }
+.mv-bar button.danger { color: #fecaca; }
+
+@media (max-width: 700px) {
+  /* A phone is too narrow for the bar in one line. */
+  .mv-bar { flex-direction: column; white-space: normal; min-width: 11rem; }
+  .mv-bar button { text-align: left; }
+}
+
+/* --- page numbers: placed like added text ---------------------------------- */
+
+#panel-numbering .numbering-place { margin-top: 0.8rem; }
+
+.numbering-hidden {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; margin: 0.6rem 0 0;
+  padding: 0.5rem 0.65rem; border-radius: 8px; background: var(--bg-soft); font-size: 0.8rem; color: #57534e;
+}
+.numbering-hidden[hidden], .viewer-number-note[hidden] { display: none; }
+.numbering-hidden button, .viewer-number-note button {
+  padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: #2a5db0; cursor: pointer; text-decoration: underline;
+}
+
+.viewer-number-note {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; margin: 0 0 0.7rem;
+  padding: 0.5rem 0.85rem; border-radius: 10px; background: #fef3c7; color: #78350f; font-size: 0.86rem; font-weight: 600;
+}
+
+/* --- the same choices on every tool ---------------------------------------- */
+
+/* Watermark: drawn in its real font and size (set inline), so no forced
+   weight, and letters placed by their own widths as in the PDF. */
+.watermark-preview { line-height: 1.15; font-kerning: none; }
+.checkbox.watermark-bold { margin-top: 0.55rem; }
+
+/* Tapped in the page viewer: the watermark and redaction boxes. */
+#viewer-frame .watermark-preview.tappable { pointer-events: auto; cursor: pointer; }
+#viewer-frame .watermark-preview.sel { outline: 2px dashed #2a5db0; outline-offset: 4px; }
+.mv-bar.floating { top: 50%; bottom: auto; transform: translate(-50%, -50%); }
+.mv-bar.floating::after { display: none; }
+
+#viewer-frame .redact-mark.tappable { pointer-events: auto; cursor: pointer; }
+#viewer-frame .redact-mark.sel { outline: 2.5px solid #2a5db0; outline-offset: 3px; box-shadow: 0 0 0 8px rgb(42 93 176 / 0.16); }
+.redact-mark.bar-below .mv-bar { bottom: auto; top: calc(100% + 16px); }
+.redact-mark.bar-below .mv-bar::after { bottom: auto; top: -6px; }
+
+/* Redaction view: finished boxes move and resize. */
+.redact-box[data-index] { pointer-events: auto; cursor: move; touch-action: none; }
+.redact-resize {
+  position: absolute; right: -7px; bottom: -7px; width: 14px; height: 14px;
+  border: 2px solid #ef4444; border-radius: 3px; background: #fff; cursor: nwse-resize;
+  opacity: 0; transition: opacity 0.12s;
+}
+.redact-stage:hover .redact-resize { opacity: 1; }
+@media (pointer: coarse) {
+  .redact-resize { opacity: 1; width: 22px; height: 22px; right: -11px; bottom: -11px; }
+}
+
+/* Bookmarks: numbering like text, and renaming with a button. */
+#panel-bookmarks .at-adv { margin: 0.7rem 0; }
+#panel-bookmarks .at-auto-note { margin-top: 0.3rem; }
+.bookmark-row .bookmark-edit {
+  flex: none; padding: 0.1rem 0.5rem; border: 1px solid #b6c6e6; border-radius: 999px;
+  background: #fff; color: #2a5db0; font-size: 0.72rem; font-weight: 700; cursor: pointer;
+}
+.bookmark-row .bookmark-edit:hover { background: #f5f8fe; }
+.bookmark-rename {
+  flex: 1 1 auto; min-width: 0; padding: 0.25rem 0.45rem; border: 1.5px solid #2a5db0; border-radius: 6px;
+  font: inherit; font-size: 0.82rem;
+}
+
+/* Add text on pages: also as bookmarks. */
+.checkbox.at-bookmark { margin: 0 0 0.6rem; font-weight: 600; }
+
+/* Page numbers: counting hidden pages. */
+.numbering-hidden .numbering-count { flex-basis: 100%; margin: 0.2rem 0 0; font-size: 0.78rem; align-items: flex-start; }
+.numbering-hidden .numbering-count input { margin-top: 0.15rem; }
+
+/* --- placing views: what is already on the page --------------------------- */
+
+.td-context { position: absolute; inset: 0; container-type: inline-size; opacity: 0.45; pointer-events: none; }
+.td-context .td-other { pointer-events: auto; cursor: pointer; }
+.td-context .td-other:hover { outline: 2px dashed #57534e; outline-offset: 3px; }
+
+.mv-bar.td-other-bar { bottom: auto; transform: translate(-50%, calc(-100% - 14px)); z-index: 3; }
+
+/* Hindi chosen for English words. */
+.td-hindi-tip, .watermark-hindi-tip {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem;
+  padding: 0.5rem 0.65rem; border-radius: 8px; background: #fef3c7; color: #78350f; font-weight: 600;
+}
+.td-hindi-tip[hidden], .watermark-hindi-tip[hidden],
+.td-hindi-tip button[hidden], .watermark-hindi-tip button[hidden] { display: none; }
+.td-hindi-tip button, .watermark-hindi-tip button {
+  padding: 0.3rem 0.75rem; border: 0; border-radius: 999px; background: #2a5db0; color: #fff;
+  font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
 }

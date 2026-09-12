@@ -26,8 +26,8 @@ function makeTile(page, position) {
   frame.className = 'frame'
 
   const thumb = getThumbnail(page.sourceId, page.pageIndex)
+  const sideways = page.rotation === 90 || page.rotation === 270
   if (thumb) {
-    const sideways = page.rotation === 90 || page.rotation === 270
     // The frame takes the ROTATED dimensions so the grid lays out correctly;
     // the image keeps its natural size and is spun inside it.
     frame.style.width = `${sideways ? thumb.height : thumb.width}px`
@@ -52,7 +52,10 @@ function makeTile(page, position) {
   bar.title = source.name
   frame.append(bar)
 
-  addOverlays(frame, page, position)
+  // The page's width in points as displayed, so added text is drawn to scale.
+  const pointsWide = thumb ? (sideways ? thumb.pointsHigh : thumb.pointsWide) : 0
+  const pointsHigh = thumb ? (sideways ? thumb.pointsWide : thumb.pointsHigh) : 0
+  addOverlays(frame, page, position, { pointsWide, pointsHigh })
 
   // Markers for every bookmark starting on this page, so the structure of the
   // bundle is readable from the grid without opening the panel.
@@ -70,7 +73,7 @@ function makeTile(page, position) {
 
   const origin = document.createElement('small')
   origin.textContent = page.redactions.length > 0
-    ? `${source.name} p.${page.pageIndex + 1} · redacted`
+    ? `${source.name} p.${page.pageIndex + 1} · has redactions`
     : `${source.name} p.${page.pageIndex + 1}`
   origin.title = `${source.name}, page ${page.pageIndex + 1}`
 

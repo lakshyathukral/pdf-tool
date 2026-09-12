@@ -6,11 +6,10 @@
 // assemble a PDF from things it is given.
 // ---------------------------------------------------------------------------
 
-import { PDFDocument, StandardFonts, degrees, rgb, PDFName, PDFHexString } from '@cantoo/pdf-lib'
+import { PDFDocument, degrees, rgb, PDFName, PDFHexString } from '@cantoo/pdf-lib'
 import { zipSync } from 'fflate'
+import { anchorFractions, anchorPoint, boxGeometry, borderWidth, colourOf, formatCounter, numberMark } from './textmarks.js'
 
-const DEFAULT_MARGIN_MM = 12.7   // half an inch
-const POINTS_PER_MM = 72 / 25.4
 
 // --- geometry --------------------------------------------------------------
 
@@ -27,42 +26,115 @@ function visualToPage(vx, vy, w, h, rotation) {
   return [vx, vy]
 }
 
-function drawStamp(page, stamp, font, rotation) {
-  const { text, position, size } = stamp
+// --- text on pages ---------------------------------------------------------
+
+// Letters that belong with the one before them — a vowel sign, a virama, a
+// joiner — must stay in the same run, or the syllable falls apart.
+const JOINS_PREVIOUS = /\p{M}|\u200c|\u200d/u
+
+// Split text into runs, each drawn with the first font piece that has its
+// letters. For Hindi, "अनुलग्नक पी-1" becomes the Hindi words in the
+// Devanagari piece and "-1" in the Latin one. A letter no piece has is drawn
+// with the first, which at least keeps its place.
+function splitRuns(text, kits) {
+  const runs = []
+  for (const letter of text) {
+    const previous = runs.at(-1)
+    let face = kits.findIndex((kit) => kit.hasGlyphForCodePoint(letter.codePointAt(0)))
+    if (previous && JOINS_PREVIOUS.test(letter)) face = previous.face
+    if (face === -1) face = 0
+
+    if (previous && previous.face === face) previous.text += letter
+    else runs.push({ face, text: letter })
+  }
+  return runs
+}
+
+// Load, measure and embed everything the text on these pages needs, before
+// any drawing starts. Only the font pieces actually used are embedded, and
+// only the letters used from them.
+//
+// loadFaces(fontId, bold, italic) returns the bytes of each piece of a font,
+// in the order to try them. It is passed in so this file never has to know
+// where fonts are kept: a browser fetches them, a test reads them from disk.
+async function prepareTextMarks(output, pages, loadFaces, extraMarks = []) {
+  const layouts = new Map()
+  const marks = [...pages.flatMap((page) => page.stamps), ...extraMarks]
+  if (marks.length === 0) return layouts
+  if (!loadFaces) throw new Error('Text on pages needs its fonts, and none were provided.')
+
+  // Only loaded when there is text to draw: fontkit is large.
+  const fontkit = await import('fontkit')
+  output.registerFontkit(fontkit)
+
+  const styles = new Map()
+  for (const mark of marks) {
+    const key = `${mark.font}|${Boolean(mark.bold)}|${Boolean(mark.italic)}`
+    if (!styles.has(key)) {
+      const bytes = await loadFaces(mark.font, Boolean(mark.bold), Boolean(mark.italic))
+      styles.set(key, { bytes, kits: bytes.map((b) => fontkit.create(b)), embedded: [] })
+    }
+    const style = styles.get(key)
+
+    const runs = splitRuns(mark.text, style.kits)
+    for (const run of runs) {
+      style.embedded[run.face] ??= await output.embedFont(style.bytes[run.face], { subset: true })
+      run.font = style.embedded[run.face]
+    }
+
+    const kit = style.kits[0]
+    layouts.set(mark, {
+      runs,
+      width: runs.reduce((sum, run) => sum + run.font.widthOfTextAtSize(run.text, mark.size), 0),
+      ascent: kit.ascent / kit.unitsPerEm,
+      descent: kit.descent / kit.unitsPerEm,
+    })
+  }
+  return layouts
+}
+
+function drawTextMark(page, mark, layout, rotation) {
   const { width: w, height: h } = page.getSize()
   const [visualWidth, visualHeight] = rotation === 90 || rotation === 270 ? [h, w] : [w, h]
 
-  const textWidth = font.widthOfTextAtSize(text, size)
-  const textHeight = font.heightAtSize(size)
+  const box = boxGeometry(layout.width, mark.size, layout.ascent, layout.descent)
+  const [ax, ay] = anchorFractions(mark.anchor)
 
-  let vx
-  let vy
+  // No x and y means the grid spot, worked out for this page's own size.
+  const spot = Number.isFinite(mark.x) && Number.isFinite(mark.y)
+    ? mark
+    : anchorPoint(mark.anchor, visualWidth, visualHeight)
 
-  if (stamp.mode === 'exact') {
-    // x and y are fractions of the visible page, measured from the top-left —
-    // the same convention as redaction boxes. PDF counts up from the bottom.
-    vx = (stamp.x ?? 0) * visualWidth
-    vy = (1 - (stamp.y ?? 0)) * visualHeight - textHeight
-  } else {
-    const margin = (stamp.margin ?? DEFAULT_MARGIN_MM) * POINTS_PER_MM
-    const [vertical, horizontal] = position.split('-')
+  // The box's top-left corner on the page as displayed, measured from the top.
+  const left = spot.x * visualWidth - ax * box.width
+  const top = spot.y * visualHeight - ay * box.height
+  const ink = rgb(...colourOf(mark.colour).rgb)
 
-    vx =
-      horizontal === 'left' ? margin
-      : horizontal === 'center' ? (visualWidth - textWidth) / 2
-      : visualWidth - margin - textWidth
-
-    vy =
-      vertical === 'bottom' ? margin
-      : vertical === 'middle' ? (visualHeight - textHeight) / 2
-      : visualHeight - margin - textHeight
+  if (mark.box === 'outline' || mark.box === 'filled') {
+    const filled = mark.box === 'filled'
+    // A PDF line is centred on the edge it traces. Pulling the rectangle in by
+    // half the line keeps all of it inside the box, as in the preview.
+    const rule = filled ? 0 : borderWidth(mark.size)
+    const [x, y] = visualToPage(left + rule / 2, visualHeight - top - box.height + rule / 2, w, h, rotation)
+    page.drawRectangle({
+      x,
+      y,
+      width: box.width - rule,
+      height: box.height - rule,
+      rotate: degrees(rotation),
+      ...(filled ? { color: ink } : { borderColor: ink, borderWidth: rule }),
+    })
   }
 
-  const [x, y] = visualToPage(vx, vy, w, h, rotation)
+  const colour = mark.box === 'filled' ? rgb(1, 1, 1) : ink
+  const baseline = visualHeight - top - box.baseline
+  let across = left + box.inset
 
-  // Rotating the text by the same amount as the page cancels the page's
-  // rotation out, so the stamp reads horizontally on screen.
-  page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0), rotate: degrees(rotation) })
+  for (const run of layout.runs) {
+    const [x, y] = visualToPage(across, baseline, w, h, rotation)
+    page.drawText(run.text, { x, y, size: mark.size, font: run.font, color: colour, rotate: degrees(rotation) })
+    across += run.font.widthOfTextAtSize(run.text, mark.size)
+  }
 }
 
 // Where the watermark copies sit, as fractions of the visible page.
@@ -74,13 +146,12 @@ function watermarkCentres(tiled) {
 }
 
 // A watermark sits across the page at an angle, so it needs its centre worked
-// out rather than a corner.
-function drawWatermark(page, watermark, font, rotation) {
+// out rather than a corner. It is drawn in the same fonts as added text, from
+// a layout measured before drawing began (see prepareTextMarks).
+function drawWatermark(page, watermark, layout, rotation) {
   const { width: w, height: h } = page.getSize()
   const [visualWidth, visualHeight] = rotation === 90 || rotation === 270 ? [h, w] : [w, h]
-
-  const textWidth = font.widthOfTextAtSize(watermark.text, watermark.size)
-  const textHeight = font.heightAtSize(watermark.size)
+  const { size } = watermark
 
   // The angle the user asked for, plus the page's own rotation so it looks
   // right on rotated pages too.
@@ -88,21 +159,33 @@ function drawWatermark(page, watermark, font, rotation) {
   const cos = Math.cos(theta)
   const sin = Math.sin(theta)
 
+  // From the middle of the letters down to their baseline.
+  const lift = ((layout.ascent + layout.descent) / 2) * size
+  const colour = rgb(...colourOf(watermark.colour ?? 'grey').rgb)
+
   for (const [fx, fy] of watermarkCentres(watermark.tiled)) {
     const [cx, cy] = visualToPage(fx * visualWidth, fy * visualHeight, w, h, rotation)
 
     // drawText positions the START of the baseline. Walk back half the text's
-    // width along its own direction, and half its height perpendicular to
-    // that, so the middle of the text lands on the centre point.
-    page.drawText(watermark.text, {
-      x: cx - (textWidth / 2) * cos + (textHeight / 2) * sin,
-      y: cy - (textWidth / 2) * sin - (textHeight / 2) * cos,
-      size: watermark.size,
-      font,
-      color: rgb(0.4, 0.4, 0.4),
-      opacity: watermark.opacity,
-      rotate: degrees(watermark.angle + rotation),
-    })
+    // width along its own direction, and down from its middle to its
+    // baseline, so the middle of the text lands on the centre point.
+    let x = cx - (layout.width / 2) * cos + lift * sin
+    let y = cy - (layout.width / 2) * sin - lift * cos
+
+    for (const run of layout.runs) {
+      page.drawText(run.text, {
+        x,
+        y,
+        size,
+        font: run.font,
+        color: colour,
+        opacity: watermark.opacity,
+        rotate: degrees(watermark.angle + rotation),
+      })
+      const advance = run.font.widthOfTextAtSize(run.text, size)
+      x += advance * cos
+      y += advance * sin
+    }
   }
 }
 
@@ -175,12 +258,16 @@ function drawSignature(page, placement, image, rotation) {
 
 export function formatPageNumber(numbering, n, total) {
   const padded = String(n).padStart(numbering.padding, '0')
+  // In the Hindi font the words are Hindi too; a font cannot translate them.
+  const hindi = numbering.font === 'hindi'
   switch (numbering.style) {
     case 'bates': return `${numbering.prefix}${padded}`
     case 'plain': return String(n)
-    case 'page': return `Page ${n}`
-    case 'page-of': return `Page ${n} of ${total}`
+    case 'page': return hindi ? `पृष्ठ ${n}` : `Page ${n}`
+    case 'page-of': return hindi ? `पृष्ठ ${n} / ${total}` : `Page ${n} of ${total}`
     case 'dashes': return `- ${n} -`
+    case 'roman-lower': return formatCounter(n, 'i')
+    case 'roman-upper': return formatCounter(n, 'I')
     default: return String(n)
   }
 }
@@ -197,6 +284,7 @@ export async function buildPdf({
   watermark,
   rasterize,
   signatures = new Map(),
+  loadFaces = null,
   metadata = { title: '', author: '' },
   protection = null,
   firstNumber = numbering.start,
@@ -206,7 +294,6 @@ export async function buildPdf({
   // Creator, and stops it writing creation/modification timestamps. Nothing
   // goes into the file's metadata that was not asked for.
   const output = await PDFDocument.create({ updateMetadata: false })
-  const font = await output.embedFont(StandardFonts.Helvetica)
 
   // The output is a brand-new document, so the source's Title, Author, Subject
   // and Keywords are never carried over. What IS left is pdf-lib stamping its
@@ -274,8 +361,31 @@ export async function buildPdf({
     }
   }
 
+  // Page numbers are drawn like added text. Each page's number comes from its
+  // place in this document — a split piece keeps counting — and a page whose
+  // number is hidden still takes its turn in the count.
+  const numberMarks = new Map()
+  if (numbering.enabled) {
+    let next = firstNumber
+    for (const modelPage of pages) {
+      const mark = numberMark(numbering, modelPage, formatPageNumber(numbering, next, totalPages))
+      if (mark) numberMarks.set(modelPage, mark)
+      // A hidden number still uses up its turn, unless set not to.
+      if (mark || numbering.countHidden !== false) next++
+    }
+  }
+
+  // The watermark is laid out once and drawn on every page it is not left off.
+  const watermarkMark = watermark.enabled && watermark.text
+    ? { text: watermark.text, size: watermark.size, font: watermark.font ?? 'arial', bold: Boolean(watermark.bold), italic: false }
+    : null
+
+  const textLayouts = await prepareTextMarks(output, pages, loadFaces, [
+    ...numberMarks.values(),
+    ...(watermarkMark ? [watermarkMark] : []),
+  ])
+
   // Now rotate, watermark and number, walking model and output side by side.
-  let number = firstNumber
 
   output.getPages().forEach((page, i) => {
     const modelPage = pages[i]
@@ -289,35 +399,23 @@ export async function buildPdf({
 
     page.setRotation(degrees(rotation))
 
-    if (watermark.enabled && watermark.text) {
-      drawWatermark(page, watermark, font, rotation)
+    if (watermarkMark && !modelPage.watermarkHidden) {
+      drawWatermark(page, watermark, textLayouts.get(watermarkMark), rotation)
     }
 
-    // Signatures go on before labels and numbering, so a page number is never
-    // hidden underneath a signature.
+    // Signatures go on before added text and numbering, so a page number is
+    // never hidden underneath a signature.
     for (const placement of modelPage.signatures) {
       const image = embedded.get(placement.signatureId)
       if (image) drawSignature(page, placement, image, rotation)
     }
 
-    for (const stamp of modelPage.stamps) {
-      drawStamp(page, stamp, font, rotation)
+    for (const mark of modelPage.stamps) {
+      drawTextMark(page, mark, textLayouts.get(mark), rotation)
     }
 
-    if (numbering.enabled) {
-      drawStamp(
-        page,
-        {
-          text: formatPageNumber(numbering, number, totalPages),
-          position: numbering.position,
-          size: numbering.size,
-          margin: numbering.margin,
-        },
-        font,
-        rotation,
-      )
-      number++
-    }
+    const pageNumber = numberMarks.get(modelPage)
+    if (pageNumber) drawTextMark(page, pageNumber, textLayouts.get(pageNumber), rotation)
   })
 
   // Page indexes here are positions within this document, so a split piece or
