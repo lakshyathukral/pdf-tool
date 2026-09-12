@@ -92,9 +92,38 @@ function makeTile(page, position) {
   return figure
 }
 
-// Rebuilding the whole grid is cheap: the images already exist, we are only
-// rearranging elements. Coalesced so a burst of changes paints once.
+// What the tiles are drawn FROM, ignoring which pages are selected. When only
+// the selection changes, the tiles themselves need no rebuilding.
+//
+// Replacing every tile on a click had a cost beyond the flicker: the tile under
+// a double-click was thrown away between the two clicks, so the browser had no
+// tile to report the double-click against and the page did not open.
+function pagesSignature() {
+  const settings = JSON.stringify([model.getNumbering(), model.getWatermark()])
+  const pages = model.getPages().map((page) => [
+    page.id,
+    page.rotation,
+    page.redactions.length,
+    page.stamps.length,
+    page.bookmarks.length,
+    page.signatures.length,
+    page.numberHidden ? 1 : 0,
+    page.watermarkHidden ? 1 : 0,
+    page.numberSpot ? `${page.numberSpot.anchor}${page.numberSpot.x}${page.numberSpot.y}` : '',
+    getThumbnail(page.sourceId, page.pageIndex) ? 1 : 0,
+  ].join(':')).join('|')
+  return `${settings}#${pages}`
+}
+
+function paintSelection() {
+  for (const tile of container.children) {
+    tile.classList.toggle('selected', model.isSelected(tile.dataset.pageId))
+  }
+}
+
+// Coalesced so a burst of changes paints once.
 let pending = false
+let lastSignature = null
 
 export function drawGrid() {
   if (pending) return
@@ -102,6 +131,14 @@ export function drawGrid() {
 
   requestAnimationFrame(() => {
     pending = false
+    const signature = pagesSignature()
+
+    if (signature === lastSignature && container.children.length > 0) {
+      paintSelection()
+      return
+    }
+
+    lastSignature = signature
     container.replaceChildren(...model.getPages().map(makeTile))
     container.classList.toggle('empty', model.isEmpty())
   })

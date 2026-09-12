@@ -76,7 +76,17 @@ let outputName = ''
 // A password to put ON the saved file. Empty means save it unprotected —
 // which, for a document opened with a password, means the protection is
 // removed. That only works because opening it required the password.
-let protection = { enabled: false, password: '' }
+// What should happen to the password when the file is saved. Never a silent
+// answer: a file that arrived protected keeps its password unless someone
+// chooses otherwise.
+//   none   — the file had none and none is being added
+//   add    — it had none and one is being put on
+//   keep   — it had one and the saved copy keeps it
+//   change — it had one and a new one replaces it
+//   remove — it had one and the saved copy has none
+// keepFrom names which file's password to keep, for a bundle whose files had
+// different ones.
+let protection = { mode: 'none', password: '', keepFrom: null }
 
 // Written into the saved file. Copying pages does NOT carry the source's
 // Title/Author/Subject/Keywords across — those are dropped automatically — so
@@ -180,8 +190,37 @@ export const getWatermark = () =>
   isExposed('watermark') ? watermark : { ...watermark, enabled: false }
 export const getOutputName = () => outputName
 export const getMetadata = () => metadata
-export const getProtection = () =>
-  isExposed('password') ? protection : { ...protection, enabled: false }
+// The password that will actually be written, worked out from the choice.
+export function getProtection() {
+  if (!isExposed('password')) return { enabled: false, password: '' }
+
+  if (protection.mode === 'keep') {
+    const source = keptSource()
+    return { enabled: Boolean(source?.password), password: source?.password ?? '' }
+  }
+
+  if (protection.mode === 'change' || protection.mode === 'add') {
+    return { enabled: Boolean(protection.password), password: protection.password }
+  }
+
+  return { enabled: false, password: '' }
+}
+
+export const getProtectionChoice = () => ({ ...protection })
+
+const protectedList = () => [...sources.values()].filter((source) => source.password)
+
+function keptSource() {
+  const protectedOnes = protectedList()
+  return protectedOnes.find((source) => source.id === protection.keepFrom) ?? protectedOnes[0] ?? null
+}
+
+// The files that arrived with a password, for the "keep which one" list.
+export const protectedSources = () => protectedList().map(({ id, name }) => ({ id, name }))
+
+// Two files locked with different passwords: only one can protect the saved
+// file, so the choice has to be put to the user rather than guessed.
+export const passwordsDiffer = () => new Set(protectedList().map((source) => source.password)).size > 1
 
 // Whether any loaded file needed a password to open — the panel says so, since
 // "save it unticked and the password is gone" is not obvious otherwise.

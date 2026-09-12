@@ -9,6 +9,9 @@ const container = document.querySelector('#thumbnails')
 let draggingIds = null
 let dropTarget = null
 let lastClickedId = null
+// The page the pointer last went down on. A pointerdown always precedes a
+// click, so this is set even when the grid rebuilds before the click lands.
+let lastPointerId = null
 
 function setDropTarget(tile) {
   if (dropTarget === tile) return
@@ -24,6 +27,10 @@ function endDrag() {
 }
 
 export function setupDragDrop(onOpenPage) {
+  container.addEventListener('pointerdown', (event) => {
+    lastPointerId = event.target.closest('.tile')?.dataset.pageId ?? lastPointerId
+  })
+
   // Listeners live on the CONTAINER, not on tiles: the grid rebuilds itself on
   // every change, so per-tile listeners would need re-attaching each time.
   container.addEventListener('dragstart', (event) => {
@@ -72,12 +79,18 @@ export function setupDragDrop(onOpenPage) {
   // Fires whether the drag succeeded or was abandoned, so cleanup lives here.
   container.addEventListener('dragend', endDrag)
 
-  // Double-click opens the page for redaction — the same thing the toolbar
-  // button does, but where the user is already looking.
+  // Double-click opens the page — the same thing the toolbar button does, but
+  // where the user is already looking.
+  //
+  // The first click selects the page, which rebuilds the whole grid on the next
+  // frame. The second click then lands on a NEW element, so the browser reports
+  // the double-click against the container with no tile beneath it, and the
+  // page never opened. Falling back to the page just clicked makes the gesture
+  // survive the rebuild.
   container.addEventListener('dblclick', (event) => {
     if (event.target.closest('.tile-delete')) return
-    const tile = event.target.closest('.tile')
-    if (tile) onOpenPage(tile.dataset.pageId)
+    const pageId = event.target.closest('.tile')?.dataset.pageId ?? lastPointerId ?? lastClickedId
+    if (pageId && model.getPage(pageId)) onOpenPage(pageId)
   })
 
   // --- selection by clicking -------------------------------------------------

@@ -988,6 +988,11 @@ export async function startPlacing({ text, look: incoming }) {
   $('label-auto').open = false
   if (incoming) look = { ...look, ...incoming, x: null, y: null }
 
+  // "Other pages…" means the whole document. Without this it would follow
+  // whatever was selected — which, coming from the page viewer, is the single
+  // page just been looked at, the one page it is NOT meant to mean.
+  pagesMode = 'every'
+
   drawTextPanel()
   remember()
   await openPlacer()

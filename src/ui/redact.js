@@ -34,6 +34,7 @@ const searchStatus = $('#redact-search-status')
 const resultsBar = $('#redact-search-results')
 const applyMatchesButton = $('#redact-apply-matches')
 const drawButton = $('#redact-draw')
+const matchCountEl = $('#redact-match-count')
 const colourInputs = document.querySelectorAll('input[name="redact-colour"]')
 
 // A phone scrolls with a finger, so on a touch screen a drag scrolls unless
@@ -45,6 +46,9 @@ let draft = new Map()  // pageId -> the boxes that Apply will write
 let history = []       // { pageId, rect } in the order they were added
 let matches = []       // { id, pageId, rects, included }
 let matchCursor = -1
+// What was searched for last, so Enter can step through the results rather
+// than searching for the same words over and over.
+let searchedFor = null
 let zoomIndex = 0
 let drawMode = !touchFirst
 let drawing = null
@@ -218,7 +222,8 @@ function boxElement(rect, pageId, index) {
 
 function matchElement(match, rect) {
   const node = document.createElement('div')
-  node.className = match.included ? 'redact-match' : 'redact-match excluded'
+  const current = matches[matchCursor]?.id === match.id ? ' current' : ''
+  node.className = (match.included ? 'redact-match' : 'redact-match excluded') + current
   node.dataset.matchId = String(match.id)
   node.title = match.included
     ? 'This will be redacted. Click to leave it out.'
@@ -498,6 +503,7 @@ async function runSearch() {
 
   matches = found
   matchCursor = -1
+  searchedFor = `${needle}|${matchCaseBox.checked}`
 
   if (found.length === 0) {
     searchStatus.textContent = pagesWithText === 0
@@ -522,6 +528,12 @@ function refreshMatchControls() {
   applyMatchesButton.textContent = included === 0
     ? 'Nothing left to redact'
     : `Redact ${plural(included, 'match', 'matches')}`
+
+  // Where you are in the results: "3 of 6" beats two bare arrows.
+  matchCountEl.textContent = matches.length === 0 ? ''
+    : matchCursor < 0 ? `${plural(matches.length, 'match', 'matches')}`
+    : `${matchCursor + 1} of ${matches.length}`
+
   $('#redact-prev').disabled = matches.length < 2
   $('#redact-next').disabled = matches.length < 2
 }
@@ -539,6 +551,7 @@ function toggleMatch(id) {
 function clearMatches() {
   matches = []
   matchCursor = -1
+  searchedFor = null
   for (const stage of scroller.querySelectorAll('.redact-stage')) paintStage(stage)
   refreshMatchControls()
 }
@@ -549,6 +562,9 @@ function goToMatch(index) {
 
   const match = matches[matchCursor]
   const stage = stageFor(match.pageId)
+  refreshMatchControls()
+  // The one being looked at is marked, not just flashed, so it stays findable.
+  for (const other of scroller.querySelectorAll('.redact-stage')) paintStage(other)
   if (!stage) return
 
   const rect = match.rects[0]
@@ -674,15 +690,28 @@ export function openRedactor(pageId = null) {
 
 export function setupRedactor() {
   $('#redact-find').addEventListener('click', runSearch)
+  // Enter steps through the results, the way find works everywhere else. It
+  // only searches again when the words, or Match case, have changed — pressing
+  // Enter used to re-run the same search and never move.
   searchField.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      runSearch()
-    }
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+
+    const wanted = `${searchField.value.trim()}|${matchCaseBox.checked}`
+    if (matches.length === 0 || wanted !== searchedFor) return runSearch()
+
+    goToMatch(matchCursor + (event.shiftKey ? -1 : 1))
   })
 
   $('#redact-prev').addEventListener('click', () => goToMatch(matchCursor - 1))
   $('#redact-next').addEventListener('click', () => goToMatch(matchCursor + 1))
+
+  // The same keys work while looking at the pages, not only in the box.
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || event.target === searchField || matches.length === 0) return
+    event.preventDefault()
+    goToMatch(matchCursor + (event.shiftKey ? -1 : 1))
+  })
   applyMatchesButton.addEventListener('click', applyMatches)
   $('#redact-clear-matches').addEventListener('click', () => {
     clearMatches()

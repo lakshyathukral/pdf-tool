@@ -32,6 +32,7 @@ import { drawFileStrip, setupFileList } from './ui/files.js'
 import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
 import { parsePageRanges, formatPageRanges } from './ranges.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
+import { setupReader, drawReader, setReading, isReading } from './ui/reader.js'
 import { openSigner, setupSigner } from './ui/sign.js'
 import { setupTextTool, drawTextPanel, getTextSettings, applyTextSettings, openTextEditor, openNumberPlacer, startPlacing, textLook } from './ui/addtext.js'
 import { loadFaceBytes } from './fonts.js'
@@ -153,6 +154,11 @@ function applyTool() {
   el('primary-action').textContent = shares
     ? tool.primaryLabel.replace(/^Save/, 'Share')
     : tool.primaryLabel
+  // The same action, next to the file name, for anyone working down the
+  // sidebar rather than looking up at the header.
+  el('save-here').textContent = shares
+    ? tool.primaryLabel.replace(/^Save/, 'Share')
+    : tool.primaryLabel.replace(/^Save/, 'Download')
   document.body.classList.toggle('share-first', sharesInsteadOfSaving())
   el('open-pro').hidden = onLanding() || isPro
   el('dropzone-tool').textContent = onLanding() ? '' : tool.name
@@ -262,6 +268,7 @@ function refreshControls() {
     : ''
   el('primary-action').disabled =
     !hasPages || (activeTool().primary === 'extract' && !hasSelection)
+  el('save-here').disabled = el('primary-action').disabled
 
   // Only where the device can actually hand a file to another app — phones and
   // tablets, mostly. On a desktop the button would do nothing useful.
@@ -296,6 +303,10 @@ function refreshControls() {
   // a workspace the header is for the document, and the logo still goes home.
   document.querySelector('#site-nav').classList.toggle('hide-in-workspace', !landing)
   document.querySelector('#nav-toggle').classList.toggle('hide-in-workspace', !landing)
+  el('view-bar').hidden = landing || !hasPages
+  el('view-hint').textContent = isReading()
+    ? 'Click a page to select it, double-click to open it full size.'
+    : 'Reading through shows the pages at full size, one under the other.'
   el('app-empty').hidden = landing || hasPages
   el('app-workspace').hidden = landing || !hasPages
   placeMobileBar()
@@ -342,6 +353,24 @@ function refreshControls() {
 
   el('flatten-options').hidden = !model.getFlatten().enabled
 
+  // A protected file keeps its password unless someone says otherwise.
+  const protectedFiles = model.protectedSources()
+  const wasProtected = protectedFiles.length > 0
+  el('password-choice').hidden = !wasProtected
+  el('password-add-row').hidden = wasProtected
+  el('password-keep-from-field').hidden = !(wasProtected && model.passwordsDiffer())
+
+  if (wasProtected) {
+    const chooser = el('password-keep-from')
+    const previous = chooser.value
+    chooser.replaceChildren(...protectedFiles.map((file) => new Option(file.name, file.id)))
+    if (protectedFiles.some((file) => file.id === previous)) chooser.value = previous
+    if (model.getProtectionChoice().mode === 'none') {
+      el('password-choice').querySelector('input[value="keep"]').checked = true
+      readProtection()
+    }
+  }
+
   // Say plainly what saving will do to a protected file.
   el('password-state').textContent = !hasPages
     ? 'Add a PDF. If it is protected you will be asked for its password.'
@@ -381,6 +410,7 @@ model.subscribe(() => {
   drawFileStrip()
   drawBookmarks()
   drawTextPanel()
+  drawReader()
   refreshViewer()
   refreshControls()
 })
@@ -801,19 +831,38 @@ el('watermark-hindi-words').addEventListener('click', () => {
 
 el('output-name').addEventListener('input', () => model.setOutputName(el('output-name').value))
 
+// One action, two places to reach it: the header and the file name panel.
+el('save-here').addEventListener('click', () => el('primary-action').click())
+
 // --- protecting the saved file ---------------------------------------------
 
 function readProtection() {
-  const enabled = el('protect-enabled').checked
-  el('protect-field').hidden = !enabled
-  model.setProtection({ enabled, password: el('protect-password').value })
+  const protectedFile = model.anySourceProtected()
+  const choice = protectedFile ? el('password-choice').querySelector('input:checked')?.value ?? 'keep' : null
+  const mode = protectedFile ? choice : (el('protect-enabled').checked ? 'add' : 'none')
+
+  // The new password is needed for "change" and for adding one.
+  const wantsPassword = mode === 'change' || mode === 'add'
+  el('protect-field').hidden = !wantsPassword
+  el('protect-field-label').textContent = mode === 'change' ? 'New password to open the file' : 'Password to open the file'
+  el('password-warning').hidden = mode !== 'remove'
+
+  model.setProtection({
+    mode,
+    password: el('protect-password').value,
+    keepFrom: el('password-keep-from').value || null,
+  })
   // setProtection does not notify — that would redraw the grid on every
-  // keystroke — so the panel's explanation of what saving will do needs a
-  // nudge here.
+  // keystroke — so the wording that depends on it is refreshed here.
   refreshControls()
 }
 
-for (const name of ['protect-enabled', 'protect-password']) {
+// Keep, change or remove: the choice itself, as well as the fields it shows.
+for (const radio of document.querySelectorAll('input[name="password-choice"]')) {
+  radio.addEventListener('change', () => { readProtection(); refreshControls() })
+}
+
+for (const name of ['protect-enabled', 'protect-password', 'password-keep-from']) {
   el(name).addEventListener('input', readProtection)
 }
 
@@ -1293,6 +1342,17 @@ window.addEventListener('hashchange', applyRoute)
 
 setupDragDrop(openViewer)
 setupRedactor()
+setupReader(openViewer)
+
+for (const [id, reading] of [['view-thumbs', false], ['view-read', true]]) {
+  el(id).addEventListener('click', () => {
+    setReading(reading)
+    el('view-thumbs').setAttribute('aria-pressed', String(!reading))
+    el('view-read').setAttribute('aria-pressed', String(reading))
+    refreshControls()
+  })
+}
+
 setupViewer({
   onRedact: openRedactor,
   onEditText: openTextEditor,

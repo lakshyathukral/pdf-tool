@@ -2927,3 +2927,66 @@ body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b9
      tall. Sized explicitly instead. */
   .mv-bar.draft-bar select { flex: 1 1 9rem; height: 2.2rem; align-self: center; padding: 0 0.5rem; }
 }
+
+/* --- the password choice ---------------------------------------------------- */
+
+.password-choice { display: grid; gap: 0.35rem; margin-bottom: 0.6rem; }
+.password-choice .at-radio { padding: 0.5rem 0.65rem; font-size: 0.86rem; }
+.password-warning {
+  padding: 0.5rem 0.65rem; border-radius: 8px; background: #fef3c7; color: #78350f; font-weight: 600;
+}
+
+/* --- searching in the redaction view ---------------------------------------- */
+
+#redact-match-count { font-size: 0.82rem; font-weight: 700; color: #44403c; min-width: 4.5rem; text-align: center; }
+.redact-match.current { background: rgb(250 204 21 / 0.55); outline: 3px solid #b45309; }
+
+/* --- thumbnails, or reading through ----------------------------------------- */
+
+.view-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem;
+  padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); background: #fff;
+}
+.view-bar[hidden] { display: none; }
+
+.view-switch { display: flex; border: 1.5px solid var(--border); border-radius: 999px; overflow: hidden; background: var(--bg-soft); }
+.view-switch button {
+  margin: 0; padding: 0.4rem 0.9rem; border: 0; background: none;
+  font: inherit; font-size: 0.82rem; font-weight: 700; color: #57534e; cursor: pointer;
+}
+.view-switch button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+.view-zoom { display: flex; align-items: center; gap: 0.35rem; }
+.view-zoom[hidden] { display: none; }
+.view-zoom button { width: 1.9rem; height: 1.9rem; padding: 0; font-size: 1rem; }
+#reader-zoom-level { min-width: 3rem; text-align: center; font-size: 0.8rem; font-weight: 700; color: #57534e; }
+.view-hint { margin: 0; font-size: 0.78rem; color: var(--muted); }
+
+.reader {
+  display: grid; justify-items: center; gap: 1.2rem;
+  padding: 1rem 0.5rem 3rem; background: var(--bg-soft); min-height: 60vh; overflow-x: auto;
+}
+.reader[hidden] { display: none; }
+
+.reader-page { display: grid; justify-items: center; gap: 0.35rem; padding: 0.5rem; border-radius: 10px; }
+.reader-page.selected { background: var(--accent-wash); outline: 2px solid var(--accent); }
+.reader-label { margin: 0; font-size: 0.76rem; font-weight: 700; color: var(--muted); }
+
+.reader-stage {
+  position: relative; container-type: inline-size;
+  background: #fff; box-shadow: 0 2px 12px rgb(0 0 0 / 0.14); cursor: pointer; user-select: none;
+}
+.reader-stage > img { display: block; width: 100%; height: 100%; pointer-events: none; }
+.reader-stage.loading {
+  background: repeating-linear-gradient(45deg, #f4f4f5, #f4f4f5 8px, #e9e9ec 8px, #e9e9ec 16px);
+}
+.reader-stage.loading::after {
+  content: 'Rendering page…'; position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 0.85rem; color: #a8a29e;
+}
+
+@media (max-width: 700px) {
+  .view-bar { padding: 0.5rem; gap: 0.4rem; }
+  .view-hint { display: none; }
+  .reader { padding: 0.6rem 0.25rem 2rem; gap: 0.8rem; }
+}

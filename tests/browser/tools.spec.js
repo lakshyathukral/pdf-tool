@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
-import { textOfEachPage, positionOf, outline } from '../helpers/read-pdf.js'
+import { textOfEachPage, positionOf, outline, passwordOf, opensWith } from '../helpers/read-pdf.js'
 
 const FIVE_PAGES = fileURLToPath(new URL('../fixtures/five-pages.pdf', import.meta.url))
 const THREE_PAGES = fileURLToPath(new URL('../fixtures/three-pages.pdf', import.meta.url))
@@ -199,7 +199,7 @@ test.describe('password-protected files', () => {
     await expect(page.locator('#dropzone')).toBeVisible()
   })
 
-  test('the password tool explains what saving will do', async ({ page }) => {
+  test('a protected file keeps its password unless told otherwise', async ({ page }) => {
     await page.goto('/#password')
     await expect(page.locator('#dropzone-hint')).toContainText('asks for its password')
 
@@ -208,12 +208,36 @@ test.describe('password-protected files', () => {
     await page.locator('#password-ok').click()
     await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
 
-    // Its own panel is open, and it says the password will be removed.
+    // Its own panel is open, and the choice is there, already on "keep".
     await expect(page.locator('#panel-password')).toHaveAttribute('open', '')
-    await expect(page.locator('#password-state')).toContainText('REMOVE')
+    await expect(page.locator('#password-choice')).toBeVisible()
+    await expect(page.locator('input[name="password-choice"][value="keep"]')).toBeChecked()
 
-    await page.locator('#protect-enabled').check()
-    await expect(page.locator('#password-state')).toContainText('replace it')
+    // Saving without touching anything must not strip the protection.
+    const kept = await savedFile(page, pressSave(page))
+    expect(await passwordOf(kept.bytes)).toEqual({ needsPassword: true })
+    expect(await opensWith(kept.bytes, 'letmein')).toBe(true)
+  })
+
+  test('the password can be changed, or removed on purpose', async ({ page }) => {
+    await page.goto('/#password')
+    await page.locator('#file-input').setInputFiles([LOCKED])
+    await page.locator('#password-input').fill('letmein')
+    await page.locator('#password-ok').click()
+    await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
+
+    // Change it: the saved file wants the new one, not the old.
+    await page.locator('input[name="password-choice"][value="change"]').check()
+    await page.locator('#protect-password').fill('newsecret')
+    const changed = await savedFile(page, pressSave(page))
+    expect(await opensWith(changed.bytes, 'newsecret')).toBe(true)
+    expect(await opensWith(changed.bytes, 'letmein')).toBe(false)
+
+    // Remove it: only on purpose, and it says what will happen.
+    await page.locator('input[name="password-choice"][value="remove"]').check()
+    await expect(page.locator('#password-warning')).toBeVisible()
+    const removed = await savedFile(page, pressSave(page))
+    expect(await passwordOf(removed.bytes)).toEqual({ needsPassword: false })
   })
 
   test('protects AND flattens without tripping over itself', async ({ page }) => {
@@ -819,7 +843,11 @@ test.describe('adding straight from the page viewer', () => {
     await page.locator('#file-input').setInputFiles([THREE_PAGES])
     await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
 
-    await tiles(page).nth(1).dblclick()
+    // This test is about tapping the page, so it opens the viewer by the
+    // button; double-clicking has its own test below.
+    await tiles(page).nth(1).click()
+    await expect(page.locator('#view')).toBeEnabled()
+    await page.locator('#view').click()
     await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
 
     const frame = await page.locator('#viewer-frame').boundingBox()
@@ -842,6 +870,25 @@ test.describe('adding straight from the page viewer', () => {
     const text = await textOfEachPage(bytes)
     expect(text[1]).toContain('Typed on the page')
     expect(text[0]).not.toContain('Typed on the page')
+  })
+
+  test('double-clicking still opens the page while the grid is rebuilding', async ({ page }) => {
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    // The first click selects the page, which replaces every tile on the next
+    // frame. The second click then lands on a new element, and the page used
+    // to stay shut. Two separate clicks, a frame apart, reproduce that.
+    const tile = tiles(page).nth(1)
+    await tile.click()
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))))
+    await tiles(page).nth(1).click({ clickCount: 1, delay: 0 })
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(done)))
+    await tiles(page).nth(1).dblclick()
+
+    await expect(page.locator('#viewer-dialog')).toBeVisible()
+    await expect(page.locator('#viewer-caption')).toContainText('page 2')
   })
 
   test('the Add menu offers text, page numbers and a watermark', async ({ page }) => {
@@ -870,8 +917,13 @@ test.describe('adding straight from the page viewer', () => {
     await expect(page.locator('#numbering-enabled')).toBeChecked()
     await page.locator('#text-cancel').click()
 
-    // The watermark has no placing view; its panel opens instead.
-    await tiles(page).first().dblclick()
+    // The watermark has no placing view; its panel opens instead. Opened by
+    // selecting the page and pressing the button, rather than by a second
+    // double-click, which is covered by its own test above.
+    await expect(page.locator('#text-dialog')).toBeHidden()
+    await tiles(page).first().click()
+    await expect(page.locator('#view')).toBeEnabled()
+    await page.locator('#view').click()
     await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
     await page.locator('#viewer-add').click()
     await page.locator('#viewer-add-menu button[data-add="watermark"]').click()
@@ -885,7 +937,10 @@ test.describe('adding straight from the page viewer', () => {
     await page.locator('#file-input').setInputFiles([THREE_PAGES])
     await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
 
-    await tiles(page).first().dblclick()
+    // Opened by the button; double-clicking has its own test.
+    await tiles(page).first().click()
+    await expect(page.locator('#view')).toBeEnabled()
+    await page.locator('#view').click()
     await expect(page.locator('#viewer-frame img')).toBeVisible({ timeout: 30_000 })
     await page.locator('#viewer-add').click()
     await page.locator('#viewer-add-menu button[data-add="text"]').click()

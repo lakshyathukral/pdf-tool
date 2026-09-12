@@ -474,19 +474,35 @@
           <p class="hint" id="password-state">
             Add a PDF. If it is protected you will be asked for its password.
           </p>
-          <label class="checkbox">
+
+          <!-- Shown for a file that arrived with a password. -->
+          <div class="password-choice" id="password-choice" hidden role="radiogroup" aria-label="What to do with the password">
+            <label class="at-radio"><input type="radio" name="password-choice" value="keep" checked /> Keep the password it has</label>
+            <label class="at-radio"><input type="radio" name="password-choice" value="change" /> Change the password</label>
+            <label class="at-radio"><input type="radio" name="password-choice" value="remove" /> Remove the password</label>
+          </div>
+
+          <label class="field" id="password-keep-from-field" hidden>
+            <span>These files had different passwords. Use the one from</span>
+            <select id="password-keep-from"></select>
+          </label>
+
+          <!-- Shown for a file that arrived without one. -->
+          <label class="checkbox" id="password-add-row">
             <input type="checkbox" id="protect-enabled" />
             <span>Protect the saved file with a password</span>
           </label>
+
           <label class="field" id="protect-field" hidden>
-            <span>Password to open the file</span>
+            <span id="protect-field-label">Password to open the file</span>
             <input type="password" id="protect-password" autocomplete="new-password" />
           </label>
-          <p class="hint">
-            <strong>To remove a password:</strong> open the file — you will be
-            asked for it — then save with this box unticked.
-            <strong>To add one:</strong> tick the box, choose a password, save.
+
+          <p class="hint password-warning" id="password-warning" hidden>
+            The saved copy will open without a password. The original file on
+            your computer is untouched.
           </p>
+
           <p class="hint">
             Removing a password needs the password. This cannot unlock a file
             you do not have the password for.
@@ -494,11 +510,14 @@
         </details>
 
         <details class="panel" id="panel-saving">
-          <summary>Saving</summary>
+          <summary>File name and download</summary>
           <label class="field">
             <span>File name</span>
             <input type="text" id="output-name" placeholder="combined" />
           </label>
+          <div class="row actions">
+            <button id="save-here" type="button" class="primary" disabled>Download PDF</button>
+          </div>
           <div class="row actions">
             <button id="extract" type="button" disabled>Save selected pages only</button>
           </div>
@@ -615,7 +634,22 @@
           <button id="redact" type="button" disabled>Mark what to redact&hellip;</button>
         </div>
 
+        <div class="view-bar" id="view-bar" hidden>
+          <div class="view-switch" role="group" aria-label="How to show the pages">
+            <button id="view-thumbs" type="button" aria-pressed="true">Page thumbnails</button>
+            <button id="view-read" type="button" aria-pressed="false">Read through</button>
+          </div>
+          <div class="view-zoom" id="view-zoom" hidden>
+            <span class="field-label">Zoom</span>
+            <button id="reader-zoom-out" type="button" aria-label="Zoom out">&minus;</button>
+            <span id="reader-zoom-level">Fit</span>
+            <button id="reader-zoom-in" type="button" aria-label="Zoom in">+</button>
+          </div>
+          <p class="view-hint" id="view-hint"></p>
+        </div>
+
         <div id="thumbnails" class="empty"></div>
+        <div id="reader" class="reader" hidden></div>
       </section>
     </main>
 
@@ -819,6 +853,13 @@
           Typed here and used in this tab only. It is never sent anywhere and
           never stored.
         </p>
+        <p class="hint password-remove">
+          <strong>To remove the password:</strong> type the correct one here,
+          open the file, then save it with "Protect the saved file with a
+          password" unticked. The saved copy has no password.
+          <strong>A password can only be removed by someone who knows it</strong>
+          — this cannot unlock a file you do not have the password for.
+        </p>
         <div class="row actions">
           <button id="password-ok" type="button" class="primary">Open</button>
           <button id="password-cancel" type="button">Skip this file</button>
@@ -886,8 +927,9 @@
         </div>
         <p id="redact-search-status" role="status"></p>
         <div class="redact-search-results" id="redact-search-results" hidden>
-          <button id="redact-prev" type="button" aria-label="Previous match" title="Previous match">&lsaquo;</button>
-          <button id="redact-next" type="button" aria-label="Next match" title="Next match">&rsaquo;</button>
+          <button id="redact-prev" type="button" title="Shift and Enter">&lsaquo; Previous</button>
+          <span id="redact-match-count" role="status"></span>
+          <button id="redact-next" type="button" title="Enter">Next &rsaquo;</button>
           <button id="redact-apply-matches" type="button" class="primary"></button>
           <button id="redact-clear-matches" type="button">Clear search</button>
         </div>

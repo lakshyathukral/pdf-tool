@@ -8,12 +8,35 @@ const { PDFDocument } = require('@cantoo/pdf-lib')
 
 const standardFontDataUrl = new URL('../../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).href
 
-export async function open(bytes) {
+export async function open(bytes, password) {
   return pdfjs.getDocument({
     data: new Uint8Array(bytes),
     isEvalSupported: false,
     standardFontDataUrl,
+    password,
   }).promise
+}
+
+// Whether a saved file asks for a password, and whether a given one opens it.
+// The only honest way to check that "keep", "change" and "remove" did what
+// they said: read the file back the way a reader would.
+export async function passwordOf(bytes) {
+  try {
+    await open(bytes)
+    return { needsPassword: false }
+  } catch (error) {
+    if (!/password/i.test(error?.message ?? '')) throw error
+    return { needsPassword: true }
+  }
+}
+
+export async function opensWith(bytes, password) {
+  try {
+    await open(bytes, password)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function textOfEachPage(bytes) {
