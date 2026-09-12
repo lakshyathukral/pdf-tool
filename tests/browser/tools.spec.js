@@ -981,6 +981,31 @@ test.describe('adding straight from the page viewer', () => {
   })
 })
 
+test.describe('the file name', () => {
+  test('arrives filled in, keeps up, and stops once it is typed over', async ({ page }) => {
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+
+    // Filled in, not grey placeholder text that has to be retyped first.
+    await expect(page.locator('#output-name')).toHaveValue('five-pages')
+
+    // A second file makes it a bundle, and the name follows.
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES, THREE_PAGES])
+    await expect(tiles(page).nth(7)).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#output-name')).toHaveValue('combined')
+
+    // Typed over, it is theirs: adding another file must not overwrite it.
+    await page.locator('#output-name').fill('Bundle for filing')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(10)).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#output-name')).toHaveValue('Bundle for filing')
+
+    const { name } = await savedFile(page, () => page.locator('#save-here').click())
+    expect(name).toBe('Bundle for filing.pdf')
+  })
+})
+
 test.describe('which panel opens', () => {
   test('a tool opens its own panel, not Saving', async ({ page }) => {
     await page.goto('/#numbering')

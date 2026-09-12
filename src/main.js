@@ -382,7 +382,16 @@ function refreshControls() {
           ? 'Saving will protect the file with the password below.'
           : 'This file has no password. Tick the box to add one.')
 
-  el('output-name').placeholder = hasPages ? defaultOutputName(model.getSources()) : 'combined'
+  // The suggested name is filled IN, not shown as grey placeholder text:
+  // a placeholder has to be retyped from scratch before it can be changed.
+  // It keeps up with the files added, until it is edited by hand.
+  const suggested = hasPages ? defaultOutputName(model.getSources()) : ''
+  el('output-name').placeholder = hasPages ? suggested : 'combined'
+
+  if (!nameChosenByHand && document.activeElement !== el('output-name')) {
+    el('output-name').value = suggested
+    model.setOutputName(suggested)
+  }
 
   if (hasPages) {
     // The files are named in the strip above the pages, so repeating a count of
@@ -829,7 +838,14 @@ el('watermark-hindi-words').addEventListener('click', () => {
   remember()
 })
 
-el('output-name').addEventListener('input', () => model.setOutputName(el('output-name').value))
+// Once the name has been typed over, it is theirs: adding another file must
+// not overwrite it.
+let nameChosenByHand = false
+
+el('output-name').addEventListener('input', () => {
+  nameChosenByHand = el('output-name').value.trim() !== ''
+  model.setOutputName(el('output-name').value)
+})
 
 // One action, two places to reach it: the header and the file name panel.
 el('save-here').addEventListener('click', () => el('primary-action').click())
