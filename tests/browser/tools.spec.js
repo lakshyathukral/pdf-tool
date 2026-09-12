@@ -798,6 +798,31 @@ test.describe('the same choices on every tool', () => {
     await expect(page.locator('#label-added-list li')).toHaveCount(1)
   })
 
+  test('a few words can be picked in Hindi, without a Hindi keyboard', async ({ page }) => {
+    await page.goto('/#label')
+    await page.locator('#file-input').setInputFiles([THREE_PAGES])
+    await expect(tiles(page).nth(2)).toBeVisible({ timeout: 30_000 })
+
+    // Each choice carries its English in brackets, so the list can be read.
+    await expect(page.locator('#label-hindi option')).toContainText([
+      'Hindi words…',
+      'प्रमाणित सत्य प्रतिलिपि (Certified True Copy)',
+    ])
+
+    await page.locator('#label-hindi').selectOption('गोपनीय')
+    await expect(page.locator('#label-text')).toHaveValue('गोपनीय')
+
+    // The Hindi font comes with it: no other font has those letters as its own.
+    await page.locator('#label-place').click()
+    await expect(page.locator('#text-stage img')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#text-fonts button[data-font="hindi"]')).toHaveAttribute('aria-pressed', 'true')
+    await page.locator('#text-apply').click()
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const text = await textOfEachPage(bytes)
+    expect(text[0]).toContain('गोपनीय')
+  })
+
   test('choosing the Hindi font offers the words in Hindi', async ({ page }) => {
     await page.goto('/#label')
     await page.locator('#file-input').setInputFiles([THREE_PAGES])

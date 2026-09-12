@@ -13,7 +13,7 @@
 import * as model from '../model.js'
 import { renderLarge } from '../render.js'
 import { addOverlays, makeTextMark } from './overlays.js'
-import { COLOURS, NUMBER_STYLES, PAGE_NUMBER, anchorFractions, anchorPoint, countedPages, formatCounter, hasHindiLetters, lastPageNumber, numberedText, parseCounter, toHindiWords } from '../textmarks.js'
+import { COLOURS, HINDI_PHRASES, NUMBER_STYLES, PAGE_NUMBER, anchorFractions, anchorPoint, countedPages, formatCounter, hasHindiLetters, lastPageNumber, numberedText, parseCounter, toHindiWords } from '../textmarks.js'
 import { formatPageNumber } from '../export.js'
 import { FONTS, DEFAULT_FONT, cssFamily, getFont, hasItalic, registerFontFaces } from '../fonts.js'
 
@@ -926,6 +926,22 @@ export function setupTextTool(options = {}) {
 
   $('label-text').addEventListener('input', changed)
   $('label-bookmark').addEventListener('change', changed)
+
+  // A few words in Hindi, for anyone without a Hindi keyboard. Picking one
+  // writes it and chooses the Hindi font, since no other font has the letters
+  // as its own.
+  const hindi = $('label-hindi')
+  for (const [words, english] of HINDI_PHRASES) {
+    hindi.append(new Option(`${words} (${english})`, words))
+  }
+  hindi.addEventListener('change', () => {
+    if (!hindi.value) return
+    $('label-text').value = hindi.value
+    $('label-auto').open = false
+    look = { ...look, font: 'hindi', italic: false }
+    hindi.value = ''
+    changed()
+  })
 
   // The suggestions fill in the form; nothing goes on a page until placed.
   $('label-chips').addEventListener('click', (event) => {

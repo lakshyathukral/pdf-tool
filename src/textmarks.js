@@ -209,3 +209,19 @@ export function toHindiWords(text) {
 }
 
 export const hasHindiLetters = (text) => /[ऀ-ॿ]/.test(String(text ?? ''))
+
+// A short list of the words a court filing actually carries, for anyone who
+// wants Hindi on the page without a Hindi keyboard. Picking one is the whole
+// feature: this is not a way of typing Hindi.
+export const HINDI_PHRASES = [
+  ['प्रमाणित सत्य प्रतिलिपि', 'Certified True Copy'],
+  ['अनुलग्नक', 'Annexure'],
+  ['प्रदर्श', 'Exhibit'],
+  ['गोपनीय', 'Confidential'],
+  ['बिना किसी पूर्वाग्रह के', 'Without Prejudice'],
+  ['मसौदा', 'Draft'],
+  ['केवल सत्यापन हेतु', 'For Verification Only'],
+  ['मूल देखा और लौटाया गया', 'Original seen and returned'],
+  ['सत्यापित', 'Verified'],
+  ['तत्काल', 'Urgent'],
+]
