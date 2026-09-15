@@ -472,11 +472,11 @@ function drawPager() {
   // shared start off the second one left "4 of 4", which reads oddly.
   summary.textContent =
     numbers ? (first === last ? first : `${first} to ${last}`)
-    : editing ? (first === last ? first : `${first} to ${shortenAfter(first, last)}`)
+    : editing || placing.names ? (first === last ? first : `${first} to ${shortenAfter(first, last)}`)
     : summarise(list)
   $('text-summary').replaceChildren(
     numbers ? '' : editing ? 'Editing ' : 'Adds ', summary,
-    !editing && effectiveMode() === 'first' && n > 1 ? ', on the first page of each file' : ` on ${plural(n, 'page')}`,
+    !editing && (placing.names || effectiveMode() === 'first') && n > 1 ? ', on the first page of each file' : ` on ${plural(n, 'page')}`,
     moved > 0 ? `, ${moved} placed on their own` : '',
   )
   $('text-apply').textContent =
