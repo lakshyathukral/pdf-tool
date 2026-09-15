@@ -26,3 +26,25 @@ for (const Collection of [globalThis.Map, globalThis.WeakMap]) {
     return this.get(key)
   })
 }
+
+// Reading a stream with `for await` is also recent. Safari on the iPhone does
+// not have it, and pdf.js reads every page's text that way — so searching a
+// document, and making a scan searchable, failed there with
+// "undefined is not a function (near '...e of t...')".
+if (globalThis.ReadableStream && !ReadableStream.prototype[Symbol.asyncIterator]) {
+  const values = async function* ({ preventCancel = false } = {}) {
+    const reader = this.getReader()
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) return
+        yield value
+      }
+    } finally {
+      if (!preventCancel) await reader.cancel().catch(() => {})
+      reader.releaseLock()
+    }
+  }
+  addMissing(globalThis.ReadableStream, 'values', values)
+  Object.defineProperty(ReadableStream.prototype, Symbol.asyncIterator, { value: values, writable: true, configurable: true })
+}
