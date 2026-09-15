@@ -203,3 +203,51 @@ describe('splitStarts', () => {
     expect(splitStarts(pages, 'bookmarks', () => false, [])).toEqual([0])
   })
 })
+
+describe('a bundle of named files', () => {
+  let model
+  beforeEach(async () => { model = await freshModel() })
+  const load = (...names) => names.map((name) => model.addSource(model.reserveSourceId(), `${name}.pdf`, bytes, 2))
+
+  it('puts the files and their pages in number order, and can undo it', () => {
+    const [ten, one, two] = load('Annexure 10', 'Annexure 1', 'Annexure 2')
+    expect(model.inNumberOrder()).toBe(false)
+    model.sortFilesByName()
+    expect(model.filesInOrder()).toEqual([one, two, ten])
+    expect([...model.getSources().keys()]).toEqual([one, two, ten])
+    expect(model.inNumberOrder()).toBe(true)
+    model.undo()
+    expect(model.filesInOrder()).toEqual([ten, one, two])
+  })
+
+  it('bookmarks only the first page of each file, and renames follow', () => {
+    const [id] = load('Annexure 3 - Sale deed')
+    const ours = model.getPages().filter((p) => p.sourceId === id)
+    expect(ours.map((p) => p.bookmarks.length)).toEqual([1, 0])
+    model.renameFile(id, 'Annexure 3 - Sale deed of 2026')
+    expect(model.fileTitle(id)).toBe('Annexure 3 - Sale deed of 2026')
+    expect(ours[0].bookmarks[0].title).toBe('Annexure 3 - Sale deed of 2026')
+  })
+
+  it('keeps a name written on the page in step with the file, in the form chosen', () => {
+    const [id] = load('Annexure 3 - Sale deed')
+    const first = model.getPages()[0]
+    model.addTextMarks([{ pageId: first.id, mark: { text: 'Annexure 3', names: 'short' } }])
+    model.renameFile(id, 'Annexure 4 - Sale deed')
+    expect(model.getPages()[0].stamps[0].text).toBe('Annexure 4')
+  })
+
+  it('puts the index first and keeps it there when sorting', () => {
+    const [ten, one] = load('Annexure 10', 'Annexure 1')
+    const index = model.reserveSourceId()
+    model.addIndex(index, bytes, 1)
+    model.sortFilesByName()
+    expect(model.getPages()[0].sourceId).toBe(index)
+    expect(model.filesInOrder()).toEqual([one, ten])
+
+    // A longer index gains a page, keeping its place.
+    const longer = model.reserveSourceId()
+    model.refreshIndex(longer, bytes, 2)
+    expect(model.getPages().slice(0, 3).map((p) => `${p.sourceId}#${p.pageIndex}`)).toEqual([`${longer}#0`, `${longer}#1`, `${one}#0`])
+  })
+})

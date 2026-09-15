@@ -266,6 +266,9 @@ function markFor(text, spot) {
     italic: look.italic && hasItalic(look.font),
     colour: look.colour,
     box: look.box,
+    // Files' names keep saying which form they were written in, so renaming a
+    // file can rewrite them the same way.
+    ...(placing?.names ? { names: placing.names } : {}),
   }
 }
 
@@ -569,6 +572,7 @@ export async function openTextEditor(group, pageId) {
     each: spots.size > 0,
     spots,
     editing: group,
+    names: first.names ?? null,
   }
   drawFontTiles()
   drawControls()
@@ -586,7 +590,8 @@ function commit() {
   }))
   if (placing.editing === PAGE_NUMBER) saveNumbers()
   else if (placing.editing) model.replaceTextGroup(placing.editing, entries)
-  else model.addTextMarks(entries, { bookmark: $('label-bookmark').checked })
+  // Files' names are already their bookmarks.
+  else model.addTextMarks(entries, { bookmark: !placing.names && $('label-bookmark').checked })
   return true
 }
 
@@ -921,6 +926,7 @@ function fillAuto() {
 export function setupTextTool(options = {}) {
   remember = options.remember ?? remember
   onWatermark = options.onWatermark ?? onWatermark
+  const onFileNames = options.onFileNames ?? (() => {})
 
   const changed = () => { drawTextPanel(); remember() }
 
@@ -947,6 +953,10 @@ export function setupTextTool(options = {}) {
   $('label-chips').addEventListener('click', (event) => {
     const chip = event.target.closest('.at-chip')
     if (!chip) return
+
+    // Each file's name has its own short flow: it may ask how much of the
+    // name to write, then opens the placing view on each file's first page.
+    if ('names' in chip.dataset) return onFileNames()
 
     if (chip.dataset.text) {
       $('label-text').value = chip.dataset.text
@@ -1012,6 +1022,20 @@ export async function startPlacing({ text, look: incoming }) {
   drawTextPanel()
   remember()
   await openPlacer()
+}
+
+// Each file's name on its first page. list: [{ page, text }]; names is 'short'
+// or 'full'. Starts in the top right corner, where an annexure label goes.
+export async function placeFileNames(list, names) {
+  if (list.length === 0) return
+  look = { ...look, anchor: 'top-right', x: null, y: null }
+  registerFontFaces()
+  placing = { list, index: 0, pointsWide: 0, pointsHigh: 0, each: false, spots: new Map(), editing: null, names }
+  drawFontTiles()
+  drawControls()
+  stage.replaceChildren()
+  dialog.showModal()
+  await showPage()
 }
 
 // --- presets and "remember what I used" --------------------------------------

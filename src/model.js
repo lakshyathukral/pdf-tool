@@ -6,6 +6,8 @@
 // that wants to know when something changed calls subscribe().
 // ---------------------------------------------------------------------------
 
+import { compareNames, pageText } from './bundle.js'
+
 // sourceId -> { id, name, bytes, color, pageCount }
 let sources = new Map()
 
@@ -282,7 +284,9 @@ export function addSource(id, name, bytes, pageCount, sourceOutline = []) {
       redactions: [],
       // The first page of each file added gets a bookmark named after it, so
       // merging a set of exhibits produces a navigable bundle with no work.
-      bookmarks: pageIndex === 0 ? [{ title: bookmarkTitleFor(name), level: 1 }] : [],
+      // file: true marks it as the file's own name, which the bundle panel
+      // renames and the index lists.
+      bookmarks: pageIndex === 0 ? [{ title: bookmarkTitleFor(name), level: 1, file: true }] : [],
       signatures: [],
       // Where this page's number sits if moved on its own, and whether it is
       // left off this page. Hidden numbers still count.
@@ -323,6 +327,136 @@ export function removeSource(sourceId) {
 
 // Put every file's pages back together, each file's pages in their original
 // order. Useful after a merge has been shuffled about.
+// --- a bundle of named files ---------------------------------------------------
+
+// The bookmark a file was given when it was added, named after it: the first
+// one in document order, wherever the page it sits on has been moved to.
+function fileBookmark(sourceId) {
+  for (const page of pages) {
+    if (page.sourceId !== sourceId) continue
+    const index = page.bookmarks.findIndex((b) => b.file)
+    if (index >= 0) return { page, index }
+  }
+  return null
+}
+
+// A file's name as it reads in the bookmarks, the index and on its pages.
+export function fileTitle(sourceId) {
+  const found = fileBookmark(sourceId)
+  if (found) return found.page.bookmarks[found.index].title
+  return bookmarkTitleFor(sources.get(sourceId)?.name ?? '')
+}
+
+// Rename a file for the bundle. Its bookmark follows, and so do its name
+// written on the page, in the short or full form chosen when it was added.
+export function renameFile(sourceId, title) {
+  const clean = String(title ?? '').trim()
+  if (!clean || !sources.has(sourceId) || clean === fileTitle(sourceId)) return
+  beginChange()
+
+  const found = fileBookmark(sourceId)
+  if (found) found.page.bookmarks[found.index].title = clean
+  else pages.find((p) => p.sourceId === sourceId)?.bookmarks.unshift({ title: clean, level: 1, file: true })
+
+  for (const page of pages) {
+    if (page.sourceId !== sourceId) continue
+    for (const mark of page.stamps) {
+      if (mark.names) mark.text = pageText(clean, mark.names)
+    }
+  }
+  notify()
+}
+
+// The files, not counting the index, in the order they first appear.
+export function filesInOrder() {
+  const seen = []
+  for (const page of pages) {
+    if (!seen.includes(page.sourceId) && !sources.get(page.sourceId)?.index) seen.push(page.sourceId)
+  }
+  return seen
+}
+
+function numberOrder() {
+  return [...filesInOrder()].sort((a, b) => compareNames(fileTitle(a), fileTitle(b)))
+}
+
+export const inNumberOrder = () => filesInOrder().join() === numberOrder().join()
+
+// Put the files in number order, Annexure 2 before Annexure 10, each file's
+// pages kept together in the order they are in now. The index stays first.
+export function sortFilesByName() {
+  if (inNumberOrder()) return
+  beginChange()
+  const order = numberOrder()
+  const rank = (page) => (sources.get(page.sourceId)?.index ? -1 : order.indexOf(page.sourceId))
+  const position = new Map(pages.map((page, i) => [page, i]))
+  pages = [...pages].sort((a, b) => rank(a) - rank(b) || position.get(a) - position.get(b))
+  // The files above the pages follow, so the two never disagree.
+  const place = (id) => (sources.get(id)?.index ? -1 : order.includes(id) ? order.indexOf(id) : order.length)
+  sources = new Map([...sources].sort(([a], [b]) => place(a) - place(b)))
+  notify()
+}
+
+// --- the index page ------------------------------------------------------------
+
+export const getIndexSource = () => [...sources.values()].find((source) => source.index) ?? null
+
+function indexPage(sourceId, pageIndex) {
+  return {
+    id: `p${nextPageId++}`,
+    sourceId,
+    pageIndex,
+    rotation: 0,
+    stamps: [],
+    redactions: [],
+    bookmarks: pageIndex === 0 ? [{ title: 'Index', level: 1, file: true }] : [],
+    signatures: [],
+    numberSpot: null,
+    numberHidden: false,
+    watermarkHidden: false,
+  }
+}
+
+// The index goes at the very front, as its own file, so it can be seen,
+// numbered and bookmarked like any other page.
+export function addIndex(id, bytes, pageCount) {
+  if (getIndexSource()) return
+  beginChange()
+  sources = new Map([[id, { id, name: 'Index', bytes, pageCount, color: '#64748b', index: true }], ...sources])
+  const added = Array.from({ length: pageCount }, (_, i) => indexPage(id, i))
+  pages = [...added, ...pages]
+  notify()
+}
+
+export function removeIndex() {
+  const source = getIndexSource()
+  if (source) removeSource(source.id)
+}
+
+// Swap in a freshly written index. Not an undo step: the index is worked out
+// from the rest of the document, and is rewritten again after an undo. Its
+// pages keep their place and settings; a longer index gains pages at its end.
+export function refreshIndex(id, bytes, pageCount) {
+  const old = getIndexSource()
+  if (!old) return
+
+  sources = new Map([...sources].map(([key, source]) =>
+    key === old.id ? [id, { ...source, id, bytes, pageCount }] : [key, source]))
+
+  let ours = pages.filter((page) => page.sourceId === old.id)
+  const extra = ours.slice(pageCount)
+  if (extra.length) pages = pages.filter((page) => !extra.includes(page))
+  ours = ours.slice(0, pageCount)
+  ours.forEach((page, i) => { page.sourceId = id; page.pageIndex = i })
+
+  if (ours.length < pageCount) {
+    const after = ours.length ? pages.indexOf(ours.at(-1)) + 1 : 0
+    const added = Array.from({ length: pageCount - ours.length }, (_, i) => indexPage(id, ours.length + i))
+    pages = [...pages.slice(0, after), ...added, ...pages.slice(after)]
+  }
+  notify()
+}
+
 export function groupBySource() {
   beginChange()
 
@@ -678,8 +812,16 @@ export function addBookmark(pageId, title, level) {
 
 export function renameBookmark(pageId, index, title) {
   beginChange()
-  const bookmark = pages.find((p) => p.id === pageId)?.bookmarks[index]
+  const page = pages.find((p) => p.id === pageId)
+  const bookmark = page?.bookmarks[index]
   if (bookmark) bookmark.title = title.trim()
+  // A file's own bookmark is its name: the name written on its pages follows.
+  if (bookmark?.file) {
+    for (const other of pages) {
+      if (other.sourceId !== page.sourceId) continue
+      for (const mark of other.stamps) if (mark.names) mark.text = pageText(bookmark.title, mark.names)
+    }
+  }
   notify()
 }
 

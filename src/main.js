@@ -30,6 +30,8 @@ import { setupDragDrop } from './ui/dragdrop.js'
 import { openRedactor, setupRedactor } from './ui/redact.js'
 import { drawFileStrip, setupFileList } from './ui/files.js'
 import { drawBookmarks, setupBookmarks } from './ui/bookmarks.js'
+import { setupBundle, drawBundlePanel, writeFileNames, indexUpToDate } from './ui/bundle.js'
+import { compareNames } from './bundle.js'
 import { parsePageRanges, formatPageRanges } from './ranges.js'
 import { openViewer, setupViewer, refreshViewer } from './ui/viewer.js'
 import { setupReader, drawReader, setReading, isReading } from './ui/reader.js'
@@ -77,7 +79,7 @@ const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
 const onLanding = () =>
   getTool(currentToolId()) === null || isComingSoon(currentToolId()) || isPage(currentToolId())
 
-const PANEL_IDS = ['panel-photos', 'panel-password', 'panel-compress', 'panel-images', 'panel-ocr', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
+const PANEL_IDS = ['panel-bundle', 'panel-photos', 'panel-password', 'panel-compress', 'panel-images', 'panel-ocr', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
 // Controls that select more than one page at a time.
 const MULTI_SELECT_IDS = ['select-all', 'select-odd', 'select-even', 'select-invert', 'range-input', 'range-select']
@@ -422,6 +424,7 @@ model.subscribe(() => {
   drawGrid()
   drawFileStrip()
   drawBookmarks()
+  drawBundlePanel()
   drawTextPanel()
   drawReader()
   refreshViewer()
@@ -504,6 +507,10 @@ async function openWithPassword(id, bytes, fileName) {
 }
 
 async function loadFiles(files) {
+  // Files picked together arrive in whatever order the computer hands them
+  // over, which can be Annexure 1, 10, 2. Number order is almost always meant.
+  files = [...files].sort((a, b) => compareNames(a.name, b.name))
+
   for (const file of files) {
     if (file.type !== 'application/pdf') {
       setStatus(`Skipped "${file.name}" — not a PDF.`)
@@ -1221,6 +1228,7 @@ async function runSave(button, label, work) {
   clearError()
   setStatus(`${label}...`)
   try {
+    await indexUpToDate()
     await work()
   } catch (error) {
     setStatus('Save failed.')
@@ -1447,11 +1455,13 @@ function openWatermarkPanel() {
   el('panel-watermark').scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-setupTextTool({ remember, onWatermark: openWatermarkPanel })
+setupTextTool({ remember, onWatermark: openWatermarkPanel, onFileNames: writeFileNames })
+setupBundle({ onChanged: drawGrid })
 setupFileList()
 setupBookmarks(openViewer)
 drawFileStrip()
 drawBookmarks()
+drawBundlePanel()
 
 // Restore whatever settings were in use last time, then fall back to reading
 // the untouched defaults out of the page.

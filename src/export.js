@@ -6,7 +6,7 @@
 // assemble a PDF from things it is given.
 // ---------------------------------------------------------------------------
 
-import { PDFDocument, degrees, rgb, PDFName, PDFHexString } from '@cantoo/pdf-lib'
+import { PDFDocument, StandardFonts, degrees, rgb, PDFName, PDFHexString } from '@cantoo/pdf-lib'
 import { zipSync } from 'fflate'
 import { anchorFractions, anchorPoint, boxGeometry, borderWidth, colourOf, formatCounter, numberMark } from './textmarks.js'
 
@@ -270,6 +270,85 @@ export function formatPageNumber(numbering, n, total) {
     case 'roman-upper': return formatCounter(n, 'I')
     default: return String(n)
   }
+}
+
+// --- the index page ----------------------------------------------------------
+
+const A4 = [595.28, 841.89]
+const MARGIN = 56
+
+// Helvetica only has Western letters. Anything else becomes a question mark
+// rather than stopping the index being written.
+function writable(font, text) {
+  try {
+    font.encodeText(text)
+    return text
+  } catch {
+    return [...text].map((ch) => { try { font.encodeText(ch); return ch } catch { return '?' } }).join('')
+  }
+}
+
+function wrap(font, size, text, width) {
+  const lines = []
+  let line = ''
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const tried = line ? `${line} ${word}` : word
+    if (!line || font.widthOfTextAtSize(tried, size) <= width) line = tried
+    else { lines.push(line); line = word }
+  }
+  if (line) lines.push(line)
+  return lines.length ? lines : ['']
+}
+
+// A plain A4 index: serial number, particulars, and the pages each file is on.
+// rows: [{ number, title, pages }]. Returns the file and how many pages it took.
+export async function buildIndexPdf(rows) {
+  const doc = await PDFDocument.create({ updateMetadata: false })
+  const regular = await doc.embedFont(StandardFonts.Helvetica)
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold)
+  const [wide, high] = A4
+  const size = 11
+  const lineGap = size * 1.35
+  const columns = { number: MARGIN, title: MARGIN + 52, pages: wide - MARGIN - 110 }
+  const titleWidth = columns.pages - columns.title - 16
+  const pagesWidth = wide - MARGIN - columns.pages
+  const ink = rgb(0, 0, 0)
+  const rule = (page, y, thickness = 0.6) =>
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: wide - MARGIN, y }, thickness, color: ink })
+
+  let page
+  let y
+  const startPage = () => {
+    page = doc.addPage(A4)
+    y = high - MARGIN
+    const heading = 'INDEX'
+    page.drawText(heading, { x: (wide - bold.widthOfTextAtSize(heading, 16)) / 2, y: y - 16, size: 16, font: bold, color: ink })
+    y -= 44
+    rule(page, y + lineGap - 2, 1)
+    page.drawText('S. No.', { x: columns.number, y: y - 2, size, font: bold, color: ink })
+    page.drawText('Particulars', { x: columns.title, y: y - 2, size, font: bold, color: ink })
+    page.drawText('Page No.', { x: columns.pages, y: y - 2, size, font: bold, color: ink })
+    y -= lineGap
+    rule(page, y + 4, 1)
+    y -= 10
+  }
+  startPage()
+
+  for (const row of rows) {
+    const titleLines = wrap(regular, size, writable(regular, row.title), titleWidth)
+    const pageLines = wrap(regular, size, writable(regular, row.pages), pagesWidth)
+    const height = Math.max(titleLines.length, pageLines.length) * lineGap + 8
+    if (y - height < MARGIN) startPage()
+
+    page.drawText(`${row.number}.`, { x: columns.number, y: y - size, size, font: regular, color: ink })
+    titleLines.forEach((line, i) => page.drawText(line, { x: columns.title, y: y - size - i * lineGap, size, font: regular, color: ink }))
+    pageLines.forEach((line, i) => page.drawText(line, { x: columns.pages, y: y - size - i * lineGap, size, font: regular, color: ink }))
+    y -= height
+    rule(page, y + 3, 0.4)
+    y -= 6
+  }
+
+  return { bytes: await doc.save(), pageCount: doc.getPageCount() }
 }
 
 // --- building --------------------------------------------------------------
