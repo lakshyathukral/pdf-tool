@@ -201,6 +201,10 @@
             <li>Pages that already have text are left as they are.</li>
             <li>A few seconds a page, longer on a phone.</li>
           </ul>
+          <div class="ocr-photos" id="ocr-photos" role="status" hidden>
+            <p id="ocr-photos-text"></p>
+            <button type="button" id="ocr-photos-fix">Straighten and clean up</button>
+          </div>
           <div class="row actions">
             <button id="ocr-run" type="button" class="primary" hidden disabled>Save searchable PDF</button>
           </div>
@@ -915,18 +919,39 @@
               <polygon points="" />
               <circle data-corner="0" /><circle data-corner="1" /><circle data-corner="2" /><circle data-corner="3" />
             </svg>
+            <canvas id="scan-loupe" class="scan-loupe" width="300" height="300" aria-hidden="true" hidden></canvas>
           </div>
           <p class="scan-note" id="scan-note" role="status"></p>
         </div>
 
         <aside class="scan-controls">
+          <h3>Edges</h3>
+          <div class="scan-edge-tools">
+            <button type="button" id="scan-rotate">&#8635; Rotate</button>
+            <button type="button" id="scan-reset">Reset edges</button>
+          </div>
+
           <h3>Look</h3>
           <div class="scan-looks" id="scan-looks" role="group" aria-label="How the page should look">
-            <button type="button" data-look="original" aria-pressed="false">Original</button>
-            <button type="button" data-look="clean" aria-pressed="true">Clean</button>
-            <button type="button" data-look="bw" aria-pressed="false">Black &amp; white</button>
+            <button type="button" data-look="original" aria-pressed="false">
+              <span class="scan-look-img"><img alt="" /></span>
+              <b>Original</b><small>Colours as taken</small>
+              <em class="scan-best" hidden>Best for reading</em>
+            </button>
+            <button type="button" data-look="clean" aria-pressed="true">
+              <span class="scan-look-img"><img alt="" /></span>
+              <b>Clean</b><small>White paper, no shadows</small>
+              <em class="scan-best" hidden>Best for reading</em>
+            </button>
+            <button type="button" data-look="bw" aria-pressed="false">
+              <span class="scan-look-img"><img alt="" /></span>
+              <b>Black &amp; white</b><small>Crisp text, for faint prints</small>
+              <em class="scan-best" hidden>Best for reading</em>
+            </button>
           </div>
-          <button type="button" class="scan-all-looks" id="scan-all-looks" hidden>Use this look for every photo</button>
+          <p class="scan-reading" id="scan-reading" role="status"></p>
+          <button type="button" class="scan-link" id="scan-check-reading">Check which look reads best</button>
+          <button type="button" class="scan-link" id="scan-all-looks" hidden>Use this look for every photo</button>
 
           <h3>Result</h3>
           <div class="scan-result" id="scan-result">

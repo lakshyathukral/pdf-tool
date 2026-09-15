@@ -12,6 +12,8 @@ import {
   flattenDocument,
   readOutline,
   passwordProblem,
+  pageHasText,
+  renderLarge,
 } from './render.js'
 import {
   buildPdf,
@@ -41,7 +43,7 @@ import * as presets from './presets.js'
 import * as signatures from './signatures.js'
 import { pdfFromImages, PAGE_SIZES } from './images.js'
 import { makeSearchable } from './ocr.js'
-import { scanPhotos, setupScanner } from './ui/scan.js'
+import { scanPhotos, scanPages, looksLikePhoto, setupScanner } from './ui/scan.js'
 import { TOOLS, ALWAYS_PANELS, getTool, isComingSoon, isPage, currentToolId, goToTool, goToLanding } from './tools.js'
 import { drawLanding, setupLanding } from './ui/landing.js'
 
@@ -193,6 +195,7 @@ function applyRoute() {
 
   applyTool()
   refreshControls()
+  checkForPhotoPages()
 }
 
 // A single-purpose tool should arrive ready to do its job. Only fills in what
@@ -427,6 +430,7 @@ model.subscribe(() => {
   drawReader()
   refreshViewer()
   refreshControls()
+  drawPhotoPages()
 })
 
 // ---------------------------------------------------------------------------
@@ -568,6 +572,7 @@ async function loadFiles(files) {
   }
 
   refreshControls()
+  checkForPhotoPages()
 }
 
 for (const input of [fileInput, el('file-input-empty'), el('file-input-strip')]) {
@@ -583,6 +588,123 @@ for (const input of [fileInput, el('file-input-empty'), el('file-input-strip')])
 // Pictures are turned into a PDF straight away and handed to the same code
 // path as any other file, so everything downstream — thumbnails, reordering,
 // bookmarks, redaction, export — works without knowing about photographs.
+// --- pages that are photos of paper ------------------------------------------------
+//
+// A PDF made on a phone is often photos: tilted, shadowed, with the desk around
+// the page. Reading those words goes far better once the page is straightened
+// and cleaned up, so the OCR panel looks for such pages and offers the scanner.
+
+// sourceId -> the page indexes that look like photos. Checked once per file.
+const photoPages = new Map()
+let checkingPhotos = false
+const PHOTO_CHECK_PAGES = 60
+
+const photoCheckWanted = () => activeTool().primary === 'ocr'
+  || (activeTool().panels === 'all' && el('panel-ocr').open)
+
+async function canvasFrom(url) {
+  const img = new Image()
+  img.src = url
+  await img.decode()
+  const canvas = document.createElement('canvas')
+  canvas.width = img.naturalWidth
+  canvas.height = img.naturalHeight
+  canvas.getContext('2d').drawImage(img, 0, 0)
+  URL.revokeObjectURL(url)
+  return canvas
+}
+
+async function checkForPhotoPages() {
+  if (!photoCheckWanted() || checkingPhotos) return drawPhotoPages()
+  const unchecked = [...model.getSources().keys()].filter((id) => !photoPages.has(id))
+  if (unchecked.length === 0) return drawPhotoPages()
+
+  checkingPhotos = true
+  try {
+    for (const id of unchecked) {
+      const found = new Set()
+      const count = Math.min(model.getSource(id)?.pageCount ?? 0, PHOTO_CHECK_PAGES)
+      for (let i = 0; i < count; i++) {
+        if (await pageHasText(id, i)) continue
+        const { url } = await renderLarge(id, i, 0, 900)
+        if (await looksLikePhoto(await canvasFrom(url))) found.add(i)
+      }
+      photoPages.set(id, found)
+    }
+  } catch (error) {
+    // Only a suggestion: if it cannot be worked out, reading still works.
+    console.error(error)
+  } finally {
+    checkingPhotos = false
+  }
+  drawPhotoPages()
+  if ([...model.getSources().keys()].some((id) => !photoPages.has(id))) checkForPhotoPages()
+}
+
+const pagesThatArePhotos = () =>
+  model.getPages().filter((page) => photoPages.get(page.sourceId)?.has(page.pageIndex))
+
+function drawPhotoPages() {
+  const all = model.getPages()
+  const found = pagesThatArePhotos()
+  el('ocr-photos').hidden = found.length === 0
+  if (found.length === 0) return
+  const numbers = found.map((page) => all.indexOf(page) + 1)
+  const list = numbers.length === 1 ? `Page ${numbers[0]} looks`
+    : numbers.length <= 6 ? `Pages ${numbers.slice(0, -1).join(', ')} and ${numbers.at(-1)} look`
+    : `${numbers.length} pages look`
+  el('ocr-photos-text').textContent =
+    `${list} like a photo of paper. Straightening and cleaning up first helps the words read.`
+}
+
+async function fixPhotoPages() {
+  const found = pagesThatArePhotos()
+  if (found.length === 0) return
+  const all = model.getPages()
+  const button = el('ocr-photos-fix')
+  button.disabled = true
+  clearError()
+  try {
+    setStatus('Getting the pages ready...')
+    const items = []
+    for (const page of found) {
+      const { url } = await renderLarge(page.sourceId, page.pageIndex, page.rotation, 2000)
+      items.push({ canvas: await canvasFrom(url), name: `page-${all.indexOf(page) + 1}` })
+    }
+
+    const tidied = await scanPages(items, {
+      bestForReading: true,
+      noun: 'Page',
+      title: 'Straighten and clean up',
+      hint: 'Drag the corners onto the edges of the paper, and pick the look that reads best. On this device.',
+      skipLabel: 'Leave them as they are',
+      applyLabel: (n) => (n === 1 ? 'Use this page' : `Use these ${n} pages`),
+    })
+    if (!Array.isArray(tidied)) {
+      // Left as they are: stop suggesting it for these pages.
+      if (tidied === 'as-taken') for (const page of found) photoPages.get(page.sourceId)?.delete(page.pageIndex)
+      setStatus('')
+      return drawPhotoPages()
+    }
+
+    const bytes = await pdfFromImages(tidied, { pageSize: null })
+    const id = model.reserveSourceId()
+    const pageCount = await openSource(id, bytes)
+    photoPages.set(id, new Set())
+    const firstName = model.getSource(found[0].sourceId)?.name.replace(/\.pdf$/i, '') ?? 'Pages'
+    model.replacePageImages(id, `${firstName} (cleaned up).pdf`, bytes, pageCount, found.map((page) => page.id))
+    for (let i = 0; i < pageCount; i++) await renderThumbnail(id, i)
+    drawGrid()
+    setStatus(`Straightened ${pageCount === 1 ? '1 page' : `${pageCount} pages`}. Save to make ${pageCount === 1 ? 'it' : 'them'} searchable.`)
+  } catch (error) {
+    showError(`Could not straighten the pages: ${error?.message ?? String(error)}`)
+    console.error(error)
+  } finally {
+    button.disabled = false
+    refreshControls()
+  }
+}
+
 async function loadPhotos(files) {
   const images = files.filter((f) => f.type.startsWith('image/'))
   if (images.length === 0) return
@@ -593,7 +715,8 @@ async function loadPhotos(files) {
   try {
     // Crop, straighten and clean them first, as a scanner app would. Cancelled
     // means nothing is added; "as taken" keeps the photos untouched.
-    const tidied = await scanPhotos(images)
+    // Making a scan searchable: check which look reads best, and choose it.
+    const tidied = await scanPhotos(images, { bestForReading: activeTool().primary === 'ocr' })
     if (tidied === null) {
       setStatus('No photos added.')
       return refreshControls()
@@ -610,6 +733,7 @@ async function loadPhotos(files) {
     const pageCount = await openSource(id, bytes)
     const name = images.length === 1 ? images[0].name.replace(/\.[^.]+$/, '') : `Photos (${images.length})`
     model.addSource(id, `${name}.pdf`, bytes, pageCount)
+    photoPages.set(id, new Set())   // already been through the scanner
 
     for (const page of model.getPages()) {
       if (page.sourceId !== id) continue
@@ -1374,6 +1498,9 @@ el('compress-level').addEventListener('change', (event) => {
 el('extract').addEventListener('click', doExtract)
 el('split').addEventListener('click', doSplit)
 el('ocr-run').addEventListener('click', () => doOcr(el('ocr-run')))
+el('ocr-photos-fix').addEventListener('click', fixPhotoPages)
+// In the Control Room the check waits until the OCR panel is opened.
+el('panel-ocr').addEventListener('toggle', checkForPhotoPages)
 el('primary-action').addEventListener('click', () => RUN[activeTool().primary]())
 
 el('share-action').addEventListener('click', () => {

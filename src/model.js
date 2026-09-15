@@ -307,6 +307,19 @@ export function addSource(id, name, bytes, pageCount, sourceOutline = []) {
   return id
 }
 
+// Put new pictures in place of some pages, keeping each page's place and what
+// was added to it. For pages straightened and cleaned up by the scanner: the
+// old picture's redaction boxes no longer line up, so they go. One undoable step.
+export function replacePageImages(id, name, bytes, pageCount, pageIds) {
+  beginChange()
+  sources.set(id, { id, name, bytes, pageCount, color: SOURCE_COLORS[sources.size % SOURCE_COLORS.length] })
+  pageIds.slice(0, pageCount).forEach((pageId, pageIndex) => {
+    const page = pages.find((p) => p.id === pageId)
+    if (page) Object.assign(page, { sourceId: id, pageIndex, rotation: 0, redactions: [] })
+  })
+  notify()
+}
+
 // Remove a file and every page that came from it. Undoable, because the undo
 // snapshot covers sources as well as pages.
 export function removeSource(sourceId) {
