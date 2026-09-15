@@ -874,6 +874,54 @@
       </form>
     </dialog>
 
+    <dialog id="scan-dialog" aria-labelledby="scan-title">
+      <div class="scan-head">
+        <div>
+          <h2 id="scan-title">Tidy up your photos</h2>
+          <p class="hint">Drag the corners onto the edges of the page. It is straightened and cleaned up, on this device.</p>
+        </div>
+        <button id="scan-cancel" type="button">Cancel</button>
+      </div>
+
+      <div class="scan-body">
+        <div class="scan-photo-side">
+          <div class="scan-pager">
+            <button id="scan-prev" type="button" aria-label="Previous photo">&lsaquo;</button>
+            <span id="scan-counter"></span>
+            <button id="scan-next" type="button" aria-label="Next photo">&rsaquo;</button>
+          </div>
+          <div class="scan-stage" id="scan-stage">
+            <img id="scan-photo" alt="" draggable="false" />
+            <svg id="scan-outline" preserveAspectRatio="none" aria-label="Page corners">
+              <polygon points="" />
+              <circle data-corner="0" /><circle data-corner="1" /><circle data-corner="2" /><circle data-corner="3" />
+            </svg>
+          </div>
+          <p class="scan-note" id="scan-note" role="status"></p>
+        </div>
+
+        <aside class="scan-controls">
+          <h3>Look</h3>
+          <div class="scan-looks" id="scan-looks" role="group" aria-label="How the page should look">
+            <button type="button" data-look="original" aria-pressed="false">Original</button>
+            <button type="button" data-look="clean" aria-pressed="true">Clean</button>
+            <button type="button" data-look="bw" aria-pressed="false">Black &amp; white</button>
+          </div>
+          <button type="button" class="scan-all-looks" id="scan-all-looks" hidden>Use this look for every photo</button>
+
+          <h3>Result</h3>
+          <div class="scan-result" id="scan-result">
+            <img id="scan-result-image" alt="How the page will look" />
+          </div>
+        </aside>
+      </div>
+
+      <div class="scan-foot">
+        <button id="scan-skip" type="button">Use photos as they are</button>
+        <button id="scan-apply" type="button" class="primary">Add this page</button>
+      </div>
+    </dialog>
+
     <dialog id="viewer-dialog">
       <div class="dialog-head">
         <p class="caption" id="viewer-caption"></p>

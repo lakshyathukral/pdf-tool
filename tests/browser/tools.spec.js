@@ -8,6 +8,15 @@ const THREE_PAGES = fileURLToPath(new URL('../fixtures/three-pages.pdf', import.
 const LOCKED = fileURLToPath(new URL('../fixtures/locked.pdf', import.meta.url))
 const PHOTO_LANDSCAPE = fileURLToPath(new URL('../fixtures/photo-landscape.png', import.meta.url))
 const PHOTO_PORTRAIT = fileURLToPath(new URL('../fixtures/photo-portrait.png', import.meta.url))
+const PHOTO_OF_A_PAGE = fileURLToPath(new URL('../fixtures/photo-of-a-page.jpg', import.meta.url))
+
+// Every photo now opens "Tidy up your photos". Tests that are about something
+// else keep the photos as taken.
+async function addPhotosAsTaken(page, files) {
+  await page.locator('#photo-input').setInputFiles(files)
+  await expect(page.locator('#scan-dialog')).toBeVisible({ timeout: 30_000 })
+  await page.locator('#scan-skip').click()
+}
 
 // Loading a PDF is the first thing every test needs, and the step that failed
 // outright in Safari for a whole day.
@@ -92,14 +101,14 @@ test.describe('loading', () => {
 test.describe('photos to PDF', () => {
   test('turns pictures into pages', async ({ page }) => {
     await page.goto('/#photos')
-    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
+    await addPhotosAsTaken(page, [PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
     await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
     await expect(page.locator('.tile img').first()).toBeVisible()
   })
 
   test('turns the page sideways for a landscape photo', async ({ page }) => {
     await page.goto('/#photos')
-    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE])
+    await addPhotosAsTaken(page, [PHOTO_LANDSCAPE])
     await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
     // Wait for the real thumbnail: the loading placeholder is portrait, so
     // measuring too early tests the placeholder rather than the page.
@@ -113,18 +122,52 @@ test.describe('photos to PDF', () => {
 
   test('mixes photos and PDFs in one document', async ({ page }) => {
     await load(page)
-    await page.locator('#photo-input').setInputFiles([PHOTO_PORTRAIT])
+    await addPhotosAsTaken(page, [PHOTO_PORTRAIT])
     await expect(page.locator('.tile')).toHaveCount(6, { timeout: 30_000 })
     await expect(page.locator('.file-chip')).toHaveCount(2)
   })
 
   test('saves a PDF made only of photos', async ({ page }) => {
     await page.goto('/#photos')
-    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
+    await addPhotosAsTaken(page, [PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
     await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
 
     const file = await savedFile(page, pressSave(page))
     expect(file.name).toMatch(/\.pdf$/)
+  })
+})
+
+test.describe('tidying up photos of documents', () => {
+  test('finds the page, straightens it and cleans it up', async ({ page }) => {
+    test.slow()   // the scanner is a large download the first time
+    await page.goto('/#photos')
+    await page.locator('#photo-input').setInputFiles([PHOTO_OF_A_PAGE])
+    await expect(page.locator('#scan-dialog')).toBeVisible({ timeout: 30_000 })
+
+    // The page is found, and a page defaults to the Clean look.
+    await expect(page.locator('#scan-note')).toContainText('Page found', { timeout: 90_000 })
+    await expect(page.locator('#scan-looks button[data-look="clean"]')).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('#scan-outline circle')).toHaveCount(4)
+    await expect(page.locator('#scan-result-image')).toHaveAttribute('src', /^data:image/, { timeout: 90_000 })
+
+    await page.locator('#scan-apply').click()
+    await expect(page.locator('#scan-dialog')).toBeHidden({ timeout: 90_000 })
+    await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
+
+    const file = await savedFile(page, pressSave(page))
+    expect(file.name).toMatch(/\.pdf$/)
+  })
+
+  test('can keep the photo exactly as taken, or add nothing', async ({ page }) => {
+    await page.goto('/#photos')
+    await page.locator('#photo-input').setInputFiles([PHOTO_OF_A_PAGE])
+    await expect(page.locator('#scan-dialog')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#scan-cancel').click()
+    await expect(page.locator('#scan-dialog')).toBeHidden()
+    await expect(page.locator('.tile')).toHaveCount(0)
+
+    await addPhotosAsTaken(page, [PHOTO_OF_A_PAGE])
+    await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
   })
 })
 
@@ -141,7 +184,7 @@ test.describe('watermarking a photo', () => {
 
   test('stamps a photograph and previews it', async ({ page }) => {
     await page.goto('/#photo-watermark')
-    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE])
+    await addPhotosAsTaken(page, [PHOTO_LANDSCAPE])
     await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
     // Nine copies, because the default is tiled.
     await expect(page.locator('.watermark-preview')).toHaveCount(9)

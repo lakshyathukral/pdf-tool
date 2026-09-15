@@ -5,13 +5,44 @@ than on the Desktop: that folder is a OneDrive symlink, and files in it cannot
 always be read from a terminal. Nothing in this folder is published with the
 site — only the built pages are.
 
-Last updated: 12 September 2026.
+Last updated: 15 September 2026.
+
+## Next to build
+
+- **"Remove the password" switch in the password prompt** (asked 15 Sep 2026).
+  When a protected PDF is opened, the prompt offers a switch to remove the
+  password from the saved copy. It only takes effect once the correct
+  password has been entered. Switching it on makes "Remove the password" the
+  default choice in the Password panel; the choice can still be changed there
+  (keep, change or remove). Off by default.
+  - Also fix the prompt's wording: it still tells people to untick "Protect
+    the saved file with a password", which no longer exists.
+
+## Built locally, waiting on your test
+
+- **"Tidy up your photos"** (branch `scan-photos`, not committed): finds the
+  page in a phone photo, draggable corners, straightens it, and offers
+  Original, Clean or Black & white. All tests pass. It downloads 3.7 MB of
+  image code, but only for people who add photos.
+  - Waiting on: about 10 real phone photos of pages, to judge it against the
+    agreed bar before it goes live.
+  - The bar, agreed 14 Sep 2026: corners right in 90% of photos; camera photos
+    90% of words readable; WhatsApp photos 75%; never worse than the photo as
+    taken. On 48 simulated photos it met the first three; the fourth held on
+    21 of 24.
 
 ## Waiting on you
 
 - **Switch labels.** The pages can be shown as "Page thumbnails" or "Read
   through". Do those read right, or would something else be clearer?
-- **OCR.** Still undecided: build nothing and point people at a tool that does
+- **OCR.** Tested 14 Sep 2026 on English pages with known text: Tesseract
+  (running in the browser) was the most consistent, fastest and smallest, and
+  strong on stamps and low-resolution scans; its weak spot is raw phone
+  photos, which "Tidy up your photos" largely fixes. PaddleOCR's lighter
+  models did not beat it on average and sometimes silently dropped whole
+  lines. The larger AI models read far better but need a server, which breaks
+  "stays on your device". Recommendation: Tesseract in the browser. Still
+  undecided: build nothing and point people at a tool that does
   it, or send files to Google's OCR with a plain warning that those files leave
   the device. The explainer for the first option is written and parked on the
   `ocr-explainer` branch.
