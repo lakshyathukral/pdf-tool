@@ -299,25 +299,25 @@ export const TOOLS = {
 
   ocr: {
     name: 'PDF scan and OCR',
-    blurb: 'Turn a scanned or photographed document into searchable text — on your device, like everything else here.',
+    phrase: 'Search a scan',
+    category: 'protect',
+    blurb: 'Make a scanned document searchable: find, select and copy its words. English, read on your device.',
     icon: 'Aa',
     colour: '#9333ea',
-    // Listed so people know it is coming; nothing behind it yet.
-    comingSoon: true,
-    panels: [],
+    panels: ['panel-ocr'],
     pageActions: ['view'],
-    primary: 'save',
+    primary: 'ocr',
     primaryLabel: 'Save searchable PDF',
-    hint: 'Coming soon.',
+    hint: 'Add a scanned PDF, then save. The words on each scanned page are read and laid over it as invisible text.',
   },
 }
 
 // The order they appear on the landing page. Pro sits apart from the rest.
 export const SIMPLE_TOOL_IDS = [
   'merge', 'photo-watermark', 'photos', 'bookmarks', 'organise', 'rotate', 'extract', 'split',
-  'numbering', 'label', 'redact', 'password', 'compress', 'to-images',
-  // Not ready yet, so they go last.
-  'sign', 'ocr',
+  'numbering', 'label', 'redact', 'password', 'compress', 'to-images', 'ocr',
+  // Not ready yet, so it goes last.
+  'sign',
 ]
 
 export const getTool = (id) => TOOLS[id] ?? null

@@ -188,6 +188,25 @@
           <p class="hint" id="images-result"></p>
         </details>
 
+        <details class="panel" id="panel-ocr" open>
+          <summary>Make it searchable</summary>
+          <p class="hint">
+            A scanned page is a picture of text: it cannot be searched, selected
+            or copied. This reads the words on each scanned page and lays them
+            over it as invisible text. The page looks exactly the same.
+          </p>
+          <ul class="ocr-facts">
+            <li><strong>English only.</strong></li>
+            <li><strong>Read on this device.</strong> The reader is a one-time download of a few megabytes from this site, then kept by your browser.</li>
+            <li>Pages that already have text are left as they are.</li>
+            <li>A few seconds a page, longer on a phone.</li>
+          </ul>
+          <div class="row actions">
+            <button id="ocr-run" type="button" class="primary" hidden disabled>Save searchable PDF</button>
+          </div>
+          <p class="hint" id="ocr-result" role="status"></p>
+        </details>
+
 
         <details class="panel" id="panel-bookmarks" open>
           <summary>Bookmarks</summary>

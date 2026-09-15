@@ -1,13 +1,16 @@
 import { test, expect } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
-import { textOfEachPage, positionOf, outline, passwordOf, opensWith } from '../helpers/read-pdf.js'
+import { readFileSync } from 'node:fs'
+import { textOfEachPage, positionOf, centreOf, outline, passwordOf, opensWith } from '../helpers/read-pdf.js'
 
 const FIVE_PAGES = fileURLToPath(new URL('../fixtures/five-pages.pdf', import.meta.url))
 const THREE_PAGES = fileURLToPath(new URL('../fixtures/three-pages.pdf', import.meta.url))
 const LOCKED = fileURLToPath(new URL('../fixtures/locked.pdf', import.meta.url))
 const PHOTO_LANDSCAPE = fileURLToPath(new URL('../fixtures/photo-landscape.png', import.meta.url))
 const PHOTO_PORTRAIT = fileURLToPath(new URL('../fixtures/photo-portrait.png', import.meta.url))
+// A picture of a page with no text layer, whose words are known.
+const SCANNED_DEED = fileURLToPath(new URL('../fixtures/scanned-deed.pdf', import.meta.url))
 
 // Loading a PDF is the first thing every test needs, and the step that failed
 // outright in Safari for a whole day.
@@ -1003,6 +1006,79 @@ test.describe('the file name', () => {
 
     const { name } = await savedFile(page, () => page.locator('#save-here').click())
     expect(name).toBe('Bundle for filing.pdf')
+  })
+})
+
+test.describe('making a scan searchable', () => {
+  // Words from the scanned deed, spread across every paragraph.
+  const EXPECTED = ['AGREEMENT', 'Gurugram', 'Purchaser', 'Seventy', 'cheque', '004512', 'Registrar']
+
+  test('reads the words on a scanned page and lays them over it', async ({ page }) => {
+    test.slow()   // the reader is a download the first time
+    await page.goto('/#ocr')
+    await expect(page.locator('#tool-name')).toHaveText('PDF scan and OCR')
+    await page.locator('#file-input').setInputFiles([SCANNED_DEED])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#primary-action')).toHaveText('Save searchable PDF')
+
+    // A scan has no text to begin with.
+    const before = await textOfEachPage(readFileSync(SCANNED_DEED))
+    expect(before[0].trim()).toBe('')
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const [text] = await textOfEachPage(bytes)
+    for (const word of EXPECTED) expect(text).toContain(word)
+    await expect(page.locator('#ocr-result')).toContainText('Read 1 scanned page')
+
+    // The words sit where they appear: the title at the top, the last line lower down.
+    expect(await positionOf(bytes, 1, /AGREEMENT/)).toEqual({ horizontal: 'centre', vertical: 'top' })
+    const title = await centreOf(bytes, 1, /AGREEMENT/)
+    const lastLine = await centreOf(bytes, 1, /Registrar/)
+    expect(lastLine.y).toBeGreaterThan(title.y)
+  })
+
+  test('leaves a page that already has text as it is', async ({ page }) => {
+    test.slow()
+    await page.goto('/#ocr')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES])
+    await expect(tiles(page).nth(4)).toBeVisible({ timeout: 30_000 })
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    // Its words were not added a second time.
+    expect(await textOfEachPage(bytes)).toEqual(await textOfEachPage(readFileSync(FIVE_PAGES)))
+    await expect(page.locator('#ocr-result')).toContainText('Every page already had text')
+  })
+
+  test('reads a scan that already carries a page number, without doubling the number', async ({ page }) => {
+    test.slow()
+    // The scan with a real-text number stamped at the foot, as the numbering tool would.
+    const { PDFDocument, StandardFonts } = await import('@cantoo/pdf-lib')
+    const doc = await PDFDocument.load(readFileSync(SCANNED_DEED))
+    const font = await doc.embedFont(StandardFonts.Helvetica)
+    doc.getPage(0).drawText('Exhibit P-7', { x: 260, y: 30, size: 14, font })
+    const numbered = Buffer.from(await doc.save())
+
+    await page.goto('/#ocr')
+    await page.locator('#file-input').setInputFiles([{ name: 'numbered-scan.pdf', mimeType: 'application/pdf', buffer: numbered }])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const [text] = await textOfEachPage(bytes)
+    for (const word of EXPECTED) expect(text).toContain(word)
+    expect(text.match(/P-7/g)).toHaveLength(1)
+  })
+
+  test('works from the Control Room too', async ({ page }) => {
+    test.slow()
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([SCANNED_DEED])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+    await page.evaluate(() => { document.getElementById('panel-ocr').open = true })
+    await expect(page.locator('#ocr-run')).toBeVisible()
+
+    const { bytes } = await savedFile(page, () => page.locator('#ocr-run').click())
+    const [text] = await textOfEachPage(bytes)
+    expect(text).toContain('Purchaser')
   })
 })
 

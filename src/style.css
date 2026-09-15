@@ -2995,3 +2995,10 @@ body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b9
 .at-hindi { margin-top: 0.55rem; }
 .at-hindi > span { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
 .at-hindi select { font-size: 0.9rem; }
+
+/* --- make it searchable ------------------------------------------------------- */
+
+.ocr-facts { margin: 0.4rem 0 0.8rem; padding-left: 1.1rem; font-size: 0.84rem; line-height: 1.5; color: #44403c; }
+.ocr-facts li { margin-bottom: 0.25rem; }
+#ocr-result:empty { display: none; }
+#ocr-result { padding: 0.55rem 0.7rem; border-radius: 8px; background: var(--secure-wash); color: var(--secure); font-weight: 600; }

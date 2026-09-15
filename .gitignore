@@ -26,3 +26,6 @@ dist-ssr
 # Test output
 test-results
 playwright-report
+
+# Generated from node_modules by scripts/copy-ocr-assets.mjs
+public/ocr/

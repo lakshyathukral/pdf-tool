@@ -40,6 +40,7 @@ import { countedPages, hasHindiLetters, lastPageNumber, toHindiWords } from './t
 import * as presets from './presets.js'
 import * as signatures from './signatures.js'
 import { pdfFromImages, PAGE_SIZES } from './images.js'
+import { makeSearchable } from './ocr.js'
 import { TOOLS, ALWAYS_PANELS, getTool, isComingSoon, isPage, currentToolId, goToTool, goToLanding } from './tools.js'
 import { drawLanding, setupLanding } from './ui/landing.js'
 
@@ -76,7 +77,7 @@ const activeTool = () => getTool(currentToolId()) ?? TOOLS.pro
 const onLanding = () =>
   getTool(currentToolId()) === null || isComingSoon(currentToolId()) || isPage(currentToolId())
 
-const PANEL_IDS = ['panel-photos', 'panel-password', 'panel-compress', 'panel-images', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
+const PANEL_IDS = ['panel-photos', 'panel-password', 'panel-compress', 'panel-images', 'panel-ocr', 'panel-bookmarks', 'panel-signatures', 'panel-label', 'panel-numbering', 'panel-watermark', 'panel-presets', 'panel-saving']
 const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-right', 'duplicate', 'delete', 'view', 'redact']
 // Controls that select more than one page at a time.
 const MULTI_SELECT_IDS = ['select-all', 'select-odd', 'select-even', 'select-invert', 'range-input', 'range-select']
@@ -142,6 +143,8 @@ function applyTool() {
 
   // The split controls only make sense in the full editor or the split tool.
   el('split-block').hidden = !(isPro || tool.primary === 'split')
+  // The OCR tool runs from its main button; the Control Room needs its own.
+  el('ocr-run').hidden = !isPro
   el('extract').hidden = !(isPro || tool.primary === 'extract')
 
   el('tool-name').textContent = onLanding() ? '' : tool.name
@@ -276,6 +279,7 @@ function refreshControls() {
   el('share-action').disabled = !hasPages
   el('extract').disabled = !hasSelection
   el('split').disabled = !hasPages
+  el('ocr-run').disabled = !hasPages
 
   // The viewer shows one page. Redaction opens on the whole document, so it
   // only needs something to open.
@@ -1169,6 +1173,48 @@ function doImages() {
   })
 }
 
+// Make the scanned pages searchable. The document is built exactly as saving
+// would build it, but unlocked: a password has to go on last, after the
+// invisible text is laid over the pages, since a locked file cannot be edited.
+function doOcr(button = el('primary-action')) {
+  return runSave(button, 'Reading the scanned pages', async () => {
+    const pages = model.getPages()
+    if (pages.length === 0) return
+    el('ocr-result').textContent = ''
+
+    const numbering = model.getNumbering()
+    const built = await buildPdf({
+      ...exportOptions(pages, numbering.start, lastPageNumber(numbering, pages)),
+      protection: null,
+    })
+
+    const { bytes, summary } = await makeSearchable(built, {
+      protection: model.getProtection(),
+      onProgress: ({ stage, page, total }) => setStatus(stage === 'starting'
+        ? 'Getting the text reader ready (a one-time download)...'
+        : `Reading page ${page} of ${total}...`),
+    })
+
+    const name = safeFileName(chosenName())
+    const outcome = await deliver(bytes, name)
+    if (outcome === 'cancelled') return setStatus('Sharing cancelled.')
+
+    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+    const parts = []
+    if (summary.scanned === 0) {
+      parts.push(`Every page already had text, so nothing needed reading. ${OUTCOME_VERB[outcome]} ${name} as it was.`)
+    } else {
+      parts.push(`${OUTCOME_VERB[outcome]} ${name}. Read ${plural(summary.scanned, 'scanned page')}: its words can now be searched, selected and copied.`)
+      if (summary.alreadyText > 0) parts.push(`${plural(summary.alreadyText, 'page')} already had text and were left as they are.`)
+      if (summary.worthChecking.length > 0) {
+        parts.push(`The reading was less certain on page ${summary.worthChecking.join(', ')}, so search there may miss words.`)
+      }
+    }
+    el('ocr-result').textContent = parts.join(' ')
+    setStatus(`${OUTCOME_VERB[outcome]} ${name} — ${describeSize(bytes.length)}`)
+  })
+}
+
 // Wraps a save so a failure always reports rather than hanging a disabled button.
 async function runSave(button, label, work) {
   button.disabled = true
@@ -1178,7 +1224,9 @@ async function runSave(button, label, work) {
     await work()
   } catch (error) {
     setStatus('Save failed.')
-    showError(`${label} failed: ${error.message}`)
+    // Some libraries reject with a plain string or event rather than an Error,
+    // which read as "failed: undefined".
+    showError(`${label} failed: ${error?.message ?? String(error)}`)
     console.error(error)
   } finally {
     refreshControls()
@@ -1307,7 +1355,7 @@ function doSplit() {
   })
 }
 
-const RUN = { save: doSave, extract: doExtract, split: doSplit, images: doImages, compress: doCompress }
+const RUN = { save: doSave, extract: doExtract, split: doSplit, images: doImages, compress: doCompress, ocr: () => doOcr() }
 
 el('compress-level').addEventListener('change', (event) => {
   applyCompressLevel(event.target.value)
@@ -1315,6 +1363,7 @@ el('compress-level').addEventListener('change', (event) => {
 
 el('extract').addEventListener('click', doExtract)
 el('split').addEventListener('click', doSplit)
+el('ocr-run').addEventListener('click', () => doOcr(el('ocr-run')))
 el('primary-action').addEventListener('click', () => RUN[activeTool().primary]())
 
 el('share-action').addEventListener('click', () => {

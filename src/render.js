@@ -196,6 +196,76 @@ export async function pageHasText(sourceId, pageIndex) {
 // `format` is 'png' for sharp text or 'jpeg' for a much smaller file. A page of
 // text as PNG can be several hundred kilobytes; the same page as JPEG is often
 // a tenth of that, at the cost of slight softness around the letters.
+// A page with less text than this is treated as scanned. A scan that has had a
+// page number or an annexure label added still carries a few characters, and
+// must not be mistaken for a page that is already searchable.
+const SCANNED_BELOW_CHARACTERS = 50
+
+// Visit every page of a finished PDF, rendering the scanned ones so their words
+// can be read. For each page, onPage receives whether it already has text and,
+// if not, the rendered canvas plus toPdf(x, y): a way back from a pixel on that
+// canvas to the page's own coordinates, rotation and all.
+export async function forEachScannedPage(bytes, { dpi = 300, onPage }) {
+  const loadingTask = pdfjsLib.getDocument({ data: bytes.slice(0) })
+
+  let pdf
+  try {
+    pdf = await loadingTask.promise
+  } catch (error) {
+    await loadingTask.destroy()
+    throw new Error(`Could not reopen the built file to read it: ${error.message}`)
+  }
+
+  try {
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+      const page = await pdf.getPage(pageNumber)
+      const { items } = await page.getTextContent()
+      const characters = items.reduce((n, item) => n + (item.str ?? '').trim().length, 0)
+      const base = { pageIndex: pageNumber - 1, total: pdf.numPages }
+
+      if (characters >= SCANNED_BELOW_CHARACTERS) {
+        await onPage({ ...base, hasText: true })
+        continue
+      }
+
+      // The same canvas-size ceiling as flattening, for the same reason.
+      let scale = dpi / 72
+      const probe = page.getViewport({ scale })
+      const area = probe.width * probe.height
+      if (area > MAX_CANVAS_PIXELS) scale *= Math.sqrt(MAX_CANVAS_PIXELS / area)
+
+      const viewport = page.getViewport({ scale })
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(viewport.width)
+      canvas.height = Math.round(viewport.height)
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      await page.render({ canvas, viewport }).promise
+
+      // A scan can still carry a little real text, such as a page number added
+      // later. Its boxes, in canvas pixels, let the reader skip those words.
+      const existingText = items
+        .filter((item) => (item.str ?? '').trim())
+        .map((item) => {
+          const [a, b, c, d, x, y] = item.transform
+          const height = Math.hypot(c, d) || Math.hypot(a, b)
+          const [x0, y0] = viewport.convertToViewportPoint(x, y)
+          const [x1, y1] = viewport.convertToViewportPoint(x + item.width, y + height)
+          return { left: Math.min(x0, x1), top: Math.min(y0, y1), right: Math.max(x0, x1), bottom: Math.max(y0, y1) }
+        })
+
+      await onPage({ ...base, hasText: false, canvas, existingText, toPdf: (x, y) => viewport.convertToPdfPoint(x, y) })
+
+      // Let go of the pixels before the next page is drawn.
+      canvas.width = 0
+      canvas.height = 0
+    }
+  } finally {
+    await loadingTask.destroy()
+  }
+}
+
 export async function flattenDocument(bytes, { dpi = 150, format = 'png', quality = 0.75, onProgress } = {}) {
   // getDocument returns a LOADING TASK; awaiting its .promise gives the
   // document. Cleanup lives on the loading task, not on the document — so we
