@@ -1118,6 +1118,24 @@ test.describe('making a scan searchable', () => {
     expect(text.match(/P-7/g)).toHaveLength(1)
   })
 
+  // Safari on the iPhone cannot read a stream with `for await`, which pdf.js
+  // uses for every page's text. Take it away here, as the phone does.
+  test('works in a browser that cannot read streams with for-await', async ({ page }) => {
+    test.slow()
+    await page.addInitScript(() => {
+      delete ReadableStream.prototype[Symbol.asyncIterator]
+      delete ReadableStream.prototype.values
+    })
+    await page.goto('/#ocr')
+    expect(await page.evaluate(() => typeof ReadableStream.prototype[Symbol.asyncIterator])).toBe('function')
+    await page.locator('#file-input').setInputFiles([SCANNED_DEED])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const [text] = await textOfEachPage(bytes)
+    expect(text).toContain('Purchaser')
+  })
+
   test('works from the Control Room too', async ({ page }) => {
     test.slow()
     await page.goto('/#pro')
