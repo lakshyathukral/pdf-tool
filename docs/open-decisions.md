@@ -11,10 +11,6 @@ Last updated: 12 September 2026.
 
 - **Switch labels.** The pages can be shown as "Page thumbnails" or "Read
   through". Do those read right, or would something else be clearer?
-- **OCR.** Still undecided: build nothing and point people at a tool that does
-  it, or send files to Google's OCR with a plain warning that those files leave
-  the device. The explainer for the first option is written and parked on the
-  `ocr-explainer` branch.
 - **GitHub username.** Renaming the account means the repository URL changes;
   worth doing in one go, whenever you want it.
 
@@ -31,12 +27,29 @@ Last updated: 12 September 2026.
 
 ## Parked
 
+- **Remove the password from the password prompt.** A switch there that removes
+  the password once the correct one is typed; it can be changed in the main
+  password tool, but if chosen it becomes the default. Its wording needs
+  refreshing too.
+- **Scan photos** (auto-crop and clearer text) is built on the local
+  `scan-photos` branch; it needs testing on real phone photos first.
+- **OCR on a scan that is sideways inside the file.** The reader expects
+  upright text.
+
 - **Signatures.** The panel and its placing view exist but are switched off:
   placement and background removal are not good enough yet. When it comes back
   it should use the placing view and dragging, like everything else.
 - **Terms and disclaimer** pages.
 - **Redlining** two documents against each other.
 - **Dragging pages to reorder on a phone**, which is fiddly today.
+
+## Shipped, 15 September 2026
+
+- **PDF scan and OCR:** English only, read on the device with Tesseract served
+  from the site itself. Words are laid over each scanned page as invisible text,
+  so they can be searched, selected and copied; the page looks exactly the same.
+  Pages with text are left alone, and words a scan already carries (such as a
+  page number) are not added twice. Also in Control Room.
 
 ## Shipped, 12 September 2026
 

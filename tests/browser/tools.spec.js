@@ -1583,7 +1583,8 @@ test.describe('the landing page', () => {
   test('a tool marked coming soon is not clickable', async ({ page }) => {
     await page.goto('/#tools')
     await expect(page.locator('.tcard.soon').first()).toBeDisabled()
-    await expect(page.locator('.tcard', { hasText: 'PDF scan and OCR' })).toBeDisabled()
+    // OCR was once coming soon and is now live.
+    await expect(page.locator('.tcard', { hasText: 'PDF scan and OCR' })).toBeEnabled()
   })
 
   test('the legal page offers only tools that exist', async ({ page }) => {
