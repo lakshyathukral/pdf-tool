@@ -5,7 +5,31 @@ than on the Desktop: that folder is a OneDrive symlink, and files in it cannot
 always be read from a terminal. Nothing in this folder is published with the
 site — only the built pages are.
 
-Last updated: 12 September 2026.
+Last updated: 15 September 2026.
+
+## Next to build
+
+- **"Remove the password" switch in the password prompt** (asked 15 Sep 2026).
+  When a protected PDF is opened, the prompt offers a switch to remove the
+  password from the saved copy. It only takes effect once the correct
+  password has been entered. Switching it on makes "Remove the password" the
+  default choice in the Password panel; the choice can still be changed there
+  (keep, change or remove). Off by default.
+  - Also fix the prompt's wording: it still tells people to untick "Protect
+    the saved file with a password", which no longer exists.
+
+## Built locally, waiting on your test
+
+- **"Tidy up your photos"** (branch `scan-photos`, not committed): finds the
+  page in a phone photo, draggable corners, straightens it, and offers
+  Original, Clean or Black & white. All tests pass. It downloads 3.7 MB of
+  image code, but only for people who add photos.
+  - Waiting on: about 10 real phone photos of pages, to judge it against the
+    agreed bar before it goes live.
+  - The bar, agreed 14 Sep 2026: corners right in 90% of photos; camera photos
+    90% of words readable; WhatsApp photos 75%; never worse than the photo as
+    taken. On 48 simulated photos it met the first three; the fourth held on
+    21 of 24.
 
 ## Waiting on you
 

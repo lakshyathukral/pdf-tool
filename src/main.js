@@ -41,6 +41,7 @@ import * as presets from './presets.js'
 import * as signatures from './signatures.js'
 import { pdfFromImages, PAGE_SIZES } from './images.js'
 import { makeSearchable } from './ocr.js'
+import { scanPhotos, setupScanner } from './ui/scan.js'
 import { TOOLS, ALWAYS_PANELS, getTool, isComingSoon, isPage, currentToolId, goToTool, goToLanding } from './tools.js'
 import { drawLanding, setupLanding } from './ui/landing.js'
 
@@ -590,8 +591,17 @@ async function loadPhotos(files) {
   setStatus(`Reading ${images.length} photo(s)...`)
 
   try {
+    // Crop, straighten and clean them first, as a scanner app would. Cancelled
+    // means nothing is added; "as taken" keeps the photos untouched.
+    const tidied = await scanPhotos(images)
+    if (tidied === null) {
+      setStatus('No photos added.')
+      return refreshControls()
+    }
+    const pages = tidied === 'as-taken' ? images : tidied
+
     const chosen = el('photo-page-size').value
-    const bytes = await pdfFromImages(images, {
+    const bytes = await pdfFromImages(pages, {
       pageSize: chosen === 'match' ? null : PAGE_SIZES[chosen],
       onProgress: (done, total) => setStatus(`Converting photo ${done} of ${total}...`),
     })
@@ -1417,6 +1427,8 @@ for (const [id, reading] of [['view-thumbs', false], ['view-read', true]]) {
     refreshControls()
   })
 }
+
+setupScanner()
 
 setupViewer({
   onRedact: openRedactor,
