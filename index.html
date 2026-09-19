@@ -75,11 +75,11 @@
         <button id="stop-work" type="button" hidden>Stop</button>
         <label class="file-button">
           Add PDFs
-          <input type="file" id="file-input" accept="application/pdf" multiple hidden />
+          <input type="file" id="file-input" accept="application/pdf" multiple class="file-hidden" />
         </label>
         <label class="file-button subtle" title="Photograph documents, or add pictures">
           Add photos
-          <input type="file" id="photo-input" accept="image/*" multiple hidden />
+          <input type="file" id="photo-input" accept="image/*" multiple class="file-hidden" />
         </label>
         <button id="open-pro" type="button" hidden>Open Control Room</button>
         <button id="undo" type="button" disabled title="Undo (Cmd+Z)">Undo</button>
@@ -111,11 +111,11 @@
         <p>or</p>
         <label class="file-button">
           Choose files
-          <input type="file" id="file-input-empty" accept="application/pdf" multiple hidden />
+          <input type="file" id="file-input-empty" accept="application/pdf" multiple class="file-hidden" />
         </label>
         <label class="file-button subtle" id="photo-empty-button">
           Take photos
-          <input type="file" id="photo-input-empty" accept="image/*" multiple hidden />
+          <input type="file" id="photo-input-empty" accept="image/*" multiple class="file-hidden" />
         </label>
         <p class="hint" id="dropzone-hint"></p>
         <p class="trust-note">
@@ -269,7 +269,7 @@
           </p>
           <label class="file-button" style="display:inline-block">
             Add a signature image
-            <input type="file" id="signature-input" accept="image/*" hidden />
+            <input type="file" id="signature-input" accept="image/*" class="file-hidden" />
           </label>
           <p class="hint">
             On a phone or tablet this offers your camera — sign a sheet of
@@ -638,11 +638,11 @@
             </button>
             <label class="strip-button add">
               <span aria-hidden="true">+</span> Add PDFs
-              <input type="file" id="file-input-strip" accept="application/pdf" multiple hidden />
+              <input type="file" id="file-input-strip" accept="application/pdf" multiple class="file-hidden" />
             </label>
             <label class="strip-button add">
               <span aria-hidden="true">+</span> Add photos
-              <input type="file" id="photo-input-strip" accept="image/*" multiple hidden />
+              <input type="file" id="photo-input-strip" accept="image/*" multiple class="file-hidden" />
             </label>
           </div>
         </div>

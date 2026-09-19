@@ -1323,6 +1323,19 @@ test.describe('pages of a PDF that are photos', () => {
   })
 })
 
+test.describe('the add buttons', () => {
+  // A file input that is display:none can be ignored when its label is
+  // clicked, which leaves the button looking dead while dropping still works.
+  test('every add button opens the file picker', async ({ page }) => {
+    await page.goto('/#pro')
+    for (const name of ['Add PDFs', 'Add photos', 'Choose files', 'Take photos']) {
+      const chooser = page.waitForEvent('filechooser', { timeout: 10_000 })
+      await page.locator(`text=${name}`).first().click()
+      expect(await chooser).toBeTruthy()
+    }
+  })
+})
+
 test.describe('which panel opens', () => {
   test('a tool opens its own panel, not Saving', async ({ page }) => {
     await page.goto('/#numbering')
