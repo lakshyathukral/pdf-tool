@@ -96,9 +96,14 @@ async function processPhoto(photo, { look = photo.look, outWidth } = {}) {
   return toCanvas(result)
 }
 
+// The last look at a picture where no page was found: what the drawing itself
+// looked like, which tells a blank or broken page apart from a faint edge.
+export let lastPicture = null
+
 async function findCorners(canvas) {
   const data = pixels(canvas)
-  const { corners } = await call('detect', { width: data.width, height: data.height, buffer: data.data.buffer }, [data.data.buffer])
+  const { corners, picture } = await call('detect', { width: data.width, height: data.height, buffer: data.data.buffer }, [data.data.buffer])
+  if (!corners) lastPicture = picture
   return corners
 }
 
@@ -112,7 +117,7 @@ const polygonArea = (points) => Math.abs(points.reduce((sum, [x, y], i) => {
 // fills it edge to edge.
 export async function looksLikePhoto(canvas) {
   const corners = await findCorners(canvas)
-  window.__lastDetect = { corners, area: corners ? polygonArea(corners) / (canvas.width * canvas.height) : null }
+  window.__lastDetect = { corners, picture: lastPicture, area: corners ? polygonArea(corners) / (canvas.width * canvas.height) : null }
   if (!corners) return false
   return polygonArea(corners) < 0.88 * canvas.width * canvas.height
 }
