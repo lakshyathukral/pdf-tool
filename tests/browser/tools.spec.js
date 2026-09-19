@@ -1292,9 +1292,9 @@ test.describe('pages of a PDF that are photos', () => {
     try {
       await expect(page.locator('#ocr-photos-text')).toContainText('Page 1 looks like a photo of paper', { timeout: 120_000 })
     } catch (error) {
-      const seen = await page.evaluate(() => window.__lastDetect?.picture)
-      test.skip(seen?.variation === 0, 'this browser build drew the page blank, so there is nothing to find')
-      throw new Error(`no banner. ${JSON.stringify(seen)}`)
+      const seen = await page.evaluate(() => window.__blankPage)
+      test.skip(Boolean(seen), 'this browser build drew the page blank, so there is nothing to find')
+      throw error
     }
 
     await page.locator('#ocr-photos-fix').click()
@@ -1321,8 +1321,8 @@ test.describe('pages of a PDF that are photos', () => {
     try {
       await expect(page.locator('#ocr-photos')).toBeVisible({ timeout: 120_000 })
     } catch (error) {
-      const seen = await page.evaluate(() => window.__lastDetect?.picture)
-      test.skip(seen?.variation === 0, 'this browser build drew the page blank, so there is nothing to find')
+      const seen = await page.evaluate(() => window.__blankPage)
+      test.skip(Boolean(seen), 'this browser build drew the page blank, so there is nothing to find')
       throw error
     }
     await page.locator('#ocr-photos-fix').click()
