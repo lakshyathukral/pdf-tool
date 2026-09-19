@@ -855,6 +855,17 @@ export function setWatermark(patch) {
   notify()
 }
 
+// Reading the scans when the file is saved, so a bundle can go to court
+// searchable without a second trip through another tool.
+let searchable = { enabled: false }
+
+export const getSearchable = () => searchable
+
+export function setSearchable(patch) {
+  searchable = { ...searchable, ...patch }
+  notify()
+}
+
 export function setFlatten(patch) {
   flatten = { ...flatten, ...patch }
   notify()

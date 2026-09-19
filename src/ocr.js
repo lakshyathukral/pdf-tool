@@ -150,7 +150,7 @@ function alreadyWritten(word, existingText) {
     x >= box.left - slack && x <= box.right + slack && y >= box.top - slack && y <= box.bottom + slack)
 }
 
-export async function makeSearchable(bytes, { protection = null, onProgress } = {}) {
+export async function makeSearchable(bytes, { protection = null, onProgress, shouldStop } = {}) {
   const doc = await PDFDocument.load(bytes, { updateMetadata: false })
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const pages = doc.getPages()
@@ -163,6 +163,11 @@ export async function makeSearchable(bytes, { protection = null, onProgress } = 
       if (hasText) {
         summary.alreadyText++
         return
+      }
+      if (shouldStop?.()) {
+        const stopped = new Error('Stopped. Nothing was saved.')
+        stopped.stopped = true
+        throw stopped
       }
       if (!worker) {
         onProgress?.({ stage: 'starting' })

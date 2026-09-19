@@ -1124,7 +1124,8 @@ test.describe('making a scan searchable', () => {
     await expect(page.locator('#tool-name')).toHaveText('PDF scan and OCR')
     await page.locator('#file-input').setInputFiles([SCANNED_DEED])
     await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
-    await expect(page.locator('#primary-action')).toHaveText('Save searchable PDF')
+    // A phone shares instead of saving, and says so.
+    await expect(page.locator('#primary-action')).toHaveText(/(Save|Share) searchable PDF/)
 
     // A scan has no text to begin with.
     const before = await textOfEachPage(readFileSync(SCANNED_DEED))
@@ -1197,11 +1198,77 @@ test.describe('making a scan searchable', () => {
     await page.locator('#file-input').setInputFiles([SCANNED_DEED])
     await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
     await page.evaluate(() => { document.getElementById('panel-ocr').open = true })
-    await expect(page.locator('#ocr-run')).toBeVisible()
+    await page.locator('#ocr-searchable').check()
+    // A phone shares instead of saving, and says so.
+    await expect(page.locator('#primary-action')).toHaveText(/(Save|Share) searchable PDF/)
 
-    const { bytes } = await savedFile(page, () => page.locator('#ocr-run').click())
+    const { bytes } = await savedFile(page, pressSave(page))
     const [text] = await textOfEachPage(bytes)
     expect(text).toContain('Purchaser')
+  })
+})
+
+test.describe('making any document searchable when it is saved', () => {
+  test('a merged bundle comes out searchable, and says so', async ({ page }) => {
+    test.slow()
+    await page.goto('/#merge')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES, SCANNED_DEED])
+    await expect(tiles(page)).toHaveCount(6, { timeout: 30_000 })
+
+    // The switch is in plain sight, and the save button says what it will do.
+    await expect(page.locator('#ocr-searchable')).toBeVisible()
+    await expect(page.locator('#primary-action')).toHaveText(/(Save|Share) merged PDF/)
+    await page.locator('#ocr-searchable').check()
+    // A phone shares instead of saving, and says so.
+    await expect(page.locator('#primary-action')).toHaveText(/(Save|Share) searchable PDF/)
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const text = await textOfEachPage(bytes)
+    expect(text[0]).toBe('Page One - Claim')        // the pages that had text are untouched
+    expect(text[5]).toContain('Purchaser')          // the scan can now be read
+    await expect(page.locator('#ocr-result')).toContainText('Read 1 scanned page')
+    await expect(page.locator('#ocr-result')).toContainText('All 6 pages are searchable')
+  })
+
+  test('an extract of a scan is searchable too', async ({ page }) => {
+    test.slow()
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([SCANNED_DEED])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+    await page.locator('#ocr-searchable').check()
+    await page.locator('#select-all').click()
+
+    const { name, bytes } = await savedFile(page, () => page.locator('#extract').click())
+    expect(name).toContain('extract')
+    const [text] = await textOfEachPage(bytes)
+    expect(text).toContain('Gurugram')
+  })
+
+  test('the switch stays off unless it is asked for', async ({ page }) => {
+    test.slow()
+    await page.goto('/#merge')
+    await page.locator('#file-input').setInputFiles([SCANNED_DEED])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#ocr-searchable')).not.toBeChecked()
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const [text] = await textOfEachPage(bytes)
+    expect(text.trim()).toBe('')     // saved as it was, and quickly
+  })
+
+  test('a password still goes on last', async ({ page }) => {
+    test.slow()
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([SCANNED_DEED])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+    await page.locator('#ocr-searchable').check()
+    await page.evaluate(() => { document.getElementById('panel-password').open = true })
+    await page.locator('#protect-enabled').check()
+    await page.locator('#protect-password').fill('deed-2026')
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    expect(await opensWith(bytes, 'deed-2026')).toBe(true)
+    expect(await opensWith(bytes, '')).toBe(false)
   })
 })
 

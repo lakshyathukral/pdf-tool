@@ -85,6 +85,19 @@ const PAGE_ACTION_IDS = ['select-all', 'select-none', 'rotate-left', 'rotate-rig
 // Controls that select more than one page at a time.
 const MULTI_SELECT_IDS = ['select-all', 'select-odd', 'select-even', 'select-invert', 'range-input', 'range-select']
 
+// A single PDF can be shared; a zip of images or split files downloads. With
+// the switch on the button says so too: nobody should have to remember that
+// this save will also read the scans.
+function updatePrimaryLabel() {
+  const tool = activeTool()
+  const shares = sharesInsteadOfSaving() && ['save', 'compress'].includes(tool.primary)
+  const label = model.getSearchable().enabled && tool.primary === 'save' ? 'Save searchable PDF' : tool.primaryLabel
+  el('primary-action').textContent = shares ? label.replace(/^Save/, 'Share') : label
+  // The same action, next to the file name, for anyone working down the
+  // sidebar rather than looking up at the header.
+  el('save-here').textContent = shares ? label.replace(/^Save/, 'Share') : label.replace(/^Save/, 'Download')
+}
+
 // Show only the parts this tool needs. Everything still exists and still works
 // — a simple tool is the full editor with pieces hidden, not a separate app.
 function applyTool() {
@@ -104,7 +117,9 @@ function applyTool() {
     el('panel-saving').open = true
   } else {
     for (const id of PANEL_IDS) {
-      el(id).open = tool.panels.includes(id)
+      // The searchable switch stays open wherever it appears: a court copy has
+      // to be searchable, and nobody should have to go looking for it.
+      el(id).open = tool.panels.includes(id) || id === 'panel-ocr'
     }
     // Except where the tool's own controls live inside Saving.
     if (tool.primary === 'split' || tool.primary === 'extract') el('panel-saving').open = true
@@ -147,7 +162,8 @@ function applyTool() {
   // The split controls only make sense in the full editor or the split tool.
   el('split-block').hidden = !(isPro || tool.primary === 'split')
   // The OCR tool runs from its main button; the Control Room needs its own.
-  el('ocr-run').hidden = !isPro
+  // The OCR tool always reads the scans, so the switch would say nothing there.
+  el('ocr-switch-block').hidden = tool.primary === 'ocr'
   el('extract').hidden = !(isPro || tool.primary === 'extract')
 
   el('tool-name').textContent = onLanding() ? '' : tool.name
@@ -155,16 +171,7 @@ function applyTool() {
   // does not need one, and the header stays quiet without it.
   el('tool-subtitle').textContent = onLanding() ? '' : (tool.subtitle ?? '')
 
-  // A single PDF can be shared; a zip of images or split files downloads.
-  const shares = sharesInsteadOfSaving() && ['save', 'compress'].includes(tool.primary)
-  el('primary-action').textContent = shares
-    ? tool.primaryLabel.replace(/^Save/, 'Share')
-    : tool.primaryLabel
-  // The same action, next to the file name, for anyone working down the
-  // sidebar rather than looking up at the header.
-  el('save-here').textContent = shares
-    ? tool.primaryLabel.replace(/^Save/, 'Share')
-    : tool.primaryLabel.replace(/^Save/, 'Download')
+  updatePrimaryLabel()
   document.body.classList.toggle('share-first', sharesInsteadOfSaving())
   el('open-pro').hidden = onLanding() || isPro
   el('dropzone-tool').textContent = onLanding() ? '' : tool.name
@@ -283,7 +290,9 @@ function refreshControls() {
   el('share-action').disabled = !hasPages
   el('extract').disabled = !hasSelection
   el('split').disabled = !hasPages
-  el('ocr-run').disabled = !hasPages
+  el('ocr-searchable').disabled = !hasPages
+  el('ocr-searchable').checked = model.getSearchable().enabled
+  updatePrimaryLabel()
 
   // The viewer shows one page. Redaction opens on the whole document, so it
   // only needs something to open.
@@ -1173,7 +1182,7 @@ function exportOptions(pages, firstNumber, totalPages) {
     // the built file to render its pages, which is impossible once it is
     // locked — so when a flatten is coming, the password is applied by that
     // step instead (see finish()), not here.
-    protection: model.getFlatten().enabled ? null : model.getProtection(),
+    protection: model.getFlatten().enabled || searchableWanted() ? null : model.getProtection(),
     firstNumber,
     totalPages,
   }
@@ -1184,8 +1193,36 @@ function exportOptions(pages, firstNumber, totalPages) {
 // or edited. Runs on whatever was just built, so it applies equally to a full
 // save, an extract, or each piece of a split.
 async function finish(bytes, pages) {
+  const searchable = searchableWanted()
+  if (model.getFlatten().enabled) bytes = await flattened(bytes, pages, searchable)
+  if (!searchable) return bytes
+
+  if (!(await agreedToWait(pages))) {
+    const stopped = new Error('Nothing was saved.')
+    stopped.stopped = true
+    throw stopped
+  }
+
+  el('stop-work').hidden = false
+  try {
+    const { bytes: read, summary } = await makeSearchable(bytes, {
+      protection: model.getProtection(),
+      shouldStop: () => stopReading,
+      onProgress: ({ stage, page, total }) => setStatus(stage === 'starting'
+        ? 'Getting the text reader ready (a one-time download)...'
+        : `Reading page ${page} of ${total}...`),
+    })
+    noteRead(summary)
+    return read
+  } finally {
+    el('stop-work').hidden = true
+  }
+}
+
+// Flattening keeps its own step: the reading happens afterwards, on the
+// pictures, and the password goes on last of all.
+async function flattened(bytes, pages, searchable) {
   const flatten = model.getFlatten()
-  if (!flatten.enabled) return bytes
 
   const images = await flattenDocument(bytes, {
     dpi: flatten.dpi,
@@ -1198,7 +1235,7 @@ async function finish(bytes, pages) {
     page.bookmarks.map((b) => ({ ...b, pageIndex })),
   )
 
-  return buildFlattened(images, model.getMetadata(), bookmarks, model.getProtection())
+  return buildFlattened(images, model.getMetadata(), bookmarks, searchable ? null : model.getProtection())
 }
 
 // Three plain choices rather than a resolution and an image format, because
@@ -1311,53 +1348,20 @@ function doImages() {
 // Make the scanned pages searchable. The document is built exactly as saving
 // would build it, but unlocked: a password has to go on last, after the
 // invisible text is laid over the pages, since a locked file cannot be edited.
-function doOcr(button = el('primary-action')) {
-  return runSave(button, 'Reading the scanned pages', async () => {
-    const pages = model.getPages()
-    if (pages.length === 0) return
-    el('ocr-result').textContent = ''
-
-    const numbering = model.getNumbering()
-    const built = await buildPdf({
-      ...exportOptions(pages, numbering.start, lastPageNumber(numbering, pages)),
-      protection: null,
-    })
-
-    const { bytes, summary } = await makeSearchable(built, {
-      protection: model.getProtection(),
-      onProgress: ({ stage, page, total }) => setStatus(stage === 'starting'
-        ? 'Getting the text reader ready (a one-time download)...'
-        : `Reading page ${page} of ${total}...`),
-    })
-
-    const name = safeFileName(chosenName())
-    const outcome = await deliver(bytes, name)
-    if (outcome === 'cancelled') return setStatus('Sharing cancelled.')
-
-    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
-    const parts = []
-    if (summary.scanned === 0) {
-      parts.push(`Every page already had text, so nothing needed reading. ${OUTCOME_VERB[outcome]} ${name} as it was.`)
-    } else {
-      parts.push(`${OUTCOME_VERB[outcome]} ${name}. Read ${plural(summary.scanned, 'scanned page')}: its words can now be searched, selected and copied.`)
-      if (summary.alreadyText > 0) parts.push(`${plural(summary.alreadyText, 'page')} already had text and were left as they are.`)
-      if (summary.worthChecking.length > 0) {
-        parts.push(`The reading was less certain on page ${summary.worthChecking.join(', ')}, so search there may miss words.`)
-      }
-    }
-    el('ocr-result').textContent = parts.join(' ')
-    setStatus(`${OUTCOME_VERB[outcome]} ${name} — ${describeSize(bytes.length)}`)
-  })
-}
-
-// Wraps a save so a failure always reports rather than hanging a disabled button.
 async function runSave(button, label, work) {
   button.disabled = true
+  readSummary = null
+  stopReading = false
+  el('ocr-result').textContent = ''
   clearError()
   setStatus(`${label}...`)
   try {
     await work()
   } catch (error) {
+    if (error?.stopped) {
+      el('stop-work').hidden = true
+      return setStatus(error.message)
+    }
     setStatus('Save failed.')
     // Some libraries reject with a plain string or event rather than an Error,
     // which read as "failed: undefined".
@@ -1399,6 +1403,60 @@ async function deliver(bytes, name) {
   }
 }
 
+// --- reading the scans as part of saving ---------------------------------------
+
+// The OCR tool always reads; every other tool reads when the switch is on.
+const searchableWanted = () => activeTool().primary === 'ocr' || model.getSearchable().enabled
+
+// What the last save read, for the sentence afterwards.
+let readSummary = null
+let stopReading = false
+
+// Reading a long bundle takes minutes, so say so before starting rather than
+// leaving someone watching a page that looks frozen.
+const WARN_ABOVE_PAGES = 50
+const SECONDS_A_PAGE = 2
+
+async function agreedToWait(pages) {
+  let scanned = 0
+  for (const page of pages) {
+    if (!(await pageHasText(page.sourceId, page.pageIndex))) scanned++
+  }
+  if (scanned <= WARN_ABOVE_PAGES) return true
+
+  const minutes = Math.max(1, Math.round((scanned * SECONDS_A_PAGE) / 60))
+  return confirm(
+    `${scanned} pages look like scans and need reading.\n\n`
+    + `That takes roughly ${minutes} minute(s) on a computer, and longer on a phone, `
+    + `where a bundle this size may also run out of memory.\n\n`
+    + `Everything happens on your device, and you can stop part way.\n\nRead them now?`,
+  )
+}
+
+function noteRead(summary) {
+  readSummary ??= { total: 0, scanned: 0, alreadyText: 0, words: 0, worthChecking: [] }
+  readSummary.total += summary.total
+  readSummary.scanned += summary.scanned
+  readSummary.alreadyText += summary.alreadyText
+  readSummary.words += summary.words
+  readSummary.worthChecking.push(...summary.worthChecking)
+}
+
+// The sentence a court copy needs: what was read, and what to check by eye.
+function describeReading(summary) {
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+  if (summary.scanned === 0) return 'Every page already had text, so nothing needed reading.'
+
+  const parts = [`Read ${plural(summary.scanned, 'scanned page')}: ${summary.scanned === 1 ? 'its' : 'their'} words can now be searched, selected and copied.`]
+  if (summary.alreadyText > 0) parts.push(`${plural(summary.alreadyText, 'page')} already had text and were left as they are.`)
+  if (summary.worthChecking.length > 0) {
+    parts.push(`The reading was less certain on page ${summary.worthChecking.join(', ')}, so search there may miss words. Worth checking by eye.`)
+  } else {
+    parts.push(`All ${plural(summary.total, 'page')} are searchable.`)
+  }
+  return parts.join(' ')
+}
+
 const OUTCOME_VERB = { shared: 'Shared', saved: 'Saved' }
 
 function doSave() {
@@ -1411,6 +1469,7 @@ function doSave() {
     const name = safeFileName(chosenName())
     const outcome = await deliver(bytes, name)
     if (outcome === 'cancelled') return setStatus('Sharing cancelled.')
+    if (readSummary) el('ocr-result').textContent = `${OUTCOME_VERB[outcome]} ${name}. ${describeReading(readSummary)}`
     setStatus(`${OUTCOME_VERB[outcome]} ${name} — ${describeSize(bytes.length)}`)
   })
 }
@@ -1490,7 +1549,7 @@ function doSplit() {
   })
 }
 
-const RUN = { save: doSave, extract: doExtract, split: doSplit, images: doImages, compress: doCompress, ocr: () => doOcr() }
+const RUN = { save: doSave, extract: doExtract, split: doSplit, images: doImages, compress: doCompress, ocr: doSave }
 
 el('compress-level').addEventListener('change', (event) => {
   applyCompressLevel(event.target.value)
@@ -1498,7 +1557,15 @@ el('compress-level').addEventListener('change', (event) => {
 
 el('extract').addEventListener('click', doExtract)
 el('split').addEventListener('click', doSplit)
-el('ocr-run').addEventListener('click', () => doOcr(el('ocr-run')))
+el('ocr-searchable').addEventListener('change', (event) => {
+  model.setSearchable({ enabled: event.target.checked })
+})
+
+// Stopping part way leaves the document as it was; nothing is saved.
+el('stop-work').addEventListener('click', () => {
+  stopReading = true
+  setStatus('Stopping after this page...')
+})
 el('ocr-photos-fix').addEventListener('click', fixPhotoPages)
 // In the Control Room the check waits until the OCR panel is opened.
 el('panel-ocr').addEventListener('toggle', checkForPhotoPages)
