@@ -96,9 +96,19 @@ async function processPhoto(photo, { look = photo.look, outWidth } = {}) {
   return toCanvas(result)
 }
 
+// The last look at a picture where no page was found: what the drawing itself
+// looked like, which tells a blank or broken page apart from a faint edge.
+export let lastPicture = null
+
 async function findCorners(canvas) {
   const data = pixels(canvas)
-  const { corners } = await call('detect', { width: data.width, height: data.height, buffer: data.data.buffer }, [data.data.buffer])
+  const { corners, picture } = await call('detect', { width: data.width, height: data.height, buffer: data.data.buffer }, [data.data.buffer])
+  if (!corners) {
+    lastPicture = picture
+    // Nothing was drawn at all: some browser builds fail to draw a picture
+    // inside a PDF. Worth knowing when working out why nothing was found.
+    window.__blankPage = picture?.variation === 0
+  }
   return corners
 }
 

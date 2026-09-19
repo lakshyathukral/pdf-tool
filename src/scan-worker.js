@@ -59,7 +59,46 @@ function order(points) {
   return [at(sum, Math.min), at(diff, Math.min), at(sum, Math.max), at(diff, Math.max)]
 }
 
-function detect(cv, { width, height, buffer }) {
+// How hard to look for the edges of the paper. Photographs vary: a dark desk
+// gives a strong edge, a white table a faint one, and browsers do not all draw
+// a page identically — a run that found nothing in one browser found it in
+// another. So the settings are tried in turn until a page appears.
+const ATTEMPTS = [
+  { blur: 5, low: 40, high: 120, grow: 2 },
+  { blur: 5, low: 20, high: 60, grow: 3 },
+  { blur: 3, low: 10, high: 40, grow: 4 },
+  // Last resort: split light from dark and use that boundary as the edge.
+  { blur: 5, otsu: true, grow: 2 },
+]
+
+function detect(cv, data) {
+  for (const attempt of ATTEMPTS) {
+    const corners = detectOnce(cv, data, attempt)
+    if (corners) return corners
+  }
+  return null
+}
+
+// What the picture looks like overall, so a blank or broken drawing can be
+// told apart from one where the paper simply could not be made out.
+export function describe(cv, { width, height, buffer }) {
+  return withMats(cv, (keep) => {
+    const src = rgbaMat(cv, keep, width, height, buffer)
+    const gray = keep(new cv.Mat())
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
+    const mean = new cv.Mat()
+    const deviation = new cv.Mat()
+    try {
+      cv.meanStdDev(gray, mean, deviation)
+      return { brightness: Math.round(mean.data64F[0]), variation: Math.round(deviation.data64F[0]) }
+    } finally {
+      mean.delete()
+      deviation.delete()
+    }
+  })
+}
+
+function detectOnce(cv, { width, height, buffer }, { blur, low, high, grow, otsu }) {
   return withMats(cv, (keep) => {
     const src = rgbaMat(cv, keep, width, height, buffer)
     const scale = DETECT_LONG_SIDE / Math.max(width, height)
@@ -68,11 +107,17 @@ function detect(cv, { width, height, buffer }) {
 
     const gray = keep(new cv.Mat())
     cv.cvtColor(small, gray, cv.COLOR_RGBA2GRAY)
-    cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0)
+    cv.GaussianBlur(gray, gray, new cv.Size(blur, blur), 0)
     const edges = keep(new cv.Mat())
-    cv.Canny(gray, edges, 40, 120)
+    if (otsu) {
+      const split = keep(new cv.Mat())
+      cv.threshold(gray, split, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+      cv.Canny(split, edges, 50, 150)
+    } else {
+      cv.Canny(gray, edges, low, high)
+    }
     const kernel = keep(cv.Mat.ones(5, 5, cv.CV_8U))
-    cv.dilate(edges, edges, kernel, new cv.Point(-1, -1), 2)
+    cv.dilate(edges, edges, kernel, new cv.Point(-1, -1), grow)
 
     const contours = new cv.MatVector()
     const hierarchy = keep(new cv.Mat())
@@ -176,7 +221,10 @@ self.onmessage = async ({ data }) => {
   try {
     const cv = await openCv()
     if (type === 'ready') return self.postMessage({ id, ok: true })
-    if (type === 'detect') return self.postMessage({ id, ok: true, corners: detect(cv, data) })
+    if (type === 'detect') {
+      const corners = detect(cv, data)
+      return self.postMessage({ id, ok: true, corners, picture: corners ? null : describe(cv, data) })
+    }
     if (type === 'process') {
       const result = process(cv, data)
       return self.postMessage({ id, ok: true, ...result }, [result.buffer])
