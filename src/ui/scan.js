@@ -151,6 +151,8 @@ function drawStage() {
     handle.setAttribute('r', radius)
   })
   stage.style.aspectRatio = `${photo.canvas.width} / ${photo.canvas.height}`
+  // The same number for the stylesheet, which limits the height on a phone.
+  stage.style.setProperty('--ratio', (photo.canvas.width / photo.canvas.height).toFixed(4))
 
   $('scan-note').textContent = describe(photo)
   $('scan-counter').textContent = photos.length > 1 ? `${options.noun ?? 'Photo'} ${index + 1} of ${photos.length}` : ''

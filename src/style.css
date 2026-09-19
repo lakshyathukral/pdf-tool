@@ -3050,7 +3050,9 @@ body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b9
   .scan-head .hint { display: none; }
   .scan-body { display: block; overflow: auto; }
   .scan-photo-side { overflow: visible; padding: 0.6rem; }
-  .scan-stage { width: 88%; }
+  /* Short enough that the edge tools and looks are a small scroll away, not a
+     whole screen away. */
+  .scan-stage { width: min(100%, calc(46dvh * var(--ratio, 0.75))); }
   .scan-controls { border-left: 0; border-top: 1px solid var(--border); overflow: visible; }
   .scan-result { max-width: 60%; }
   .scan-foot { flex-direction: column-reverse; padding-bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px)); }
