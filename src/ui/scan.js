@@ -203,7 +203,7 @@ async function drawPreview() {
       if (photo.tiles[look]) continue
       const tile = await processPhoto(photo, { look, outWidth: LOOK_TILE_WIDTH })
       if (token !== previewToken) return
-      photo.tiles[look] = tile.toDataURL('image/jpeg', 0.75)
+      photo.tiles[look] = tile.toDataURL('image/jpeg', 0.8)
       drawStage()
     }
 

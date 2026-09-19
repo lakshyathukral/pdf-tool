@@ -3016,7 +3016,7 @@ body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b9
 .scan-head h2 { margin: 0 0 0.2rem; font-size: 1.25rem; color: var(--accent); }
 .scan-head .hint { margin: 0; }
 
-.scan-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+.scan-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
 .scan-photo-side { min-height: 0; overflow: auto; padding: 0.8rem 1.2rem; background: #e7e5e4; display: grid; justify-items: center; align-content: start; gap: 0.5rem; }
 
 .scan-pager { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: 0.88rem; color: #44403c; min-height: 2rem; }
@@ -3066,7 +3066,8 @@ body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b9
 .scan-looks { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; border: 0; border-radius: 0; overflow: visible; }
 .scan-looks button {
   position: relative; display: grid; gap: 0.15rem; align-content: start; justify-items: center;
-  padding: 0.35rem 0.25rem 0.45rem; border: 1.5px solid var(--border); border-radius: 10px; background: #fff; text-align: center;
+  min-width: 0; margin: 0; padding: 0.35rem 0.25rem 0.45rem; border: 1.5px solid var(--border);
+  border-radius: 10px; background: #fff; text-align: center; white-space: normal; overflow-wrap: anywhere;
 }
 .scan-looks button:last-child { border-right: 1.5px solid var(--border); }
 .scan-looks button[aria-pressed="true"] { background: var(--accent-wash); color: var(--ink); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }

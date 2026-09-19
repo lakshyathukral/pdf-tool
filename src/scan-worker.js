@@ -114,7 +114,12 @@ function process(cv, { width, height, buffer, corners, look, outWidth }) {
     const [tl, tr, br, bl] = corners
     const pageW = Math.max(distance(tl, tr), distance(bl, br))
     const pageH = Math.max(distance(tl, bl), distance(tr, br))
-    const w = Math.round(outWidth ?? Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, pageW)))
+    const full = Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, pageW)))
+    const asked = Math.round(outWidth ?? full)
+    // Flattening straight to a small preview leaves the paper's grain as
+    // stripes. Flatten at full size, then shrink by averaging, which is what
+    // makes a preview look like the page it stands for.
+    const w = Math.max(asked, Math.min(full, asked * 2))
     const h = Math.round(pageH * (w / pageW))
 
     const from = keep(cv.matFromArray(4, 1, cv.CV_32FC2, [...tl, ...tr, ...br, ...bl]))
@@ -153,6 +158,12 @@ function process(cv, { width, height, buffer, corners, look, outWidth }) {
       }
       out = keep(new cv.Mat())
       cv.cvtColor(result, out, cv.COLOR_GRAY2RGBA)
+    }
+
+    if (out.cols > asked) {
+      const small = keep(new cv.Mat())
+      cv.resize(out, small, new cv.Size(asked, Math.round(out.rows * (asked / out.cols))), 0, 0, cv.INTER_AREA)
+      out = small
     }
 
     const pixels = new Uint8ClampedArray(out.data)   // a copy, safe to transfer

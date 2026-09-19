@@ -393,7 +393,7 @@ function refreshControls() {
   // The suggested name is filled IN, not shown as grey placeholder text:
   // a placeholder has to be retyped from scratch before it can be changed.
   // It keeps up with the files added, until it is edited by hand.
-  const suggested = hasPages ? defaultOutputName(model.getSources()) : ''
+  const suggested = hasPages ? defaultOutputName(model.getSources(), sourcesInUse()) : ''
   el('output-name').placeholder = hasPages ? suggested : 'combined'
 
   if (!nameChosenByHand && document.activeElement !== el('output-name')) {
@@ -1155,7 +1155,8 @@ document.addEventListener('keydown', (event) => {
 const describeSize = (n) =>
   n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`
 
-const chosenName = () => model.getOutputName().trim() || defaultOutputName(model.getSources())
+const sourcesInUse = () => new Set(model.getPages().map((page) => page.sourceId))
+const chosenName = () => model.getOutputName().trim() || defaultOutputName(model.getSources(), sourcesInUse())
 
 // Everything the builder needs, in one place.
 function exportOptions(pages, firstNumber, totalPages) {
