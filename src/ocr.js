@@ -52,7 +52,7 @@ function wordsOf(data) {
     for (const paragraph of block.paragraphs ?? []) {
       for (const line of paragraph.lines ?? []) {
         for (const word of line.words ?? []) {
-          if (word.text?.trim()) words.push({ text: word.text.trim(), bbox: word.bbox })
+          if (word.text?.trim()) words.push({ text: word.text.trim(), bbox: word.bbox, confidence: word.confidence ?? 0 })
         }
       }
     }
@@ -71,6 +71,21 @@ async function read(worker, canvas) {
   const second = await once(PSM.SPARSE_TEXT)
   await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK })
   return second.confidence > first.confidence ? second : first
+}
+
+// How well a picture reads: the letters in words the reader is sure of. A look
+// that loses faint words scores lower, and so does one that turns speckle into
+// nonsense, since the reader is not sure of those. Used to say which of the
+// scanner's looks is best for reading.
+const SURE_OF = 60
+
+export async function readingScore(canvas) {
+  const worker = await reader()
+  await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK })
+  const { data } = await worker.recognize(canvas, {}, { blocks: true, text: false })
+  return wordsOf(data)
+    .filter((word) => word.confidence >= SURE_OF && /[a-z0-9]/i.test(word.text))
+    .reduce((sum, word) => sum + word.text.length, 0)
 }
 
 // Helvetica can only write Latin characters. Anything else is dropped from the
@@ -135,7 +150,7 @@ function alreadyWritten(word, existingText) {
     x >= box.left - slack && x <= box.right + slack && y >= box.top - slack && y <= box.bottom + slack)
 }
 
-export async function makeSearchable(bytes, { protection = null, onProgress } = {}) {
+export async function makeSearchable(bytes, { protection = null, onProgress, shouldStop } = {}) {
   const doc = await PDFDocument.load(bytes, { updateMetadata: false })
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const pages = doc.getPages()
@@ -148,6 +163,11 @@ export async function makeSearchable(bytes, { protection = null, onProgress } = 
       if (hasText) {
         summary.alreadyText++
         return
+      }
+      if (shouldStop?.()) {
+        const stopped = new Error('Stopped. Nothing was saved.')
+        stopped.stopped = true
+        throw stopped
       }
       if (!worker) {
         onProgress?.({ stage: 'starting' })

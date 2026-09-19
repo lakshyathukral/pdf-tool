@@ -11,6 +11,15 @@ const PHOTO_LANDSCAPE = fileURLToPath(new URL('../fixtures/photo-landscape.png',
 const PHOTO_PORTRAIT = fileURLToPath(new URL('../fixtures/photo-portrait.png', import.meta.url))
 // A picture of a page with no text layer, whose words are known.
 const SCANNED_DEED = fileURLToPath(new URL('../fixtures/scanned-deed.pdf', import.meta.url))
+const PHOTO_OF_A_PAGE = fileURLToPath(new URL('../fixtures/photo-of-a-page.jpg', import.meta.url))
+
+// Every photo now opens "Tidy up your photos". Tests that are about something
+// else keep the photos as taken.
+async function addPhotosAsTaken(page, files) {
+  await page.locator('#photo-input').setInputFiles(files)
+  await expect(page.locator('#scan-dialog')).toBeVisible({ timeout: 30_000 })
+  await page.locator('#scan-skip').click()
+}
 
 // Loading a PDF is the first thing every test needs, and the step that failed
 // outright in Safari for a whole day.
@@ -95,14 +104,14 @@ test.describe('loading', () => {
 test.describe('photos to PDF', () => {
   test('turns pictures into pages', async ({ page }) => {
     await page.goto('/#photos')
-    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
+    await addPhotosAsTaken(page, [PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
     await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
     await expect(page.locator('.tile img').first()).toBeVisible()
   })
 
   test('turns the page sideways for a landscape photo', async ({ page }) => {
     await page.goto('/#photos')
-    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE])
+    await addPhotosAsTaken(page, [PHOTO_LANDSCAPE])
     await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
     // Wait for the real thumbnail: the loading placeholder is portrait, so
     // measuring too early tests the placeholder rather than the page.
@@ -116,18 +125,114 @@ test.describe('photos to PDF', () => {
 
   test('mixes photos and PDFs in one document', async ({ page }) => {
     await load(page)
-    await page.locator('#photo-input').setInputFiles([PHOTO_PORTRAIT])
+    await addPhotosAsTaken(page, [PHOTO_PORTRAIT])
     await expect(page.locator('.tile')).toHaveCount(6, { timeout: 30_000 })
     await expect(page.locator('.file-chip')).toHaveCount(2)
   })
 
   test('saves a PDF made only of photos', async ({ page }) => {
     await page.goto('/#photos')
-    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
+    await addPhotosAsTaken(page, [PHOTO_LANDSCAPE, PHOTO_PORTRAIT])
     await expect(page.locator('.tile')).toHaveCount(2, { timeout: 30_000 })
 
     const file = await savedFile(page, pressSave(page))
     expect(file.name).toMatch(/\.pdf$/)
+  })
+})
+
+test.describe('tidying up photos of documents', () => {
+  test('finds the page, straightens it and cleans it up', async ({ page }) => {
+    test.slow()   // the scanner is a large download the first time
+    await page.goto('/#photos')
+    await page.locator('#photo-input').setInputFiles([PHOTO_OF_A_PAGE])
+    await expect(page.locator('#scan-dialog')).toBeVisible({ timeout: 30_000 })
+
+    // The page is found, and a page defaults to the Clean look.
+    await expect(page.locator('#scan-note')).toContainText('Page found', { timeout: 90_000 })
+    await expect(page.locator('#scan-looks button[data-look="clean"]')).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('#scan-outline circle')).toHaveCount(4)
+    await expect(page.locator('#scan-result-image')).toHaveAttribute('src', /^data:image/, { timeout: 90_000 })
+
+    await page.locator('#scan-apply').click()
+    await expect(page.locator('#scan-dialog')).toBeHidden({ timeout: 90_000 })
+    await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
+
+    const file = await savedFile(page, pressSave(page))
+    expect(file.name).toMatch(/\.pdf$/)
+  })
+
+  test('magnifies while a corner is dragged, and can reset or rotate', async ({ page }) => {
+    test.slow()
+    await page.goto('/#photos')
+    await page.locator('#photo-input').setInputFiles([PHOTO_OF_A_PAGE])
+    await expect(page.locator('#scan-note')).toContainText('Page found', { timeout: 90_000 })
+
+    const stage = page.locator('#scan-stage')
+    const tall = async () => {
+      const box = await stage.boundingBox()
+      return box.height > box.width
+    }
+    expect(await tall()).toBe(true)
+
+    const corner = page.locator('#scan-outline circle[data-corner="0"]')
+    const before = await corner.boundingBox()
+    const loupe = page.locator('#scan-loupe')
+    await expect(loupe).toBeHidden()
+
+    // Held down, the magnifier shows; let go and it goes away, corner moved.
+    await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(before.x + before.width / 2 + 40, before.y + before.height / 2 + 30, { steps: 5 })
+    await expect(loupe).toBeVisible()
+    await page.mouse.up()
+    await expect(loupe).toBeHidden()
+    const moved = await corner.boundingBox()
+    expect(Math.round(moved.x)).not.toBe(Math.round(before.x))
+
+    await page.locator('#scan-reset').click()
+    const reset = await corner.boundingBox()
+    expect(Math.round(reset.x)).toBe(Math.round(before.x))
+
+    // A quarter turn swaps the photo's sides; four turns come back.
+    await page.locator('#scan-rotate').click()
+    await expect.poll(tall).toBe(false)
+    for (let i = 0; i < 3; i++) await page.locator('#scan-rotate').click()
+    await expect.poll(tall).toBe(true)
+  })
+
+  test('previews each look and says which reads best', async ({ page }) => {
+    test.slow()
+    await page.goto('/#photos')
+    await page.locator('#photo-input').setInputFiles([PHOTO_OF_A_PAGE])
+    await expect(page.locator('#scan-note')).toContainText('Page found', { timeout: 90_000 })
+
+    // Every look is shown as a small picture of the page.
+    for (const look of ['original', 'clean', 'bw']) {
+      await expect(page.locator(`#scan-looks button[data-look="${look}"] img`))
+        .toHaveAttribute('src', /^data:image/, { timeout: 90_000 })
+    }
+
+    // Reading each one takes the reader's one-time download.
+    await page.locator('#scan-check-reading').click()
+    await expect(page.locator('.scan-best')).toHaveCount(3)
+    await expect(page.locator('.scan-best:not([hidden])')).toHaveCount(1, { timeout: 180_000 })
+    await expect(page.locator('#scan-reading')).toContainText('reads best for this page')
+
+    // The look it recommends is the one now chosen.
+    const best = page.locator('#scan-looks button:has(.scan-best:not([hidden]))')
+    await expect(best).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('can keep the photo exactly as taken, or add nothing', async ({ page }) => {
+    await page.goto('/#photos')
+    await page.locator('#photo-input').setInputFiles([PHOTO_OF_A_PAGE])
+    await expect(page.locator('#scan-dialog')).toBeVisible({ timeout: 30_000 })
+    await page.locator('#scan-cancel').click()
+    await expect(page.locator('#scan-dialog')).toBeHidden()
+    await expect(page.locator('.tile')).toHaveCount(0)
+
+    await addPhotosAsTaken(page, [PHOTO_OF_A_PAGE])
+    await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
   })
 })
 
@@ -144,7 +249,7 @@ test.describe('watermarking a photo', () => {
 
   test('stamps a photograph and previews it', async ({ page }) => {
     await page.goto('/#photo-watermark')
-    await page.locator('#photo-input').setInputFiles([PHOTO_LANDSCAPE])
+    await addPhotosAsTaken(page, [PHOTO_LANDSCAPE])
     await expect(page.locator('.tile')).toHaveCount(1, { timeout: 30_000 })
     // Nine copies, because the default is tiled.
     await expect(page.locator('.watermark-preview')).toHaveCount(9)
@@ -1019,7 +1124,8 @@ test.describe('making a scan searchable', () => {
     await expect(page.locator('#tool-name')).toHaveText('PDF scan and OCR')
     await page.locator('#file-input').setInputFiles([SCANNED_DEED])
     await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
-    await expect(page.locator('#primary-action')).toHaveText('Save searchable PDF')
+    // A phone shares instead of saving, and says so.
+    await expect(page.locator('#primary-action')).toHaveText(/(Save|Share) searchable PDF/)
 
     // A scan has no text to begin with.
     const before = await textOfEachPage(readFileSync(SCANNED_DEED))
@@ -1092,11 +1198,123 @@ test.describe('making a scan searchable', () => {
     await page.locator('#file-input').setInputFiles([SCANNED_DEED])
     await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
     await page.evaluate(() => { document.getElementById('panel-ocr').open = true })
-    await expect(page.locator('#ocr-run')).toBeVisible()
+    await page.locator('#ocr-searchable').check()
+    // A phone shares instead of saving, and says so.
+    await expect(page.locator('#primary-action')).toHaveText(/(Save|Share) searchable PDF/)
 
-    const { bytes } = await savedFile(page, () => page.locator('#ocr-run').click())
+    const { bytes } = await savedFile(page, pressSave(page))
     const [text] = await textOfEachPage(bytes)
     expect(text).toContain('Purchaser')
+  })
+})
+
+test.describe('making any document searchable when it is saved', () => {
+  test('a merged bundle comes out searchable, and says so', async ({ page }) => {
+    test.slow()
+    await page.goto('/#merge')
+    await page.locator('#file-input').setInputFiles([FIVE_PAGES, SCANNED_DEED])
+    await expect(tiles(page)).toHaveCount(6, { timeout: 30_000 })
+
+    // The switch is in plain sight, and the save button says what it will do.
+    await expect(page.locator('#ocr-searchable')).toBeVisible()
+    await expect(page.locator('#primary-action')).toHaveText(/(Save|Share) merged PDF/)
+    await page.locator('#ocr-searchable').check()
+    // A phone shares instead of saving, and says so.
+    await expect(page.locator('#primary-action')).toHaveText(/(Save|Share) searchable PDF/)
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const text = await textOfEachPage(bytes)
+    expect(text[0]).toBe('Page One - Claim')        // the pages that had text are untouched
+    expect(text[5]).toContain('Purchaser')          // the scan can now be read
+    await expect(page.locator('#ocr-result')).toContainText('Read 1 scanned page')
+    await expect(page.locator('#ocr-result')).toContainText('All 6 pages are searchable')
+  })
+
+  test('an extract of a scan is searchable too', async ({ page }) => {
+    test.slow()
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([SCANNED_DEED])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+    await page.locator('#ocr-searchable').check()
+    await page.locator('#select-all').click()
+
+    const { name, bytes } = await savedFile(page, () => page.locator('#extract').click())
+    expect(name).toContain('extract')
+    const [text] = await textOfEachPage(bytes)
+    expect(text).toContain('Gurugram')
+  })
+
+  test('the switch stays off unless it is asked for', async ({ page }) => {
+    test.slow()
+    await page.goto('/#merge')
+    await page.locator('#file-input').setInputFiles([SCANNED_DEED])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#ocr-searchable')).not.toBeChecked()
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const [text] = await textOfEachPage(bytes)
+    expect(text.trim()).toBe('')     // saved as it was, and quickly
+  })
+
+  test('a password still goes on last', async ({ page }) => {
+    test.slow()
+    await page.goto('/#pro')
+    await page.locator('#file-input').setInputFiles([SCANNED_DEED])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+    await page.locator('#ocr-searchable').check()
+    await page.evaluate(() => { document.getElementById('panel-password').open = true })
+    await page.locator('#protect-enabled').check()
+    await page.locator('#protect-password').fill('deed-2026')
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    expect(await opensWith(bytes, 'deed-2026')).toBe(true)
+    expect(await opensWith(bytes, '')).toBe(false)
+  })
+})
+
+test.describe('pages of a PDF that are photos', () => {
+  // What a phone makes: one page, the whole photo, no text.
+  async function photoPdf() {
+    const { PDFDocument } = await import('@cantoo/pdf-lib')
+    const doc = await PDFDocument.create()
+    const image = await doc.embedJpg(readFileSync(PHOTO_OF_A_PAGE))
+    doc.addPage([image.width, image.height]).drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    return { name: 'image.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await doc.save()) }
+  }
+
+  test('offers to straighten them, then reads them', async ({ page }) => {
+    test.slow()
+    await page.goto('/#ocr')
+    await page.locator('#file-input').setInputFiles([await photoPdf()])
+    await expect(page.locator('#ocr-photos-text')).toContainText('Page 1 looks like a photo of paper', { timeout: 120_000 })
+
+    await page.locator('#ocr-photos-fix').click()
+    await expect(page.locator('#scan-dialog')).toBeVisible()
+    await expect(page.locator('#scan-note')).toContainText('Page found', { timeout: 120_000 })
+    await expect(page.locator('#scan-apply')).toHaveText('Use this page')
+    await page.locator('#scan-apply').click()
+    await expect(page.locator('#scan-dialog')).toBeHidden({ timeout: 120_000 })
+
+    // The page is replaced where it stood, and is no longer offered.
+    await expect(page.locator('#ocr-photos')).toBeHidden()
+    await expect(tiles(page)).toHaveCount(1)
+
+    const { name, bytes } = await savedFile(page, pressSave(page))
+    expect(name).toBe('image.pdf')   // not "combined", though a second file is behind it
+    const [text] = await textOfEachPage(bytes)
+    for (const word of ['Gurugram', 'Purchaser', 'Seventy', '004512', 'Registrar']) expect(text).toContain(word)
+  })
+
+  test('leaves them alone if asked, and stops offering', async ({ page }) => {
+    test.slow()
+    await page.goto('/#ocr')
+    await page.locator('#file-input').setInputFiles([await photoPdf()])
+    await expect(page.locator('#ocr-photos')).toBeVisible({ timeout: 120_000 })
+    await page.locator('#ocr-photos-fix').click()
+    await expect(page.locator('#scan-dialog')).toBeVisible()
+    await expect(page.locator('#scan-skip')).toHaveText('Leave them as they are')
+    await page.locator('#scan-skip').click()
+    await expect(page.locator('#ocr-photos')).toBeHidden()
   })
 })
 

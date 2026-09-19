@@ -3002,3 +3002,104 @@ body.pages-deletable .tile-delete:hover { background: #b91c1c; border-color: #b9
 .ocr-facts li { margin-bottom: 0.25rem; }
 #ocr-result:empty { display: none; }
 #ocr-result { padding: 0.55rem 0.7rem; border-radius: 8px; background: var(--secure-wash); color: var(--secure); font-weight: 600; }
+
+/* --- tidy up your photos ------------------------------------------------------ */
+
+#scan-dialog {
+  width: min(1180px, 96vw); max-width: 96vw; max-height: 94vh; padding: 0;
+  border: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 30px 80px rgb(0 0 0 / 0.35);
+}
+#scan-dialog[open] { display: flex; flex-direction: column; }
+#scan-dialog::backdrop { background: rgb(15 23 42 / 0.6); }
+
+.scan-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 1rem 1.3rem 0.8rem; border-bottom: 1px solid var(--border); }
+.scan-head h2 { margin: 0 0 0.2rem; font-size: 1.25rem; color: var(--accent); }
+.scan-head .hint { margin: 0; }
+
+.scan-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+.scan-photo-side { min-height: 0; overflow: auto; padding: 0.8rem 1.2rem; background: #e7e5e4; display: grid; justify-items: center; align-content: start; gap: 0.5rem; }
+
+.scan-pager { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: 0.88rem; color: #44403c; min-height: 2rem; }
+.scan-pager button { width: 2rem; height: 2rem; border-radius: 50%; padding: 0; font-size: 1.1rem; }
+
+.scan-stage { position: relative; width: min(100%, calc((94vh - 250px) * 0.75)); max-width: 100%; background: #d6d3d1; touch-action: none; user-select: none; }
+.scan-stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
+.scan-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.scan-stage polygon { fill: rgb(42 93 176 / 0.12); stroke: #2a5db0; stroke-width: 0.4%; vector-effect: non-scaling-stroke; stroke-width: 2.5px; }
+.scan-stage circle { fill: #fff; stroke: #2a5db0; stroke-width: 3px; vector-effect: non-scaling-stroke; cursor: grab; }
+.scan-stage circle:active { cursor: grabbing; }
+.scan-note { margin: 0; font-size: 0.86rem; font-weight: 600; color: #44403c; text-align: center; }
+
+.scan-controls { overflow: auto; padding: 1rem 1.1rem; border-left: 1px solid var(--border); background: #fff; }
+.scan-controls h3 { margin: 0 0 0.5rem; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.scan-controls h3 + * { margin-bottom: 1rem; }
+.scan-looks { display: grid; grid-template-columns: repeat(3, 1fr); border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; }
+.scan-looks button { margin: 0; padding: 0.55rem 0.2rem; border: 0; border-right: 1px solid var(--border); border-radius: 0; background: #fff; font-size: 0.8rem; font-weight: 700; }
+.scan-looks button:last-child { border-right: 0; }
+.scan-looks button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+.scan-result { position: relative; border: 1px solid var(--border); background: #fafaf9; min-height: 12rem; display: grid; place-items: center; }
+.scan-result img { display: block; width: 100%; height: auto; }
+.scan-result img:not([src]) { display: none; }
+.scan-result.working::after { content: 'Working…'; position: absolute; inset: 0; display: grid; place-items: center; background: rgb(255 255 255 / 0.7); font-size: 0.85rem; font-weight: 700; color: #57534e; }
+
+.scan-foot { display: flex; justify-content: flex-end; gap: 0.6rem; padding: 0.8rem 1.3rem; border-top: 1px solid var(--border); background: #fff; }
+
+@media (max-width: 760px) {
+  #scan-dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .scan-head .hint { display: none; }
+  .scan-body { display: block; overflow: auto; }
+  .scan-photo-side { overflow: visible; padding: 0.6rem; }
+  /* Short enough that the edge tools and looks are a small scroll away, not a
+     whole screen away. */
+  .scan-stage { width: min(100%, calc(46dvh * var(--ratio, 0.75))); }
+  .scan-controls { border-left: 0; border-top: 1px solid var(--border); overflow: visible; }
+  .scan-result { max-width: 60%; }
+  .scan-foot { flex-direction: column-reverse; padding-bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* The scanner's edge tools, look previews and magnifier. */
+.scan-loupe {
+  position: absolute; width: 120px; height: 120px; border-radius: 50%;
+  pointer-events: none; box-shadow: 0 6px 18px rgb(0 0 0 / 0.35); z-index: 2;
+}
+.scan-edge-tools { display: flex; gap: 0.5rem; }
+.scan-edge-tools button { flex: 1; font-weight: 700; font-size: 0.82rem; }
+.scan-looks { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; border: 0; border-radius: 0; overflow: visible; }
+.scan-looks button {
+  position: relative; display: grid; gap: 0.15rem; align-content: start; justify-items: center;
+  min-width: 0; margin: 0; padding: 0.35rem 0.25rem 0.45rem; border: 1.5px solid var(--border);
+  border-radius: 10px; background: #fff; text-align: center; white-space: normal; overflow-wrap: anywhere;
+}
+.scan-looks button:last-child { border-right: 1.5px solid var(--border); }
+.scan-looks button[aria-pressed="true"] { background: var(--accent-wash); color: var(--ink); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.scan-look-img { display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 4; background: #e7e5e4; border-radius: 6px; overflow: hidden; }
+.scan-look-img img { width: 100%; height: 100%; object-fit: contain; }
+.scan-look-img img:not([src]) { display: none; }
+.scan-looks b { font-size: 0.78rem; line-height: 1.2; }
+.scan-looks small { font-size: 0.66rem; font-weight: 500; line-height: 1.2; color: var(--muted); }
+.scan-best {
+  position: absolute; top: -0.45rem; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  padding: 0.1rem 0.4rem; border-radius: 999px; background: var(--secure); color: #fff;
+  font-size: 0.6rem; font-style: normal; font-weight: 800;
+}
+.scan-reading { margin: 0.5rem 0 0.2rem; font-size: 0.78rem; font-weight: 600; color: var(--secure); min-height: 1em; }
+.scan-reading:empty { display: none; }
+.scan-link { display: block; margin: 0.3rem 0 0.9rem; padding: 0; border: 0; background: none; color: #2a5db0; font-size: 0.8rem; font-weight: 700; text-decoration: underline; }
+.scan-controls .scan-link + .scan-link { margin-top: -0.6rem; }
+
+.ocr-photos { margin: 0 0 0.8rem; padding: 0.6rem 0.7rem; border-radius: 8px; background: var(--brass-soft); font-size: 0.82rem; }
+.ocr-photos p { margin: 0 0 0.5rem; line-height: 1.4; }
+
+/* The searchable switch: the one thing in this panel worth seeing first. */
+.big-switch {
+  display: flex; gap: 0.6rem; align-items: flex-start; margin: 0.2rem 0 0.8rem;
+  padding: 0.7rem 0.8rem; border: 1.5px solid var(--accent); border-radius: 10px;
+  background: var(--accent-wash); cursor: pointer;
+}
+.big-switch input { margin-top: 0.15rem; width: 1.1rem; height: 1.1rem; flex: none; }
+.big-switch b { display: block; font-size: 0.92rem; }
+.big-switch small { display: block; margin-top: 0.15rem; font-size: 0.78rem; line-height: 1.35; color: var(--muted); }
+.big-switch:has(input:disabled) { opacity: 0.55; cursor: default; }
+
+#stop-work { margin-left: 0.5rem; padding: 0.2rem 0.6rem; font-size: 0.78rem; font-weight: 700; }

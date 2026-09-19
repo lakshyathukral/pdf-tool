@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 // Sidebar panels every tool gets: the file list, and the save controls.
-export const ALWAYS_PANELS = ['panel-saving']
+export const ALWAYS_PANELS = ['panel-ocr', 'panel-saving']
 
 // How the tools are grouped on the front page. A category is a shelf in the
 // workshop, not a taxonomy: four of them, named for what you came to do.

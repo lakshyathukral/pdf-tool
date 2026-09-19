@@ -560,11 +560,15 @@ export function splitStarts(pages, mode, isSelected, topLevelPositions = []) {
 
 // --- naming ----------------------------------------------------------------
 
-export function defaultOutputName(sources) {
-  if (sources.size === 1) {
-    const [only] = sources.values()
-    return only.name.replace(/\.pdf$/i, '')
-  }
+// `inUse` is the sources that still have pages in the document. A file whose
+// pages were all replaced — straightened by the scanner, say — should not make
+// the name "combined": there is still only one document here.
+export function defaultOutputName(sources, inUse = null) {
+  const live = inUse ? [...sources.values()].filter((source) => inUse.has(source.id)) : [...sources.values()]
+  const named = live.length > 0 ? live : [...sources.values()]
+  // The straightened copy is named after the file it came from, so either name
+  // reads the same to the person who chose it.
+  if (named.length === 1) return named[0].name.replace(/\s*\(cleaned up\)/i, '').replace(/\.pdf$/i, '')
   return 'combined'
 }
 
