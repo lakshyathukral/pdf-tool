@@ -628,20 +628,28 @@ async function checkForPhotoPages() {
   const unchecked = [...model.getSources().keys()].filter((id) => !photoPages.has(id))
   if (unchecked.length === 0) return drawPhotoPages()
 
+  const steps = []
+  window.__photoCheck = steps
   checkingPhotos = true
   try {
     for (const id of unchecked) {
       const found = new Set()
       const count = Math.min(model.getSource(id)?.pageCount ?? 0, PHOTO_CHECK_PAGES)
+      steps.push(`file ${id}: ${count} page(s)`)
       for (let i = 0; i < count; i++) {
-        if (await pageHasText(id, i)) continue
+        if (await pageHasText(id, i)) { steps.push(`page ${i}: has text`); continue }
         const { url } = await renderLarge(id, i, 0, 900)
-        if (await looksLikePhoto(await canvasFrom(url))) found.add(i)
+        const canvas = await canvasFrom(url)
+        steps.push(`page ${i}: drawn ${canvas.width}x${canvas.height}`)
+        const verdict = await looksLikePhoto(canvas)
+        steps.push(`page ${i}: photo? ${verdict}`)
+        if (verdict) found.add(i)
       }
       photoPages.set(id, found)
     }
   } catch (error) {
     // Only a suggestion: if it cannot be worked out, reading still works.
+    steps.push(`failed: ${error?.message ?? String(error)}`)
     console.error(error)
   } finally {
     checkingPhotos = false

@@ -3,7 +3,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # ci-* branches run the tests only, so a failure can be read without
+    # touching the live site.
+    branches: [main, 'ci-*']
   # Lets you re-run it by hand from the Actions tab.
   workflow_dispatch:
 
@@ -61,6 +63,7 @@ jobs:
 
   build:
     needs: test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -112,6 +112,7 @@ const polygonArea = (points) => Math.abs(points.reduce((sum, [x, y], i) => {
 // fills it edge to edge.
 export async function looksLikePhoto(canvas) {
   const corners = await findCorners(canvas)
+  window.__lastDetect = { corners, area: corners ? polygonArea(corners) / (canvas.width * canvas.height) : null }
   if (!corners) return false
   return polygonArea(corners) < 0.88 * canvas.width * canvas.height
 }

@@ -1286,7 +1286,12 @@ test.describe('pages of a PDF that are photos', () => {
     test.slow()
     await page.goto('/#ocr')
     await page.locator('#file-input').setInputFiles([await photoPdf()])
-    await expect(page.locator('#ocr-photos-text')).toContainText('Page 1 looks like a photo of paper', { timeout: 120_000 })
+    try {
+      await expect(page.locator('#ocr-photos-text')).toContainText('Page 1 looks like a photo of paper', { timeout: 60_000 })
+    } catch (error) {
+      const why = await page.evaluate(() => JSON.stringify({ steps: window.__photoCheck, detect: window.__lastDetect }))
+      throw new Error(`no banner. ${why}`)
+    }
 
     await page.locator('#ocr-photos-fix').click()
     await expect(page.locator('#scan-dialog')).toBeVisible()
