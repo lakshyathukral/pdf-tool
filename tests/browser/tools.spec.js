@@ -1117,6 +1117,56 @@ test.describe('the file name', () => {
   })
 })
 
+test.describe('annexures from file names', () => {
+  // Files named as a lawyer names them, handed over in the order a computer
+  // might: 1, 10, 2, 3.
+  async function annexures(names) {
+    const { PDFDocument, StandardFonts } = await import('@cantoo/pdf-lib')
+    return Promise.all(names.map(async ([name, pages]) => {
+      const doc = await PDFDocument.create()
+      const font = await doc.embedFont(StandardFonts.Helvetica)
+      for (let i = 0; i < pages; i++) doc.addPage([595, 842]).drawText(`Body page ${i + 1}`, { x: 72, y: 700, size: 12, font })
+      return { name: `${name}.pdf`, mimeType: 'application/pdf', buffer: Buffer.from(await doc.save()) }
+    }))
+  }
+  const FILES = [['Annexure 1', 2], ['Annexure 10 - Reply', 1], ['Annexure 2', 1], ['Annexure 3 - Sale deed', 2]]
+
+  for (const tool of ['merge', 'bookmarks', 'pro']) {
+    test(`bookmarks, names and an index, in ${tool}`, async ({ page }) => {
+      await page.goto(`/#${tool}`)
+      await page.locator('#file-input').setInputFiles(await annexures(FILES))
+      await expect(tiles(page)).toHaveCount(6, { timeout: 30_000 })
+      await page.evaluate(() => { document.getElementById('panel-bundle').open = true })
+
+      // In number order, whatever order they came in.
+      const names = await page.locator('#bundle-files input').evaluateAll((els) => els.map((e) => e.value))
+      expect(names).toEqual(['Annexure 1', 'Annexure 2', 'Annexure 3 - Sale deed', 'Annexure 10 - Reply'])
+
+      // The label only, on each file's first page.
+      await page.locator('#bundle-names').click()
+      await page.locator('#names-dialog button[value="go"]').click()
+      await page.locator('#text-apply').click()
+      await expect(page.locator('#bundle-names-done')).toBeVisible()
+
+      await page.locator('#bundle-index').check()
+      await expect(tiles(page)).toHaveCount(7)
+      await expect(page.locator('#bundle-files small').first()).toHaveText('pages 2 to 3')
+
+      const { bytes } = await savedFile(page, pressSave(page))
+      const text = await textOfEachPage(bytes)
+      expect(text[0]).toContain('INDEX')
+      expect(text[0]).toContain('Annexure 3 - Sale deed 5-6')
+      expect(text[0]).toContain('Annexure 10 - Reply 7')
+      expect(text[4]).toContain('Annexure 3')
+      expect(text[4]).not.toContain('Sale deed')   // the label, not the whole name
+      expect(text[5]).not.toContain('Annexure 3')  // first page only
+
+      // One bookmark per file, on its first page, and one for the index.
+      expect(await outline(bytes)).toEqual(['1:Index@1', '1:Annexure 1@2', '1:Annexure 2@4', '1:Annexure 3 - Sale deed@5', '1:Annexure 10 - Reply@7'])
+    })
+  }
+})
+
 test.describe('making a scan searchable', () => {
   // Words from the scanned deed, spread across every paragraph.
   const EXPECTED = ['AGREEMENT', 'Gurugram', 'Purchaser', 'Seventy', 'cheque', '004512', 'Registrar']

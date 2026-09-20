@@ -50,6 +50,7 @@ export const TOOLS = {
       'Watermark pages',
       'Extract and split pages',
       'Add bookmarks',
+      'Bookmark and index files by their names',
     ],
   },
 
@@ -108,11 +109,11 @@ export const TOOLS = {
     blurb: 'Combine several files into one. Drag the pages to change the order.',
     icon: '⊕',
     colour: '#2563eb',
-    panels: [],
+    panels: ['panel-bundle'],
     pageActions: ['select-all', 'select-none', 'delete', 'view'],
     primary: 'save',
     primaryLabel: 'Save merged PDF',
-    hint: 'Add two or more PDFs. Drag pages to reorder, then save.',
+    hint: 'Add two or more PDFs. They line up in number order and each is bookmarked by its name. Drag pages to reorder, then save.',
   },
 
   organise: {
@@ -151,7 +152,7 @@ export const TOOLS = {
     blurb: 'Merge documents and add the navigation panel Acrobat shows down the side.',
     icon: '☰',
     colour: '#c2410c',
-    panels: ['panel-bookmarks'],
+    panels: ['panel-bundle', 'panel-bookmarks'],
     pageActions: ['select-all', 'select-none', 'delete', 'view'],
     primary: 'save',
     primaryLabel: 'Save bookmarked PDF',

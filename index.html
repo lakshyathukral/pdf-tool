@@ -217,6 +217,33 @@
         </details>
 
 
+        <details class="panel" id="panel-bundle" open>
+          <summary>Annexures from file names</summary>
+          <p class="hint">
+            Name your files Annexure 1, Annexure 2 and so on. Each file&rsquo;s
+            name becomes its bookmark, on its first page only.
+          </p>
+          <p class="hint" id="bundle-empty">Add your PDFs to begin.</p>
+          <div class="bundle-order" id="bundle-order" hidden>
+            <span>These are not in number order.</span>
+            <button type="button" id="bundle-sort">Put in number order</button>
+          </div>
+          <ol class="bundle-files" id="bundle-files"></ol>
+          <div class="bundle-actions" id="bundle-actions" hidden>
+            <button type="button" id="bundle-names">Write each name on its first page</button>
+            <div class="bundle-done" id="bundle-names-done" hidden>
+              <span>Names are on the first pages.</span>
+              <button type="button" id="bundle-names-edit">Edit</button>
+              <button type="button" id="bundle-names-remove">Remove</button>
+            </div>
+            <label class="checkbox">
+              <input type="checkbox" id="bundle-index" />
+              <span>Add an index page at the front</span>
+            </label>
+            <p class="hint" id="bundle-index-hint">Lists each file and the pages it is on. It keeps itself up to date as you change the bundle.</p>
+          </div>
+        </details>
+
         <details class="panel" id="panel-bookmarks" open>
           <summary>Bookmarks</summary>
           <p class="hint">
@@ -304,6 +331,7 @@
             <button type="button" class="at-chip" data-text="Without Prejudice">Without Prejudice</button>
             <button type="button" class="at-chip" data-word="Annexure" data-prefix="P-" data-style="1">Annexure P-1, P-2&hellip;</button>
             <button type="button" class="at-chip" data-word="Exhibit" data-prefix="" data-style="A">Exhibit A, B, C&hellip;</button>
+            <button type="button" class="at-chip" data-names>Each file&rsquo;s name</button>
           </div>
 
           <label class="field at-hindi">
@@ -898,6 +926,22 @@
         <div class="row actions">
           <button id="password-ok" type="button" class="primary">Open</button>
           <button id="password-cancel" type="button">Skip this file</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="names-dialog" class="names-dialog" aria-labelledby="names-title">
+      <form method="dialog">
+        <h2 id="names-title">Some file names are long</h2>
+        <p>On the page, write:</p>
+        <label class="names-choice"><input type="radio" name="names-form" value="short" checked />
+          <span><b>Just the label</b> <em id="names-short"></em></span></label>
+        <label class="names-choice"><input type="radio" name="names-form" value="full" />
+          <span><b>The whole name</b> <em id="names-full"></em></span></label>
+        <p class="hint">Bookmarks and the index always keep the whole name.</p>
+        <div class="row actions">
+          <button type="submit" value="go" class="primary">Continue</button>
+          <button type="submit" value="cancel">Cancel</button>
         </div>
       </form>
     </dialog>
