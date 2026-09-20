@@ -72,13 +72,14 @@
           <span class="chip-short">On device</span>
         </button>
         <p id="status">No PDFs loaded yet.</p>
+        <button id="stop-work" type="button" hidden>Stop</button>
         <label class="file-button">
           Add PDFs
-          <input type="file" id="file-input" accept="application/pdf" multiple hidden />
+          <input type="file" id="file-input" accept="application/pdf" multiple class="file-hidden" />
         </label>
         <label class="file-button subtle" title="Photograph documents, or add pictures">
           Add photos
-          <input type="file" id="photo-input" accept="image/*" multiple hidden />
+          <input type="file" id="photo-input" accept="image/*" multiple class="file-hidden" />
         </label>
         <button id="open-pro" type="button" hidden>Open Control Room</button>
         <button id="undo" type="button" disabled title="Undo (Cmd+Z)">Undo</button>
@@ -110,11 +111,11 @@
         <p>or</p>
         <label class="file-button">
           Choose files
-          <input type="file" id="file-input-empty" accept="application/pdf" multiple hidden />
+          <input type="file" id="file-input-empty" accept="application/pdf" multiple class="file-hidden" />
         </label>
         <label class="file-button subtle" id="photo-empty-button">
           Take photos
-          <input type="file" id="photo-input-empty" accept="image/*" multiple hidden />
+          <input type="file" id="photo-input-empty" accept="image/*" multiple class="file-hidden" />
         </label>
         <p class="hint" id="dropzone-hint"></p>
         <p class="trust-note">
@@ -189,20 +190,28 @@
         </details>
 
         <details class="panel" id="panel-ocr" open>
-          <summary>Make it searchable</summary>
+          <summary>Make it searchable (OCR)</summary>
           <p class="hint">
             A scanned page is a picture of text: it cannot be searched, selected
             or copied. This reads the words on each scanned page and lays them
             over it as invisible text. The page looks exactly the same.
           </p>
+          <label class="big-switch" id="ocr-switch-block">
+            <input type="checkbox" id="ocr-searchable" />
+            <span>
+              <b>Read the scans when I save</b>
+              <small>Any document: a merged bundle, an extract, or a split piece. Courts usually want a searchable copy.</small>
+            </span>
+          </label>
           <ul class="ocr-facts">
             <li><strong>English only.</strong></li>
             <li><strong>Read on this device.</strong> The reader is a one-time download of a few megabytes from this site, then kept by your browser.</li>
             <li>Pages that already have text are left as they are.</li>
             <li>A few seconds a page, longer on a phone.</li>
           </ul>
-          <div class="row actions">
-            <button id="ocr-run" type="button" class="primary" hidden disabled>Save searchable PDF</button>
+          <div class="ocr-photos" id="ocr-photos" role="status" hidden>
+            <p id="ocr-photos-text"></p>
+            <button type="button" id="ocr-photos-fix">Straighten and clean up</button>
           </div>
           <p class="hint" id="ocr-result" role="status"></p>
         </details>
@@ -287,7 +296,7 @@
           </p>
           <label class="file-button" style="display:inline-block">
             Add a signature image
-            <input type="file" id="signature-input" accept="image/*" hidden />
+            <input type="file" id="signature-input" accept="image/*" class="file-hidden" />
           </label>
           <p class="hint">
             On a phone or tablet this offers your camera — sign a sheet of
@@ -657,11 +666,11 @@
             </button>
             <label class="strip-button add">
               <span aria-hidden="true">+</span> Add PDFs
-              <input type="file" id="file-input-strip" accept="application/pdf" multiple hidden />
+              <input type="file" id="file-input-strip" accept="application/pdf" multiple class="file-hidden" />
             </label>
             <label class="strip-button add">
               <span aria-hidden="true">+</span> Add photos
-              <input type="file" id="photo-input-strip" accept="image/*" multiple hidden />
+              <input type="file" id="photo-input-strip" accept="image/*" multiple class="file-hidden" />
             </label>
           </div>
         </div>
@@ -935,6 +944,73 @@
           <button type="submit" value="cancel">Cancel</button>
         </div>
       </form>
+    <dialog id="scan-dialog" aria-labelledby="scan-title">
+      <div class="scan-head">
+        <div>
+          <h2 id="scan-title">Tidy up your photos</h2>
+          <p class="hint">Drag the corners onto the edges of the page. It is straightened and cleaned up, on this device.</p>
+        </div>
+        <button id="scan-cancel" type="button">Cancel</button>
+      </div>
+
+      <div class="scan-body">
+        <div class="scan-photo-side">
+          <div class="scan-pager">
+            <button id="scan-prev" type="button" aria-label="Previous photo">&lsaquo;</button>
+            <span id="scan-counter"></span>
+            <button id="scan-next" type="button" aria-label="Next photo">&rsaquo;</button>
+          </div>
+          <div class="scan-stage" id="scan-stage">
+            <img id="scan-photo" alt="" draggable="false" />
+            <svg id="scan-outline" preserveAspectRatio="none" aria-label="Page corners">
+              <polygon points="" />
+              <circle data-corner="0" /><circle data-corner="1" /><circle data-corner="2" /><circle data-corner="3" />
+            </svg>
+            <canvas id="scan-loupe" class="scan-loupe" width="300" height="300" aria-hidden="true" hidden></canvas>
+          </div>
+          <p class="scan-note" id="scan-note" role="status"></p>
+        </div>
+
+        <aside class="scan-controls">
+          <h3>Edges</h3>
+          <div class="scan-edge-tools">
+            <button type="button" id="scan-rotate">&#8635; Rotate</button>
+            <button type="button" id="scan-reset">Reset edges</button>
+          </div>
+
+          <h3>Look</h3>
+          <div class="scan-looks" id="scan-looks" role="group" aria-label="How the page should look">
+            <button type="button" data-look="original" aria-pressed="false">
+              <span class="scan-look-img"><img alt="" /></span>
+              <b>Original</b><small>Colours as taken</small>
+              <em class="scan-best" hidden>Best for reading</em>
+            </button>
+            <button type="button" data-look="clean" aria-pressed="true">
+              <span class="scan-look-img"><img alt="" /></span>
+              <b>Clean</b><small>White paper, no shadows</small>
+              <em class="scan-best" hidden>Best for reading</em>
+            </button>
+            <button type="button" data-look="bw" aria-pressed="false">
+              <span class="scan-look-img"><img alt="" /></span>
+              <b>Black &amp; white</b><small>Crisp text, for faint prints</small>
+              <em class="scan-best" hidden>Best for reading</em>
+            </button>
+          </div>
+          <p class="scan-reading" id="scan-reading" role="status"></p>
+          <button type="button" class="scan-link" id="scan-check-reading">Check which look reads best</button>
+          <button type="button" class="scan-link" id="scan-all-looks" hidden>Use this look for every photo</button>
+
+          <h3>Result</h3>
+          <div class="scan-result" id="scan-result">
+            <img id="scan-result-image" alt="How the page will look" />
+          </div>
+        </aside>
+      </div>
+
+      <div class="scan-foot">
+        <button id="scan-skip" type="button">Use photos as they are</button>
+        <button id="scan-apply" type="button" class="primary">Add this page</button>
+      </div>
     </dialog>
 
     <dialog id="viewer-dialog">
