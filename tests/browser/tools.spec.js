@@ -1229,6 +1229,35 @@ test.describe('making a scan searchable', () => {
 
   // Safari on the iPhone cannot read a stream with `for await`, which pdf.js
   // uses for every page's text. Take it away here, as the phone does.
+  test('straightens a scan that went through askew, and says so', async ({ page }) => {
+    test.slow()
+    // The same deed, fed in at an angle, which is what breaks a reader: sloping
+    // lines are read as fragments.
+    const { PDFDocument, degrees } = await import('@cantoo/pdf-lib')
+    const source = await PDFDocument.load(readFileSync(SCANNED_DEED))
+    const doc = await PDFDocument.create()
+    const [copied] = await doc.embedPdf(source, [0])
+    doc.addPage([595.28, 841.89]).drawPage(copied, { x: 30, y: -20, width: 560, height: 800, rotate: degrees(-7) })
+    const askew = Buffer.from(await doc.save())
+
+    await page.goto('/#ocr')
+    await page.locator('#file-input').setInputFiles([{ name: 'askew.pdf', mimeType: 'application/pdf', buffer: askew }])
+    await expect(tiles(page).first()).toBeVisible({ timeout: 30_000 })
+
+    const { bytes } = await savedFile(page, pressSave(page))
+    const [text] = await textOfEachPage(bytes)
+    for (const word of ['AGREEMENT', 'Gurugram', 'Purchaser', 'Seventy', '004512', 'Registrar']) {
+      expect(text).toContain(word)
+    }
+    await expect(page.locator('#ocr-result')).toContainText('straightened before reading')
+
+    // The words still sit where they are printed, tilt and all: the title is
+    // above the last line, not moved to where a straightened page would put it.
+    const title = await centreOf(bytes, 1, /AGREEMENT/)
+    const lastLine = await centreOf(bytes, 1, /Registrar/)
+    expect(lastLine.y).toBeGreaterThan(title.y)
+  })
+
   test('works in a browser that cannot read streams with for-await', async ({ page }) => {
     test.slow()
     await page.addInitScript(() => {

@@ -100,6 +100,15 @@ function encodable(font, text) {
   }
 }
 
+// Where a word sits on the page it was read from: its baseline's two ends and
+// the top of its first letter, in the pixels of the rendered page. When the
+// page was straightened for reading, these come back through that turn, so the
+// invisible words still lie exactly over the printed ones.
+function cornersOf({ bbox }, toOriginal) {
+  const at = (x, y) => (toOriginal ? toOriginal(x, y) : [x, y])
+  return { bottomLeft: at(bbox.x0, bbox.y1), bottomRight: at(bbox.x1, bbox.y1), topLeft: at(bbox.x0, bbox.y0) }
+}
+
 // Lay each word over the pixels it was read from. The text matrix runs along
 // the word's own baseline and up its own height, and stretches the word to its
 // exact width, so selecting text highlights the right words — on rotated pages
@@ -109,13 +118,13 @@ export function addTextLayer(page, font, words, toPdf) {
   const operators = [pushGraphicsState(), beginText(), setTextRenderingMode(TextRenderingMode.Invisible)]
   let placed = 0
 
-  for (const { text, bbox } of words) {
+  for (const { text, corners } of words) {
     const encoded = encodable(font, text)
     if (!encoded) continue
 
-    const [bx, by] = toPdf(bbox.x0, bbox.y1)   // bottom left
-    const [rx, ry] = toPdf(bbox.x1, bbox.y1)   // bottom right
-    const [tx, ty] = toPdf(bbox.x0, bbox.y0)   // top left
+    const [bx, by] = toPdf(...corners.bottomLeft)
+    const [rx, ry] = toPdf(...corners.bottomRight)
+    const [tx, ty] = toPdf(...corners.topLeft)
     const width = Math.hypot(rx - bx, ry - by)
     const height = Math.hypot(tx - bx, ty - by)
     if (width < 0.5 || height < 0.5) continue
@@ -142,19 +151,22 @@ export function addTextLayer(page, font, words, toPdf) {
 // Make every scanned page of a finished PDF searchable.
 // A word read from the picture that sits on text the page already has, so
 // adding it again would make it appear twice when searched or copied.
-function alreadyWritten(word, existingText) {
-  const x = (word.bbox.x0 + word.bbox.x1) / 2
-  const y = (word.bbox.y0 + word.bbox.y1) / 2
+function alreadyWritten(word, existingText, toOriginal) {
+  const middle = [(word.bbox.x0 + word.bbox.x1) / 2, (word.bbox.y0 + word.bbox.y1) / 2]
+  const [x, y] = toOriginal ? toOriginal(...middle) : middle
   const slack = (word.bbox.y1 - word.bbox.y0) / 2
   return existingText.some((box) =>
     x >= box.left - slack && x <= box.right + slack && y >= box.top - slack && y <= box.bottom + slack)
 }
 
-export async function makeSearchable(bytes, { protection = null, onProgress, shouldStop } = {}) {
+// `prepare` straightens a page and takes out the show-through before it is
+// read, and says how to get back to the real page. It is passed in rather than
+// imported so the reader does not drag the scanner in behind it.
+export async function makeSearchable(bytes, { protection = null, onProgress, shouldStop, prepare } = {}) {
   const doc = await PDFDocument.load(bytes, { updateMetadata: false })
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const pages = doc.getPages()
-  const summary = { total: pages.length, scanned: 0, alreadyText: 0, words: 0, worthChecking: [] }
+  const summary = { total: pages.length, scanned: 0, alreadyText: 0, straightened: 0, words: 0, worthChecking: [] }
 
   let worker = null
 
@@ -175,8 +187,23 @@ export async function makeSearchable(bytes, { protection = null, onProgress, sho
       }
       onProgress?.({ stage: 'reading', page: pageIndex + 1, total })
 
-      const result = await read(worker, canvas)
-      const newWords = result.words.filter((word) => !alreadyWritten(word, existingText))
+      let readable = canvas
+      let toOriginal = null
+      if (prepare) {
+        try {
+          const ready = await prepare(canvas)
+          readable = ready.canvas
+          toOriginal = ready.toOriginal
+          if (ready.tilt) summary.straightened++
+        } catch (error) {
+          // Reading the page as it is beats not reading it at all.
+          console.error(error)
+        }
+      }
+
+      const result = await read(worker, readable)
+      const placed = result.words.map((word) => ({ ...word, corners: cornersOf(word, toOriginal) }))
+      const newWords = placed.filter((word) => !alreadyWritten(word, existingText, toOriginal))
       if (newWords.length === 0 && existingText.length > 0) {
         summary.alreadyText++
         return

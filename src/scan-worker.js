@@ -216,6 +216,87 @@ function process(cv, { width, height, buffer, corners, look, outWidth }) {
   })
 }
 
+// --- getting a page ready to be read ------------------------------------------
+//
+// Only the reader sees this: the page in the saved file is untouched. Two
+// things stop a reader making sense of a scan, and both are fixed here.
+//   the tilt       — lines that slope break a paragraph into fragments
+//   show-through   — the back of the sheet, which reads as nonsense words
+const MOST_TILT = 8              // degrees; more than this is not a tilt
+const SHOW_THROUGH_ABOVE = 185   // lighter than this is paper, not ink
+
+// The tilt of the lines of text, from the smallest rectangle that holds them.
+function tiltOf(cv, keep, gray) {
+  const ink = keep(new cv.Mat())
+  cv.threshold(gray, ink, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU)
+  // Join the letters into lines, so the rectangle follows the writing.
+  const along = keep(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(25, 3)))
+  cv.morphologyEx(ink, ink, cv.MORPH_CLOSE, along)
+
+  // Each run of text is a blob; the slope of the long ones is the page's tilt.
+  const contours = new cv.MatVector()
+  const hierarchy = keep(new cv.Mat())
+  const slopes = []
+  try {
+    cv.findContours(ink, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    const longEnough = gray.cols / 12
+    for (let i = 0; i < contours.size(); i++) {
+      const blob = contours.get(i)
+      const { angle, size } = cv.minAreaRect(blob)
+      blob.delete()
+      // minAreaRect calls a tall rectangle -90 degrees; read every one as a
+      // line of writing, lying flat.
+      const long = Math.max(size.width, size.height)
+      const short = Math.min(size.width, size.height)
+      if (long < longEnough || short > long / 3) continue
+      slopes.push(size.width < size.height ? angle + 90 : angle)
+    }
+  } finally {
+    contours.delete()
+  }
+
+  if (slopes.length < 5) return 0
+  slopes.sort((a, b) => a - b)
+  const tilt = slopes[Math.floor(slopes.length / 2)]      // the middle one, not the average
+  return Math.abs(tilt) <= MOST_TILT ? tilt : 0
+}
+
+function prepare(cv, { width, height, buffer }) {
+  return withMats(cv, (keep) => {
+    const src = rgbaMat(cv, keep, width, height, buffer)
+    const gray = keep(new cv.Mat())
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
+
+    // Even out the lighting, then send everything paper-pale to white, which
+    // is what the back of the sheet looks like from the front.
+    const background = keep(new cv.Mat())
+    cv.dilate(gray, background, keep(cv.Mat.ones(7, 7, cv.CV_8U)))
+    cv.medianBlur(background, background, 41)
+    const evened = keep(new cv.Mat())
+    cv.divide(gray, background, evened, 255)
+    const paper = keep(new cv.Mat())
+    cv.threshold(evened, paper, SHOW_THROUGH_ABOVE, 255, cv.THRESH_BINARY)
+    evened.setTo(new cv.Scalar(255), paper)
+
+    const tilt = tiltOf(cv, keep, evened)
+    const out = keep(new cv.Mat())
+    let matrix = [1, 0, 0, 0, 1, 0]
+    if (tilt === 0) {
+      evened.copyTo(out)
+    } else {
+      const centre = new cv.Point(width / 2, height / 2)
+      const turn = keep(cv.getRotationMatrix2D(centre, tilt, 1))
+      cv.warpAffine(evened, out, turn, new cv.Size(width, height), cv.INTER_CUBIC, cv.BORDER_CONSTANT, new cv.Scalar(255, 255, 255, 255))
+      matrix = [...turn.data64F]
+    }
+
+    const rgba = keep(new cv.Mat())
+    cv.cvtColor(out, rgba, cv.COLOR_GRAY2RGBA)
+    const pixels = new Uint8ClampedArray(rgba.data)
+    return { width: rgba.cols, height: rgba.rows, buffer: pixels.buffer, matrix, tilt }
+  })
+}
+
 self.onmessage = async ({ data }) => {
   const { id, type } = data
   try {
@@ -224,6 +305,10 @@ self.onmessage = async ({ data }) => {
     if (type === 'detect') {
       const corners = detect(cv, data)
       return self.postMessage({ id, ok: true, corners, picture: corners ? null : describe(cv, data) })
+    }
+    if (type === 'prepare') {
+      const result = prepare(cv, data)
+      return self.postMessage({ id, ok: true, ...result }, [result.buffer])
     }
     if (type === 'process') {
       const result = process(cv, data)
