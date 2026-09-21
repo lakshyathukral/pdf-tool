@@ -45,7 +45,7 @@ import * as presets from './presets.js'
 import * as signatures from './signatures.js'
 import { pdfFromImages, PAGE_SIZES } from './images.js'
 import { makeSearchable } from './ocr.js'
-import { scanPhotos, scanPages, looksLikePhoto, setupScanner } from './ui/scan.js'
+import { scanPhotos, scanPages, looksLikePhoto, prepareForReading, setupScanner } from './ui/scan.js'
 import { TOOLS, ALWAYS_PANELS, getTool, isComingSoon, isPage, currentToolId, goToTool, goToLanding } from './tools.js'
 import { drawLanding, setupLanding } from './ui/landing.js'
 
@@ -1215,6 +1215,7 @@ async function finish(bytes, pages) {
     const { bytes: read, summary } = await makeSearchable(bytes, {
       protection: model.getProtection(),
       shouldStop: () => stopReading,
+      prepare: prepareForReading,
       onProgress: ({ stage, page, total }) => setStatus(stage === 'starting'
         ? 'Getting the text reader ready (a one-time download)...'
         : `Reading page ${page} of ${total}...`),
@@ -1442,9 +1443,10 @@ async function agreedToWait(pages) {
 }
 
 function noteRead(summary) {
-  readSummary ??= { total: 0, scanned: 0, alreadyText: 0, words: 0, worthChecking: [] }
+  readSummary ??= { total: 0, scanned: 0, alreadyText: 0, straightened: 0, words: 0, worthChecking: [] }
   readSummary.total += summary.total
   readSummary.scanned += summary.scanned
+  readSummary.straightened += summary.straightened ?? 0
   readSummary.alreadyText += summary.alreadyText
   readSummary.words += summary.words
   readSummary.worthChecking.push(...summary.worthChecking)
@@ -1456,11 +1458,16 @@ function describeReading(summary) {
   if (summary.scanned === 0) return 'Every page already had text, so nothing needed reading.'
 
   const parts = [`Read ${plural(summary.scanned, 'scanned page')}: ${summary.scanned === 1 ? 'its' : 'their'} words can now be searched, selected and copied.`]
+  if (summary.straightened > 0) {
+    parts.push(summary.straightened === 1
+      ? 'One page was straightened before reading; the page itself is unchanged.'
+      : `${plural(summary.straightened, 'page')} were straightened before reading; the pages themselves are unchanged.`)
+  }
   if (summary.alreadyText > 0) parts.push(`${plural(summary.alreadyText, 'page')} already had text and were left as they are.`)
   if (summary.worthChecking.length > 0) {
     parts.push(`The reading was less certain on page ${summary.worthChecking.join(', ')}, so search there may miss words. Worth checking by eye.`)
   } else {
-    parts.push(`All ${plural(summary.total, 'page')} are searchable.`)
+    parts.push(summary.total === 1 ? 'The page is searchable.' : `All ${plural(summary.total, 'page')} are searchable.`)
   }
   return parts.join(' ')
 }

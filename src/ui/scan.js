@@ -126,6 +126,31 @@ export async function looksLikePhoto(canvas) {
   return polygonArea(corners) < 0.88 * canvas.width * canvas.height
 }
 
+// --- getting a page ready to be read --------------------------------------------
+
+// Straighten the lines and take out the show-through, for the reader only: the
+// page in the saved file keeps its own appearance. Returns the picture to read
+// and a way back to where each word sits on the real page.
+export async function prepareForReading(canvas) {
+  const data = pixels(canvas)
+  const { width, height, buffer, matrix, tilt } = await call('prepare', {
+    width: data.width, height: data.height, buffer: data.data.buffer,
+  }, [data.data.buffer])
+
+  // matrix turns the page; going back means undoing it.
+  const [a, b, c, d, e, f] = matrix
+  const determinant = a * e - b * d
+  const back = determinant === 0
+    ? (x, y) => [x, y]
+    : (x, y) => {
+      const px = x - c
+      const py = y - f
+      return [(px * e - py * b) / determinant, (py * a - px * d) / determinant]
+    }
+
+  return { canvas: toCanvas({ width, height, buffer }), toOriginal: back, tilt }
+}
+
 // --- the screen ---------------------------------------------------------------
 
 const dialog = () => $('scan-dialog')
